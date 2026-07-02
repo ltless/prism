@@ -1,0 +1,14 @@
+/node_modules
+/.next/
+.env*
+next-env.d.ts
+/storage/
+prism.db
+prism.db-shm
+prism.db-wal
+backend/server
+AGENTS.md
+*.tsbuildinfo
+/docs/
+
+test-results/

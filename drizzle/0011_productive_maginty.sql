@@ -1,0 +1,1 @@
+ALTER TABLE `media` ADD `is_vault` integer DEFAULT false;

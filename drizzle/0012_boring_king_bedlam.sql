@@ -1,0 +1,1 @@
+CREATE INDEX `idx_media_vault` ON `media` (`is_vault`);

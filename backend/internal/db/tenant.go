@@ -63,12 +63,15 @@ func (p *TenantPool) Get(userID string) (*TenantDB, error) {
 
 	path := filepath.Join(cleanDir, "prism.db")
 
-	// Foreign keys + WAL via DSN so every pooled connection enforces them.
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", path)
+	// Foreign keys + WAL + busy_timeout via DSN so every pooled connection enforces them.
+	// busy_timeout(5000) makes SQLite wait up to 5s instead of returning SQLITE_BUSY
+	// on concurrent writes — critical for batch uploads hitting the same tenant DB.
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)", path)
 	sqlDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open tenant db: %w", err)
 	}
+	sqlDB.SetMaxOpenConns(1)
 
 	// Only run migrations for tenants we haven't initialized yet in this
 	// process. The IF NOT EXISTS in the migration SQL makes it idempotent,

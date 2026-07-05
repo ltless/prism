@@ -1,11 +1,13 @@
 package media
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 type VideoMetadata struct {
@@ -16,6 +18,9 @@ type VideoMetadata struct {
 }
 
 func ExtractVideoMetadata(filePath string) (*VideoMetadata, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
 	args := []string{
 		"-v", "error",
 		"-select_streams", "v:0",
@@ -24,7 +29,8 @@ func ExtractVideoMetadata(filePath string) (*VideoMetadata, error) {
 		"-of", "json",
 		filePath,
 	}
-	out, err := exec.Command("ffprobe", args...).Output()
+	cmd := exec.CommandContext(ctx, "ffprobe", args...)
+	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("ffprobe: %w", err)
 	}
@@ -77,6 +83,10 @@ func GenerateVideoThumbnail(inputPath, outputPath string) error {
 		return fmt.Errorf("create thumb dir: %w", err)
 	}
 
+	// Set 15 second timeout for thumbnail generation
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
 	args := []string{
 		"-i", inputPath,
 		"-ss", videoThumbSeek,
@@ -85,9 +95,15 @@ func GenerateVideoThumbnail(inputPath, outputPath string) error {
 		"-y",
 		outputPath,
 	}
-	cmd := exec.Command("ffmpeg", args...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("ffmpeg thumbnail: %w\n%s", err, string(out))
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd.Stderr = nil // Suppress ffmpeg output
+	
+	if err := cmd.Run(); err != nil {
+		// Check if it was a timeout
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("ffmpeg thumbnail timeout after 15s")
+		}
+		return fmt.Errorf("ffmpeg thumbnail: %w", err)
 	}
 	return nil
 }

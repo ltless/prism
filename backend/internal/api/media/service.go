@@ -250,6 +250,39 @@ func sanitizeTitle(s string) string {
 	return b.String()
 }
 
+func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "database is locked") || strings.Contains(s, "SQLITE_BUSY")
+}
+
+func retryDB[T any](fn func() (T, error)) (T, error) {
+	const maxRetries = 3
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		result, err := fn()
+		if err == nil {
+			return result, nil
+		}
+		if !isRetryable(err) {
+			return result, err
+		}
+		lastErr = err
+		time.Sleep(time.Duration(50*(1<<i)) * time.Millisecond)
+	}
+	var zero T
+	return zero, fmt.Errorf("retry exhausted: %w", lastErr)
+}
+
+func retryDBErr(fn func() error) error {
+	_, err := retryDB(func() (struct{}, error) {
+		return struct{}{}, fn()
+	})
+	return err
+}
+
 func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash string, size int64, width, height *int, capturedAt *int64, metadata *string, duration *int, transcodeStatus *string) (*MediaItem, bool, error) {
 	tdb, err := s.pool.Get(userID)
 	if err != nil {
@@ -265,11 +298,13 @@ func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash strin
 		fID = &folderID
 	}
 
-	res, err := tdb.Exec(
-		`INSERT OR IGNORE INTO media (id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now, now,
-	)
+	res, err := retryDB(func() (sql.Result, error) {
+		return tdb.Exec(
+			`INSERT OR IGNORE INTO media (id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now, now,
+		)
+	})
 	if err != nil {
 		return nil, false, fmt.Errorf("insert media: %w", err)
 	}
@@ -374,7 +409,9 @@ func (s *Service) HashExists(userID, hash string) (bool, error) {
 		return false, fmt.Errorf("get tenant db: %w", err)
 	}
 	var existing string
-	err = tdb.QueryRow("SELECT id FROM media WHERE hash = ? LIMIT 1", hash).Scan(&existing)
+	err = retryDBErr(func() error {
+		return tdb.QueryRow("SELECT id FROM media WHERE hash = ? LIMIT 1", hash).Scan(&existing)
+	})
 	if err == sql.ErrNoRows {
 		return false, nil
 	}

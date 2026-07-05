@@ -33,10 +33,10 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 
 	e.Use(echomw.Logger())
 	e.Use(echomw.Recover())
-	e.Use(echomw.BodyLimit("1MB"))
 	e.Use(appmw.CORS(cfg.CORSOrigin))
 
 	rl := appmw.NewRateLimiter(100, time.Minute)
+	rl.SkipPath("/api/v1/media")
 	e.Use(rl.Middleware())
 
 	authSvc := auth.NewService(global.DB, jwt, cfg.InviteCode, cfg.RequireInvite)

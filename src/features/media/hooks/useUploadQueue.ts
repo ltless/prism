@@ -97,6 +97,9 @@ export function useUploadQueue() {
   const xhr = new XMLHttpRequest();
   currentXhrRef.current = xhr;
   xhr.open("POST", "/api/v1/media", true);
+  
+  // Set 2 minute timeout for large file uploads
+  xhr.timeout = 120000;
   xhr.upload.onprogress = (event) => {
   if (event.lengthComputable) {
   const fileProgress = (event.loaded / event.total) * 100;
@@ -140,7 +143,11 @@ export function useUploadQueue() {
   currentXhrRef.current = null;
   reject(new Error("Upload cancelled"));
   };
-  xhr.send(formData);
+  xhr.ontimeout = () => {
+    currentXhrRef.current = null;
+    reject(new Error("Upload timeout - server took too long to respond"));
+  };
+    xhr.send(formData);
   });
   } catch (error: unknown) {
   if (cancelledRef.current) break;

@@ -9,12 +9,13 @@ import (
 )
 
 type RateLimiter struct {
-	mu       sync.Mutex
-	requests map[string][]time.Time
-	limit    int
-	window   time.Duration
-	maxKeys  int
-	done     chan struct{}
+	mu        sync.Mutex
+	requests  map[string][]time.Time
+	limit     int
+	window    time.Duration
+	maxKeys   int
+	skipPaths map[string]bool
+	done      chan struct{}
 }
 
 func NewRateLimiter(limit int, window time.Duration, maxKeys ...int) *RateLimiter {
@@ -23,15 +24,20 @@ func NewRateLimiter(limit int, window time.Duration, maxKeys ...int) *RateLimite
 		mk = maxKeys[0]
 	}
 	rl := &RateLimiter{
-		requests: make(map[string][]time.Time),
-		limit:    limit,
-		window:   window,
-		maxKeys:  mk,
-		done:     make(chan struct{}),
+		requests:  make(map[string][]time.Time),
+		limit:     limit,
+		window:    window,
+		maxKeys:   mk,
+		skipPaths: make(map[string]bool),
+		done:      make(chan struct{}),
 	}
 
 	go rl.cleanup()
 	return rl
+}
+
+func (rl *RateLimiter) SkipPath(path string) {
+	rl.skipPaths[path] = true
 }
 
 // Close stops the background cleanup goroutine. Safe to call multiple times.
@@ -46,11 +52,15 @@ func (rl *RateLimiter) Close() {
 func (rl *RateLimiter) Middleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			path := c.Path()
+			if rl.skipPaths[path] {
+				return next(c)
+			}
 			ip := c.RealIP()
 			// RealIP trusts X-Forwarded-For/X-Real-IP.
 			// In production behind a reverse proxy, configure TrustedProxies
 			// to prevent IP spoofing bypassing rate limits.
-			key := c.Path() + ":" + ip
+			key := path + ":" + ip
 
 			rl.mu.Lock()
 			now := time.Now()

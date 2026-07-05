@@ -159,6 +159,43 @@ func (h *Handler) AestheticScore(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
+func (h *Handler) SidecarStatus(c echo.Context) error {
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
+	}
+	if err := h.svc.SidecarHealth(); err != nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"reachable": false,
+			"error":     err.Error(),
+		})
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"reachable": true,
+	})
+}
+
+func (h *Handler) SidecarGPUStatus(c echo.Context) error {
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
+	}
+	status, err := h.svc.SidecarGPUStatus()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadGateway, "sidecar unreachable: "+err.Error())
+	}
+	return c.JSON(http.StatusOK, status)
+}
+
+func (h *Handler) SidecarModelStatus(c echo.Context) error {
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
+	}
+	status, err := h.svc.SidecarModelStatus()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadGateway, "sidecar unreachable: "+err.Error())
+	}
+	return c.JSON(http.StatusOK, status)
+}
+
 func (h *Handler) GPUStatus(c echo.Context) error {
 	if _, err := auth.GetClaimsOrErr(c); err != nil {
 		return err
@@ -166,4 +203,31 @@ func (h *Handler) GPUStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"available": h.svc.HasGPU(),
 	})
+}
+
+type downloadModelBody struct {
+	ModelID string `json:"modelId"`
+}
+
+func (h *Handler) DownloadModel(c echo.Context) error {
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
+	}
+	var body downloadModelBody
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if body.ModelID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "modelId required")
+	}
+	result, err := h.svc.DownloadModel(body.ModelID)
+	if err != nil {
+		log.Printf("DownloadModel error: %v", err)
+		return echo.NewHTTPError(http.StatusBadGateway, "sidecar unreachable: "+err.Error())
+	}
+	status := http.StatusOK
+	if result.Started {
+		status = http.StatusAccepted
+	}
+	return c.JSON(status, result)
 }

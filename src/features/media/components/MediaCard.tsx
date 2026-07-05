@@ -39,7 +39,7 @@ export const MediaCard = memo(function MediaCard({
   const [transcodeStatus, setTranscodeStatus] = useState(item.transcodeStatus);
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
-  const imageUrl = `/api/media/${item.filePath}?thumb=1`;
+  const imageUrl = `/api/v1/media/files/${item.filePath}?thumb=1`;
   const metadata = item.metadata || {};
   const aestheticScore = metadata.aestheticScore as number | undefined;
   const isVideo = item.mimeType?.startsWith("video/");

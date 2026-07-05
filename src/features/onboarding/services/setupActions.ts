@@ -9,7 +9,7 @@ import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";
 import { MEDIA_LIMITS } from "@/core/constants";
-import { checkMagicBytes } from "@/services/media/upload";
+import { checkMagicBytes } from "@/core/validation/magicBytes";
 
 const ALLOWED_MIME_TYPES = new Set(MEDIA_LIMITS.ALLOWED_MIME_TYPES);
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;

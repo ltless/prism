@@ -54,7 +54,7 @@ func strPtr(v string) *string { return &v }
 func TestService_List_Empty(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	resp, err := svc.List("test-user", nil, false, false, "", 1, 50)
+	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestService_List_Empty(t *testing.T) {
 func TestService_CreateAndList(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	item, dup, err := svc.Create("test-user", "", "test.jpg", "Test Image", "image/jpeg", "abc123", 1024, intPtr(100), intPtr(200))
+	item, dup, err := svc.Create("test-user", "", "test.jpg", "Test Image", "image/jpeg", "abc123", 1024, intPtr(100), intPtr(200), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestService_CreateAndList(t *testing.T) {
 		t.Fatalf("expected 'Test Image', got '%s'", item.Title)
 	}
 
-	resp, err := svc.List("test-user", nil, false, false, "", 1, 50)
+	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestService_CreateAndList(t *testing.T) {
 func TestService_Create_DuplicateHash(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	_, dup, err := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "samehash", 100, nil, nil)
+	_, dup, err := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "samehash", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("first create: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestService_Create_DuplicateHash(t *testing.T) {
 		t.Fatal("first insert should not be duplicate")
 	}
 
-	_, dup, err = svc.Create("test-user", "", "b.jpg", "B", "image/jpeg", "samehash", 200, nil, nil)
+	_, dup, err = svc.Create("test-user", "", "b.jpg", "B", "image/jpeg", "samehash", 200, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("second create: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestService_Create_DuplicateHash(t *testing.T) {
 func TestService_List_WithTrashFilter(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil)
+	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestService_List_WithTrashFilter(t *testing.T) {
 	}
 
 	// List non-trashed
-	resp, err := svc.List("test-user", nil, false, false, "", 1, 50)
+	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List non-trashed: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestService_List_WithTrashFilter(t *testing.T) {
 	}
 
 	// List trashed
-	resp, err = svc.List("test-user", nil, false, true, "", 1, 50)
+	resp, err = svc.List("test-user", nil, false, true, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List trashed: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestService_List_WithTrashFilter(t *testing.T) {
 func TestService_Get_Found(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	created, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil)
+	created, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestService_Get_NotFound(t *testing.T) {
 func TestService_Update_Whitelist(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	item, _, err := svc.Create("test-user", "", "test.jpg", "Original", "image/jpeg", "hash1", 100, nil, nil)
+	item, _, err := svc.Create("test-user", "", "test.jpg", "Original", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestService_Update_Whitelist(t *testing.T) {
 func TestService_Delete(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil)
+	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -236,8 +236,8 @@ func TestService_BulkMove(t *testing.T) {
 	}
 	tdb.Exec("INSERT INTO folders (id, name, created_at) VALUES (?, ?, 1000)", "folder-1", "Test Folder")
 
-	a, _, _ := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "h1", 100, nil, nil)
-	b, _, _ := svc.Create("test-user", "", "b.jpg", "B", "image/jpeg", "h2", 100, nil, nil)
+	a, _, _ := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
+	b, _, _ := svc.Create("test-user", "", "b.jpg", "B", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
 
 	fid := "folder-1"
 	err = svc.BulkMove("test-user", []string{a.ID, b.ID}, &fid)
@@ -258,10 +258,10 @@ func TestService_BulkMove(t *testing.T) {
 func TestService_List_Search(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	svc.Create("test-user", "", "cat.jpg", "Cute Cat", "image/jpeg", "h1", 100, nil, nil)
-	svc.Create("test-user", "", "dog.jpg", "Happy Dog", "image/jpeg", "h2", 100, nil, nil)
+	svc.Create("test-user", "", "cat.jpg", "Cute Cat", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create("test-user", "", "dog.jpg", "Happy Dog", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
 
-	resp, err := svc.List("test-user", nil, false, false, "cat", 1, 50)
+	resp, err := svc.List("test-user", nil, false, false, false, false, "cat", 1, 50)
 	if err != nil {
 		t.Fatalf("List search: %v", err)
 	}
@@ -273,12 +273,12 @@ func TestService_List_Search(t *testing.T) {
 func TestService_List_SearchWildcardEscaped(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	svc.Create("test-user", "", "a.jpg", "100% Done", "image/jpeg", "h1", 100, nil, nil)
-	svc.Create("test-user", "", "b.jpg", "50% Done", "image/jpeg", "h2", 100, nil, nil)
-	svc.Create("test-user", "", "c.jpg", "Plain", "image/jpeg", "h3", 100, nil, nil)
+	svc.Create("test-user", "", "a.jpg", "100% Done", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create("test-user", "", "b.jpg", "50% Done", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create("test-user", "", "c.jpg", "Plain", "image/jpeg", "h3", 100, nil, nil, nil, nil, nil, nil)
 
 	// Searching for "%" should ONLY match literal percent, not all rows
-	resp, err := svc.List("test-user", nil, false, false, "%", 1, 50)
+	resp, err := svc.List("test-user", nil, false, false, false, false, "%", 1, 50)
 	if err != nil {
 		t.Fatalf("List search wildcard: %v", err)
 	}
@@ -287,8 +287,8 @@ func TestService_List_SearchWildcardEscaped(t *testing.T) {
 	}
 
 	// Searching for "_" should ONLY match literal underscore, not single-char wildcard
-	svc.Create("test-user", "", "d.jpg", "Hello_World", "image/jpeg", "h4", 100, nil, nil)
-	resp, err = svc.List("test-user", nil, false, false, "_", 1, 50)
+	svc.Create("test-user", "", "d.jpg", "Hello_World", "image/jpeg", "h4", 100, nil, nil, nil, nil, nil, nil)
+	resp, err = svc.List("test-user", nil, false, false, false, false, "_", 1, 50)
 	if err != nil {
 		t.Fatalf("List search underscore: %v", err)
 	}
@@ -302,11 +302,11 @@ func TestService_List_Pagination(t *testing.T) {
 	svc := NewService(pool)
 	for i := 0; i < 10; i++ {
 		title := fmt.Sprintf("Item %d", i)
-		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), title, "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil)
+		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), title, "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
 	}
 
 	// page 1, limit 3
-	resp, err := svc.List("test-user", nil, false, false, "", 1, 3)
+	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 3)
 	if err != nil {
 		t.Fatalf("List page 1: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestService_SanitizeTitle(t *testing.T) {
 func TestService_SanitizeTitle_Applied(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool)
-	item, _, err := svc.Create("test-user", "", "x.jpg", "<script>alert(1)</script>", "image/jpeg", "h1", 100, nil, nil)
+	item, _, err := svc.Create("test-user", "", "x.jpg", "<script>alert(1)</script>", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}

@@ -29,6 +29,14 @@ func NewStorage(basePath string) *Storage {
 	return &Storage{basePath: basePath}
 }
 
+func (s *Storage) MediaDir(userID string) string {
+	return s.mediaDir(userID)
+}
+
+func (s *Storage) ThumbDir(userID string) string {
+	return s.thumbDir(userID)
+}
+
 func (s *Storage) mediaDir(userID string) string {
 	base := filepath.Join(s.basePath, userID)
 	clean := filepath.Clean(base)
@@ -71,12 +79,21 @@ func (s *Storage) SaveFileFromBytes(userID string, data []byte, filename string)
 
 	ext := strings.ToLower(filepath.Ext(filename))
 	thumbPath := ""
+	hash := strings.TrimSuffix(filename, ext)
+	tp := filepath.Join(s.thumbDir(userID), hash+".jpg")
+
 	imageExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	videoExts := map[string]bool{".mp4": true, ".mov": true, ".webm": true}
+
 	if imageExts[ext] {
-		hash := strings.TrimSuffix(filename, ext)
-		tp := filepath.Join(s.thumbDir(userID), hash+".jpg")
 		if err := os.MkdirAll(filepath.Dir(tp), 0755); err == nil {
 			if err := generateThumbnail(data, tp); err == nil {
+				thumbPath = tp
+			}
+		}
+	} else if videoExts[ext] {
+		if err := os.MkdirAll(filepath.Dir(tp), 0755); err == nil {
+			if err := GenerateVideoThumbnail(mediaPath, tp); err == nil {
 				thumbPath = tp
 			}
 		}

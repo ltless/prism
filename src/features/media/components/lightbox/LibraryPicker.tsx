@@ -24,7 +24,7 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
 
   const fetchPage = useCallback(async (page: number, append: boolean) => {
     try {
-      const res = await fetch(`/api/media/list?page=${page}&limit=${PAGE_SIZE}`);
+      const res = await fetch(`/api/v1/media?page=${page}&limit=${PAGE_SIZE}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const newItems: MediaItem[] = data.items || [];
@@ -45,7 +45,7 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/media/list?page=1&limit=${PAGE_SIZE}`)
+    fetch(`/api/v1/media?page=1&limit=${PAGE_SIZE}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data) => {
         if (cancelled) return;
@@ -143,7 +143,7 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
                     className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-all"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/media/${item.filePath}?thumb=1`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                    <img src={`/api/v1/media/files/${item.filePath}?thumb=1`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
                   </button>
                 ))}
               </div>

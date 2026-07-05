@@ -214,7 +214,7 @@ export function DuplicateCompareModal({
  }}
  >
  <Image
- src={`/api/media/${item.filePath}`}
+ src={`/api/v1/media/files/${item.filePath}`}
  alt={item.title}
  width={800}
  height={600}
@@ -346,7 +346,7 @@ export function DuplicateCompareModal({
  )}
  >
  <Image
- src={`/api/media/${thumb.filePath}?thumb=1`}
+ src={`/api/v1/media/files/${thumb.filePath}?thumb=1`}
  alt={thumb.title}
  width={56}
  height={56}

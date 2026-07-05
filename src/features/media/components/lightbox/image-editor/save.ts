@@ -99,7 +99,7 @@ export async function saveEditorState(
     filename?: string;
   }
 ) {
-  const mediaUrl = `/api/media/${mediaItem.filePath}`;
+  const mediaUrl = `/api/v1/media/files/${mediaItem.filePath}`;
   const {
     overwrite,
     mimeType = "image/png",

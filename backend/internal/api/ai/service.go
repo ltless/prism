@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ltless/prism/internal/ai"
+	"github.com/ltless/prism/internal/sidecar"
 )
 
 // PathResolver validates and resolves a user-supplied file path against the
@@ -33,6 +34,7 @@ type Service struct {
 	engine    Engine
 	tokenizer *ai.Tokenizer
 	resolver  PathResolver
+	sidecar   *sidecar.Client
 }
 
 func NewService(engine Engine, tokenizer *ai.Tokenizer, resolver PathResolver) *Service {
@@ -41,6 +43,31 @@ func NewService(engine Engine, tokenizer *ai.Tokenizer, resolver PathResolver) *
 		tokenizer: tokenizer,
 		resolver:  resolver,
 	}
+}
+
+func (s *Service) SetSidecarClient(c *sidecar.Client) {
+	s.sidecar = c
+}
+
+func (s *Service) SidecarHealth() error {
+	if s.sidecar == nil {
+		return fmt.Errorf("sidecar not configured")
+	}
+	return s.sidecar.Health()
+}
+
+func (s *Service) SidecarGPUStatus() (*sidecar.GPUStatus, error) {
+	if s.sidecar == nil {
+		return nil, fmt.Errorf("sidecar not configured")
+	}
+	return s.sidecar.GPUStatus()
+}
+
+func (s *Service) SidecarModelStatus() (*sidecar.ModelStatus, error) {
+	if s.sidecar == nil {
+		return nil, fmt.Errorf("sidecar not configured")
+	}
+	return s.sidecar.ModelStatus()
 }
 
 func (s *Service) resolvePath(userID, filePath string) (string, error) {
@@ -128,6 +155,13 @@ func (s *Service) LoadModel(variant string) error {
 		return fmt.Errorf("AI engine not initialized")
 	}
 	return s.engine.LoadModel(variant)
+}
+
+func (s *Service) DownloadModel(modelID string) (*sidecar.DownloadModelResult, error) {
+	if s.sidecar == nil {
+		return &sidecar.DownloadModelResult{Error: "sidecar not configured"}, nil
+	}
+	return s.sidecar.DownloadModel(sidecar.DownloadModelRequest{ModelID: modelID})
 }
 
 func (s *Service) HasGPU() bool {

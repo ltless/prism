@@ -12,7 +12,7 @@ export type ModelRow = SidecarModelStatus;
 
 export async function fetchModelStatus(): Promise<{ models: ModelRow[] } | null> {
   try {
-    const res = await fetch("/api/ai/model-status");
+    const res = await fetch("/api/v1/ai/sidecar/model-status");
     if (!res.ok) return null;
     const data = (await res.json()) as SidecarModelStatusResponse | { error: string };
     if (!("models" in data)) return null;
@@ -51,7 +51,7 @@ async function extractError(res: Response, fallback: string): Promise<string> {
 }
 
 export async function loadModelOnServer(variant: AIModelVariant): Promise<{ success: boolean; error?: string }> {
-  const res = await fetch("/api/ai/load-model", {
+  const res = await fetch("/api/v1/ai/load-model", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ variant }),
@@ -62,7 +62,7 @@ export async function loadModelOnServer(variant: AIModelVariant): Promise<{ succ
 }
 
 export async function downloadModelOnServer(modelId: string): Promise<{ started: boolean; downloaded: boolean; alreadyDownloading?: boolean; error?: string }> {
-  const res = await fetch("/api/ai/download-model", {
+  const res = await fetch("/api/v1/ai/download-model", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ modelId }),

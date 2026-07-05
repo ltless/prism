@@ -51,7 +51,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     setPanPos({ x: 0, y: 0 });
   }
 
-  const mediaUrl = `/api/media/${item.filePath}`;
+  const mediaUrl = `/api/v1/media/files/${item.filePath}`;
   const isVideo = item.mimeType?.startsWith("video/");
   const router = useRouter();
 

@@ -15,11 +15,11 @@ const MAX_POLLS = 30;
 
 async function checkAIStatus(mediaIds: string[]): Promise<Record<string, { done: boolean; hasTags: boolean }>> {
  try {
- const res = await fetch("/api/media/ai-status", {
- method: "POST",
- headers: { "Content-Type": "application/json" },
- body: JSON.stringify({ ids: mediaIds }),
- });
+  const res = await fetch("/api/v1/media/batch/ai-status", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ ids: mediaIds }),
+  });
  if (!res.ok) return {};
  const data = await res.json();
  return data.statuses || {};
@@ -30,11 +30,11 @@ async function checkAIStatus(mediaIds: string[]): Promise<Record<string, { done:
 
 async function checkTranscodeStatus(mediaIds: string[]): Promise<Record<string, { status: string | null; duration: number | null }>> {
  try {
- const res = await fetch("/api/media/transcode-status", {
- method: "POST",
- headers: { "Content-Type": "application/json" },
- body: JSON.stringify({ ids: mediaIds }),
- });
+  const res = await fetch("/api/v1/media/batch/transcode-status", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ ids: mediaIds }),
+  });
  if (!res.ok) return {};
  const data = await res.json();
  return data.statuses || {};
@@ -96,7 +96,7 @@ export function useUploadQueue() {
   await new Promise<void>((resolve, reject) => {
   const xhr = new XMLHttpRequest();
   currentXhrRef.current = xhr;
-  xhr.open("POST", "/api/media/upload", true);
+  xhr.open("POST", "/api/v1/media", true);
   xhr.upload.onprogress = (event) => {
   if (event.lengthComputable) {
   const fileProgress = (event.loaded / event.total) * 100;

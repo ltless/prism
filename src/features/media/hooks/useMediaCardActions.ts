@@ -42,7 +42,7 @@ export function useMediaCardActions(item: MediaItem, onDelete?: (id: string) => 
   };
 
   const handleDownload = () => {
-    downloadUrl(`/api/media/${item.filePath}`, item.title);
+    downloadUrl(`/api/v1/media/files/${item.filePath}`, item.title);
   };
 
   const handleToggleFavorite = async (e?: { stopPropagation?: () => void }) => {

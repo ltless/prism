@@ -105,8 +105,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const profilePath = localImageOverride.image ?? effectiveSession?.user?.image;
   const coverPath = localImageOverride.coverImage ?? effectiveSession?.user?.coverImage;
-  const profileSrc = profilePath ? `/api/media/${profilePath}` : null;
-  const coverSrc = coverPath ? `/api/media/${coverPath}` : null;
+  const profileSrc = profilePath ? `/api/v1/media/files/${profilePath}` : null;
+  const coverSrc = coverPath ? `/api/v1/media/files/${coverPath}` : null;
 
  const tabs = [
  { id: "general" as Tab, label: "General", icon: "User" as const },

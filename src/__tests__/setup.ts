@@ -56,9 +56,6 @@ vi.mock('next/cache', () => ({
  revalidateTag: vi.fn(),
 }));
 
-// Mock Next Auth
 vi.mock('@/auth', () => ({
  auth: vi.fn(() => Promise.resolve({ user: { id: 'test-user-id', role: 'admin' } })),
- signIn: vi.fn(),
- signOut: vi.fn(),
 }));

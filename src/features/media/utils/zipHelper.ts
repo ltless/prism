@@ -151,7 +151,7 @@ export async function downloadBatchAsZip(items: MediaItem[]): Promise<void> {
 
  const fetchItem = async (item: MediaItem): Promise<ZipEntry | null> => {
  try {
- const res = await fetch(`/api/media/${item.filePath}`);
+ const res = await fetch(`/api/v1/media/files/${item.filePath}`);
  if (!res.ok) throw new Error(`HTTP ${res.status}`);
  const buffer = await res.arrayBuffer();
  const filename = item.title || item.filePath.split("/").pop() || "asset";

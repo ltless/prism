@@ -109,7 +109,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  { label: "Restore", icon: ArrowClockwise, onClick: () => handleRestore(item.id), variant: "success" as const },
  { label: "Copy Hash", icon: Hash, onClick: () => navigator.clipboard.writeText(item.hash || "") },
   { label: "Download", icon: Download, onClick: () => {
-  downloadUrl(`/api/media/${item.filePath}`, item.title);
+  downloadUrl(`/api/v1/media/files/${item.filePath}`, item.title);
   }, divider: true },
  { label: "Delete Permanently", icon: TrashSimple, onClick: () => handlePermanentDelete(item.id), variant: "danger" as const }
  ];

@@ -2,10 +2,12 @@ package media
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -39,14 +41,14 @@ func (h *Handler) List(c echo.Context) error {
 	}
 	favorites := c.QueryParam("favorites") == "true"
 	trash := c.QueryParam("trash") == "true"
+	vault := c.QueryParam("vault") == "true"
+	dedup := c.QueryParam("dedup") == "true"
 	search := c.QueryParam("search")
 
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 
-	// Vault items are never listable via the API — they require PIN-gated
-	// access on the Next.js side. Any "vault=true" query is ignored.
-	resp, err := h.svc.List(claims.UserID, fID, favorites, trash, search, page, limit)
+	resp, err := h.svc.List(claims.UserID, fID, favorites, trash, vault, dedup, search, page, limit)
 	if err != nil {
 		log.Printf("MediaList error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -133,36 +135,94 @@ func (h *Handler) Upload(c echo.Context) error {
 		title = header.Filename
 	}
 
-	item, isDup, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, int64(len(data)), nil, nil)
+	isVideo := len(mimeType) >= 5 && mimeType[:5] == "video"
+
+	var width, height *int
+	var capturedAt *int64
+	var metadataJSON *string
+	var duration *int
+	var transcodeStatus *string
+
+	if !isVideo {
+		meta, err := mw.ExtractImageMetadata(data)
+		if err == nil {
+			width = &meta.Width
+			height = &meta.Height
+			capturedAt = meta.CapturedAt
+			if len(meta.ExifData) > 0 || len(meta.Palette) > 0 {
+				if len(meta.Palette) > 0 {
+					if meta.ExifData == nil {
+						meta.ExifData = make(map[string]interface{})
+					}
+					meta.ExifData["palette"] = meta.Palette
+				}
+				if b, err := json.Marshal(meta.ExifData); err == nil {
+					s := string(b)
+					metadataJSON = &s
+				}
+			}
+		} else {
+			log.Printf("Metadata extraction failed: %v", err)
+		}
+	} else {
+		mediaPath := h.storage.MediaDir(claims.UserID) + "/" + filename
+		meta, err := mw.ExtractVideoMetadata(mediaPath)
+		if err == nil {
+			width = &meta.Width
+			height = &meta.Height
+			duration = &meta.Duration
+			if meta.Width > 0 && meta.Height > 0 {
+				md := map[string]interface{}{
+					"codec":  meta.Codec,
+					"width":  meta.Width,
+					"height": meta.Height,
+				}
+				if b, err := json.Marshal(md); err == nil {
+					s := string(b)
+					metadataJSON = &s
+				}
+			}
+		} else {
+			log.Printf("Video metadata extraction failed: %v", err)
+		}
+		pending := "pending"
+		transcodeStatus = &pending
+	}
+
+	item, isDup, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, int64(len(data)), width, height, capturedAt, metadataJSON, duration, transcodeStatus)
 	if err != nil {
 		log.Printf("MediaCreate error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	if isDup {
-		// Lost the race against a concurrent upload of the same hash — clean
-		// up the file we just wrote so it doesn't orphan on disk.
 		_ = h.storage.DeleteFile(claims.UserID, filename)
+		ts := "skipped"
+		if transcodeStatus != nil {
+			ts = *transcodeStatus
+		}
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"success":         true,
 			"isDuplicate":     true,
 			"filename":        filename,
 			"mediaId":         "",
-			"isVideo":         false,
+			"isVideo":         isVideo,
 			"aiStatus":        "skipped",
-			"transcodeStatus": "skipped",
+			"transcodeStatus": ts,
 		})
 	}
 
-	isVideo := len(mimeType) >= 5 && mimeType[:5] == "video"
-
+	ts := "skipped"
+	if transcodeStatus != nil {
+		ts = *transcodeStatus
+	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":         true,
 		"isDuplicate":     false,
 		"filename":        filename,
 		"mediaId":         item.ID,
 		"isVideo":         isVideo,
-		"aiStatus":        "skipped",
-		"transcodeStatus": "skipped",
+		"aiStatus":        "pending",
+		"transcodeStatus": ts,
 	})
 }
 
@@ -380,38 +440,78 @@ func (h *Handler) BulkVault(c echo.Context) error {
 }
 
 func (h *Handler) BatchAITags(c echo.Context) error {
-	_, err := auth.GetClaimsOrErr(c)
+	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
 		return err
 	}
-	var body struct {
-		MediaIDs []string `json:"media_ids"`
+	mediaDir := h.storage.MediaDir(claims.UserID)
+	result, err := h.svc.BatchTag(claims.UserID, mediaDir)
+	if err != nil {
+		log.Printf("BatchAITags error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
-	if err := c.Bind(&body); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	if result.Error != "" {
+		return c.JSON(http.StatusServiceUnavailable, result)
 	}
-	// TODO: implement sidecar AI tagging in Part 5
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"success": true,
-		"note":    "async batch tagging queued (not yet implemented)",
-	})
+	return c.JSON(http.StatusOK, result)
 }
 
 func (h *Handler) BatchAestheticScore(c echo.Context) error {
-	_, err := auth.GetClaimsOrErr(c)
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	mediaDir := h.storage.MediaDir(claims.UserID)
+	result, err := h.svc.BatchScore(claims.UserID, mediaDir)
+	if err != nil {
+		log.Printf("BatchAestheticScore error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	if result.Error != "" {
+		return c.JSON(http.StatusServiceUnavailable, result)
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) BatchAIStatus(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
 		return err
 	}
 	var body struct {
-		MediaIDs []string `json:"media_ids"`
+		IDs []string `json:"ids"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
-	// TODO: implement sidecar aesthetic scoring in Part 5
+	statuses, err := h.svc.BatchAIStatus(claims.UserID, body.IDs)
+	if err != nil {
+		log.Printf("BatchAIStatus error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"success": true,
-		"note":    "async aesthetic scoring queued (not yet implemented)",
+		"statuses": statuses,
+	})
+}
+
+func (h *Handler) BatchTranscodeStatus(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		IDs []string `json:"ids"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	statuses, err := h.svc.BatchTranscodeStatus(claims.UserID, body.IDs)
+	if err != nil {
+		log.Printf("BatchTranscodeStatus error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"statuses": statuses,
 	})
 }
 
@@ -443,6 +543,26 @@ func (h *Handler) ResolveDuplicate(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
+func (h *Handler) UpdateByHash(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	hash := c.Param("hash")
+
+	var body map[string]interface{}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+
+	if err := h.svc.UpdateByHash(claims.UserID, hash, body); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
 func (h *Handler) Search(c echo.Context) error {
 	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
@@ -470,6 +590,266 @@ func (h *Handler) Search(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) Nuke(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	if _, err := h.svc.DeleteAll(claims.UserID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+
+	// Wipe the entire media directory for the user and recreate it empty.
+	mediaDir := h.storage.MediaDir(claims.UserID)
+	thumbDir := h.storage.ThumbDir(claims.UserID)
+	if err := os.RemoveAll(mediaDir); err != nil {
+		log.Printf("Nuke RemoveAll error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to remove media directory")
+	}
+	if err := os.MkdirAll(mediaDir, 0755); err != nil {
+		log.Printf("Nuke MkdirAll media error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create media directory")
+	}
+	if err := os.MkdirAll(thumbDir, 0755); err != nil {
+		log.Printf("Nuke MkdirAll thumb error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create thumbnail directory")
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+func (h *Handler) AutoCleanup(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	var body struct {
+		OlderThan *int64 `json:"olderThan"`
+	}
+	if err := c.Bind(&body); err != nil {
+		body.OlderThan = nil
+	}
+
+	items, err := h.svc.AutoCleanup(claims.UserID, body.OlderThan)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	for _, item := range items {
+		_ = h.storage.DeleteFile(claims.UserID, item.FilePath)
+	}
+
+	return c.JSON(http.StatusOK, map[string]int{"deleted": len(items)})
+}
+
+func (h *Handler) CountTagged(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	res, err := h.svc.CountTagged(claims.UserID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, res)
+}
+
+func (h *Handler) CountScored(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	res, err := h.svc.CountScored(claims.UserID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, res)
+}
+
+func (h *Handler) Dashboard(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	page, _ := strconv.Atoi(c.QueryParam("page"))
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	folderID := c.QueryParam("folder_id")
+	favorites := c.QueryParam("is_favorite") == "true"
+
+	var fID *string
+	if folderID != "" {
+		fID = &folderID
+	}
+
+	params := DashboardParams{
+		FolderID:   fID,
+		IsFavorite: favorites,
+		Page:       page,
+		Limit:      limit,
+	}
+
+	smart := c.QueryParam("smart") == "true"
+	if smart {
+		cats := c.QueryParam("categories")
+		if cats != "" {
+			params.Categories = strings.Split(cats, ",")
+		}
+		minScore, _ := strconv.ParseFloat(c.QueryParam("minScore"), 64)
+		params.MinScore = minScore
+	}
+
+	resp, err := h.svc.GetDashboard(claims.UserID, params)
+	if err != nil {
+		log.Printf("Dashboard error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) Duplicates(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	resp, err := h.svc.GetDuplicates(claims.UserID)
+	if err != nil {
+		log.Printf("Duplicates error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+func (h *Handler) SaveEditor(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	mediaID := c.Param("id")
+	overwrite := c.FormValue("overwrite") == "true"
+
+	file, header, err := c.Request().FormFile("file")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "no file uploaded")
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "read failed")
+	}
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	mimeType := header.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = "image/" + strings.TrimPrefix(ext, ".")
+	}
+
+	item, err := h.svc.Get(claims.UserID, mediaID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "media not found")
+	}
+
+	hash := fmt.Sprintf("%x", sha256.Sum256(data))
+	filename := hash + ext
+
+	var width, height int
+	var palette []string
+	meta, err := mw.ExtractImageMetadata(data)
+	if err == nil {
+		width = meta.Width
+		height = meta.Height
+		palette = meta.Palette
+	}
+
+	if overwrite {
+		otherShared, err := h.svc.IsSharedPath(claims.UserID, item.FilePath, item.ID)
+		if err != nil {
+			log.Printf("IsSharedPath error: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		}
+		dup, err := h.svc.FindByHash(claims.UserID, hash)
+		if err != nil {
+			log.Printf("FindByHash error: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		}
+
+		newFilePath := filename
+		if dup != nil && dup.ID != item.ID {
+			newFilePath = dup.FilePath
+		} else {
+			_, _, _, err := h.storage.SaveFileFromBytes(claims.UserID, data, filename)
+			if err != nil {
+				log.Printf("SaveFile error: %v", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
+			}
+		}
+
+		metaJSON := buildEditorMetadata(item.Metadata, palette)
+		if err := h.svc.SaveEditorOverwrite(claims.UserID, item.ID, newFilePath, hash, width, height, int64(len(data)), mimeType, metaJSON); err != nil {
+			log.Printf("SaveEditorOverwrite error: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "update failed")
+		}
+
+		if newFilePath != item.FilePath && !otherShared {
+			h.storage.DeleteFile(claims.UserID, item.FilePath)
+		}
+
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success":  true,
+			"mediaId":  item.ID,
+			"filePath": newFilePath,
+			"isNew":    false,
+		})
+	}
+
+	_, _, _, err = h.storage.SaveFileFromBytes(claims.UserID, data, filename)
+	if err != nil {
+		log.Printf("SaveFile error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
+	}
+
+	title := "Copy of " + item.Title
+	metaJSON := buildEditorMetadata(nil, palette)
+	var md *string
+	if metaJSON != "" {
+		md = &metaJSON
+	}
+	newItem, _, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, int64(len(data)), &width, &height, nil, md, nil, nil)
+	if err != nil {
+		log.Printf("Create error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "create failed")
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success":  true,
+		"mediaId":  newItem.ID,
+		"filePath": filename,
+		"isNew":    true,
+	})
+}
+
+func buildEditorMetadata(existingMeta *string, palette []string) string {
+	md := make(map[string]interface{})
+	if existingMeta != nil && *existingMeta != "" {
+		json.Unmarshal([]byte(*existingMeta), &md)
+	}
+	if len(palette) > 0 {
+		md["palette"] = palette
+	}
+	if len(md) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(md)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 func parseInt(s string) int {

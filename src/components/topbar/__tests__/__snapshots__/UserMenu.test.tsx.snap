@@ -141,7 +141,7 @@ exports[`UserMenu > renders avatar with user image when available 1`] = `
       <img
         alt="User avatar"
         class="rounded-full object-cover"
-        src="/api/media//avatars/test.png"
+        src="/api/v1/media/files//avatars/test.png"
       />
     </button>
   </div>

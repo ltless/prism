@@ -180,7 +180,7 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
     []
   );
 
-  const mediaUrl = `/api/media/${currentItem.filePath}`;
+  const mediaUrl = `/api/v1/media/files/${currentItem.filePath}`;
 
   useEffect(() => {
     setImageId(currentItem.id);

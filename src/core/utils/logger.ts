@@ -30,7 +30,7 @@ export const logger = {
  const oldest = [...errorCache.entries()].sort((a, b) => a[1] - b[1]);
  for (let i = 0; i < 50; i++) errorCache.delete(oldest[i][0]);
  }
- fetch("/api/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: safeStringify(entry) }).catch(() => {});
+ fetch("/api/v1/system/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: safeStringify(entry) }).catch(() => {});
  }
  },
 };

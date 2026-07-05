@@ -38,7 +38,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
      className="relative w-8 h-8 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/20 transition-all duration-300 ease-out-expo cursor-pointer overflow-hidden"
    >
   {session?.user?.image ? (
-  <Image src={`/api/media/${session.user.image}`} alt="User avatar" fill className="rounded-full object-cover" unoptimized priority />
+  <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill className="rounded-full object-cover" unoptimized priority />
   ) : (
   <div className="w-full h-full rounded-full bg-primary flex items-center justify-center text-[11px] font-semibold text-primary-foreground overflow-hidden">
   {session?.user?.name?.[0]?.toUpperCase() || "U"}
@@ -62,7 +62,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
   <div className="flex items-center gap-2.5">
   <div className="w-8 h-8 rounded-full shrink-0 relative overflow-hidden">
   {session?.user?.image ? (
-  <Image src={`/api/media/${session.user.image}`} alt="User avatar" fill className="rounded-full object-cover" unoptimized priority />
+  <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill className="rounded-full object-cover" unoptimized priority />
   ) : (
   <div className="w-full h-full rounded-full bg-primary flex items-center justify-center text-[11px] font-semibold text-primary-foreground">
   {session?.user?.name?.[0]?.toUpperCase() || "U"}

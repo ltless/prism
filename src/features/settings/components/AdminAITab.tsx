@@ -38,7 +38,7 @@ export function AdminAITab({ ai, tagStats, onSetTagStats, scoreStats, onSetScore
   const { data: gpuInfo } = useQuery<GpuInfo>({
     queryKey: ["gpu-status"],
     queryFn: async () => {
-      const res = await fetch("/api/ai/gpu-status");
+      const res = await fetch("/api/v1/ai/sidecar/gpu-status");
       if (!res.ok) return { gpuAvailable: false } as GpuInfo;
       return res.json() as Promise<GpuInfo>;
     },

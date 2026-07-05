@@ -12,7 +12,11 @@ export function useTranscodePolling(
   useQuery({
     queryKey: ["transcode", itemId],
     queryFn: async () => {
-      const res = await fetch(`/api/media/transcode-status?ids=${itemId}`);
+      const res = await fetch("/api/v1/media/batch/transcode-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [itemId] }),
+      });
       if (!res.ok) throw new Error("transcode status fetch failed");
       return res.json();
     },

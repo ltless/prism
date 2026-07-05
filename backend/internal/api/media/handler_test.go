@@ -136,7 +136,7 @@ func TestHandler_Update_Valid(t *testing.T) {
 	e.PATCH("/api/v1/media/:id", h.Update)
 
 	svc := NewService(setupTenantDB(t))
-	item, _, _ := svc.Create("test-user", "", "test.jpg", "Old", "image/jpeg", "hash1", 100, nil, nil)
+	item, _, _ := svc.Create("test-user", "", "test.jpg", "Old", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 
 	body := `{"title":"New Title"}`
 	req := httptest.NewRequest("PATCH", "/api/v1/media/"+item.ID, strings.NewReader(body))

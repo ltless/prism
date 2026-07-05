@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS folders (
     color TEXT,
     parent_id TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
     folder_type TEXT NOT NULL DEFAULT 'manual',
     filter_query TEXT,
     FOREIGN KEY (parent_id) REFERENCES folders(id)
@@ -62,4 +63,15 @@ CREATE TABLE IF NOT EXISTS error_logs (
     meta TEXT,
     source TEXT,
     timestamp TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS transcode_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    media_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    started_at INTEGER,
+    finished_at INTEGER,
+    error TEXT,
+    FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
 );

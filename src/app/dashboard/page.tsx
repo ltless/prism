@@ -1,9 +1,8 @@
 import { auth } from "@/auth";
-import { folders } from "@/services/db/schema";
 import MediaLibraryClient from "@/features/media/components/MediaLibraryClient";
-import type { Folder } from "@/features/media/types";
-import { getUserDb } from "@/services/db/multitenant";
-import { getDashboardItems, getSmartFolderFilter } from "@/features/media/services/dashboardQueries";
+import type { MediaItem } from "@/features/media/types";
+import { goFetch } from "@/lib/api";
+import { mapFolder, type FolderListResponse } from "@/types/goApi";
 
 const PAGE_SIZE = 50;
 
@@ -11,52 +10,42 @@ type PageProps = {
   searchParams: Promise<{ f?: string; page?: string; v?: string }>;
 };
 
-export default async function DashboardPage({
-  searchParams,
-}: PageProps) {
+type DashboardResponse = {
+  items: MediaItem[];
+  total: number;
+  folderCounts: Record<string, number>;
+};
+
+export default async function DashboardPage({ searchParams }: PageProps) {
   const session = await auth();
-  const userId = session?.user?.id;
+  if (!session?.user?.id) return null;
+
   const sp = await searchParams;
   const activeFolderId = sp.f ?? null;
   const view = sp.v ?? null;
-  const isRecent = view === 'recent';
-  const isFav = view === 'favorite';
+  const isFav = view === "favorite";
   const page = Math.max(1, Number(sp.page) || 1);
 
-  if (!userId) {
-    return null;
-  }
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(PAGE_SIZE),
+    dedup: "true",
+  });
+  if (activeFolderId) params.set("folder_id", activeFolderId);
+  if (isFav) params.set("is_favorite", "true");
 
-  const { db } = await getUserDb(userId);
+  const [dashRes, folderRes] = await Promise.all([
+    goFetch<DashboardResponse>(`/api/v1/media/dashboard?${params}`),
+    goFetch<FolderListResponse>("/api/v1/folders"),
+  ]);
 
-  // load folders first so we can detect smart folder before building query
-  const allFolders = await db.select().from(folders);
-
-  const skipFolderFilter = isRecent || isFav;
-
-  // check if the active folder is a smart folder
-  const activeSmartFilter = getSmartFolderFilter(
-    allFolders as Folder[],
-    activeFolderId,
-    skipFolderFilter
-  );
-
-  const { items, totalCount, allFolders: foldersList } = getDashboardItems(
-    db,
-    activeSmartFilter,
-    skipFolderFilter,
-    activeFolderId,
-    isFav,
-    page,
-    PAGE_SIZE,
-    allFolders as Folder[]
-  );
+  const allFolders = (folderRes.items ?? []).map(mapFolder);
 
   return (
     <MediaLibraryClient
-      initialItems={items}
-      folders={foldersList}
-      totalCount={totalCount}
+      initialItems={dashRes.items ?? []}
+      folders={allFolders}
+      totalCount={dashRes.total ?? 0}
       pageSize={PAGE_SIZE}
     />
   );

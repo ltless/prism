@@ -168,7 +168,7 @@ export function DuplicateList({ groups, folderMap = {} }: { groups: DuplicateGro
   </div>
   ) : (
   <Image
-  src={`/api/media/${item.filePath}?thumb=1`}
+  src={`/api/v1/media/files/${item.filePath}?thumb=1`}
   alt={item.title}
   fill
   className="object-cover"

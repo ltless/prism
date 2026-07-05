@@ -90,6 +90,14 @@ func (p *TenantPool) Get(userID string) (*TenantDB, error) {
 			log.Printf("ALTER TABLE folders add filter_query: %v (expected if column exists)", err)
 		}
 
+		// updated_at column was added after initial schema; safe to ignore if already present.
+		// NOTE: SQLite (modernc driver) rejects ADD COLUMN with a non-constant default
+		// (e.g. strftime), so use a constant default. Existing rows get 0/NULL which is
+		// fine since the column is always written explicitly on create/update.
+		if _, err := sqlDB.Exec("ALTER TABLE folders ADD COLUMN updated_at INTEGER DEFAULT 0"); err != nil {
+			log.Printf("ALTER TABLE folders add updated_at: %v (expected if column exists)", err)
+		}
+
 		p.migrated[userID] = true
 		log.Printf("Tenant DB initialized for user %s", userID)
 	}

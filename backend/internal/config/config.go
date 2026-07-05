@@ -19,6 +19,8 @@ type Config struct {
 	TrustProxy        bool
 	InviteCode        string
 	RequireInvite     bool
+	SidecarURL        string
+	SidecarKey        string
 }
 
 func Load() (*Config, error) {
@@ -41,6 +43,8 @@ func Load() (*Config, error) {
 		TrustProxy:    getEnv("TRUST_PROXY", "false") == "true",
 		InviteCode:    os.Getenv("REGISTRATION_INVITE_CODE"),
 		RequireInvite: getEnv("REQUIRE_INVITE", "true") == "true",
+		SidecarURL:    getEnv("SIDECAR_URL", "http://localhost:8000"),
+		SidecarKey:    os.Getenv("SIDECAR_KEY"),
 	}
 
 	return cfg, nil

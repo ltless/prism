@@ -1,39 +1,33 @@
 import { auth } from "@/auth";
-import { media, folders } from "@/services/db/schema";
-import { desc, eq, and } from "drizzle-orm";
 import VaultLibraryClient from "@/features/media/components/VaultLibraryClient";
-import type { MediaItem, Folder } from "@/features/media/types";
-import { getUserDb } from "@/services/db/multitenant";
+import type { MediaItem } from "@/features/media/types";
+import { goFetch } from "@/lib/api";
 import { getVaultPinStatusAction } from "@/features/profile/services/profileActions";
+import { mapFolder, type FolderListResponse } from "@/types/goApi";
 
 const PAGE_SIZE = 50;
 
+type ListResponse = { items: MediaItem[]; total: number };
+
 export default async function VaultPage() {
- const session = await auth();
- const userId = session?.user?.id;
- if (!userId) return null;
+  const session = await auth();
+  if (!session?.user?.id) return null;
 
- const { db } = await getUserDb(userId);
+  const [mediaRes, folderRes, statusRes] = await Promise.all([
+    goFetch<ListResponse>("/api/v1/media?vault=true&limit=200"),
+    goFetch<FolderListResponse>("/api/v1/folders"),
+    getVaultPinStatusAction(),
+  ]);
 
- const items = await db
- .select()
- .from(media)
- .where(and(eq(media.isTrash, false), eq(media.isVault, true)))
- .orderBy(desc(media.createdAt));
+  const hasPin = statusRes.success ? !!statusRes.hasPin : false;
 
- const allFolders = await db.select().from(folders);
-
- // Check if user has configured their secure Vault PIN
- const statusRes = await getVaultPinStatusAction();
- const hasPin = statusRes.success ? !!statusRes.hasPin : false;
-
- return (
- <VaultLibraryClient
- initialItems={items as MediaItem[]}
- folders={allFolders as Folder[]}
- totalCount={items.length}
- pageSize={PAGE_SIZE}
- hasPin={hasPin}
- />
- );
+  return (
+    <VaultLibraryClient
+      initialItems={mediaRes.items ?? []}
+      folders={(folderRes.items ?? []).map(mapFolder)}
+      totalCount={mediaRes.total ?? 0}
+      pageSize={PAGE_SIZE}
+      hasPin={hasPin}
+    />
+  );
 }

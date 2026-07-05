@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/jpeg"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -85,7 +86,7 @@ func (s *Storage) SaveFileFromBytes(userID string, data []byte, filename string)
 }
 
 func generateThumbnail(data []byte, outputPath string) error {
-	src, _, err := image.Decode(strings.NewReader(string(data)))
+	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("decode image: %w", err)
 	}
@@ -130,10 +131,15 @@ func (s *Storage) DeleteFile(userID, filename string) error {
 
 func (s *Storage) ServeFile(c echo.Context, userID, filePath string) error {
 	mediaDir := s.mediaDir(userID)
-	absPath := filepath.Join(mediaDir, filePath)
 
-	absPath, _ = filepath.Abs(absPath)
-	mediaDir, _ = filepath.Abs(mediaDir)
+	absPath, err := filepath.Abs(filepath.Join(mediaDir, filePath))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "resolve path")
+	}
+	mediaDir, err = filepath.Abs(mediaDir)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "resolve media dir")
+	}
 	if !strings.HasPrefix(absPath, mediaDir+string(filepath.Separator)) && absPath != mediaDir {
 		return echo.NewHTTPError(403, "forbidden")
 	}
@@ -210,15 +216,36 @@ func serveRange(c echo.Context, path string, stat os.FileInfo, contentType strin
 func (s *Storage) ServeThumbnail(c echo.Context, userID, filename string) error {
 	ext := filepath.Ext(filename)
 	hash := strings.TrimSuffix(filename, ext)
-	thumbPath := filepath.Join(s.thumbDir(userID), hash+".jpg")
+	thumbFilename := hash + ".jpg"
 
-	if _, err := os.Stat(thumbPath); os.IsNotExist(err) {
-		return echo.NewHTTPError(404, "thumbnail not found")
+	thumbDir, err := filepath.Abs(s.thumbDir(userID))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "resolve thumb dir")
+	}
+
+	cleanName := filepath.Clean(thumbFilename)
+	// Reject absolute paths or traversal components in the filename.
+	if filepath.IsAbs(cleanName) || strings.Contains(cleanName, "..") {
+		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	}
+
+	absPath := filepath.Join(thumbDir, cleanName)
+	absPath, err = filepath.Abs(absPath)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "resolve path")
+	}
+
+	if absPath != thumbDir && !strings.HasPrefix(absPath, thumbDir+string(filepath.Separator)) {
+		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	}
+
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		return echo.NewHTTPError(http.StatusNotFound, "thumbnail not found")
 	}
 
 	c.Response().Header().Set("Content-Type", "image/jpeg")
 	c.Response().Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	return c.File(thumbPath)
+	return c.File(absPath)
 }
 
 // ResolveUserMediaPath joins filePath against the caller's media dir and

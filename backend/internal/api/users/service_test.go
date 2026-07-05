@@ -32,7 +32,7 @@ func ptr(s string) *string { return &s }
 
 func TestUsersService_GetProfile(t *testing.T) {
 	gdb := setupTestDB(t)
-	svc := NewService(gdb)
+	svc := NewService(gdb, nil)
 	user, err := svc.GetProfile("user-1")
 	if err != nil {
 		t.Fatalf("GetProfile: %v", err)
@@ -47,7 +47,7 @@ func TestUsersService_GetProfile(t *testing.T) {
 
 func TestUsersService_GetProfile_NotFound(t *testing.T) {
 	gdb := setupTestDB(t)
-	svc := NewService(gdb)
+	svc := NewService(gdb, nil)
 	_, err := svc.GetProfile("nonexistent")
 	if err == nil {
 		t.Fatal("expected error for nonexistent user")
@@ -56,7 +56,7 @@ func TestUsersService_GetProfile_NotFound(t *testing.T) {
 
 func TestUsersService_UpdateProfile(t *testing.T) {
 	gdb := setupTestDB(t)
-	svc := NewService(gdb)
+	svc := NewService(gdb, nil)
 	err := svc.UpdateProfile("user-1", ptr("newimage"), ptr("newcover"), nil)
 	if err != nil {
 		t.Fatalf("UpdateProfile: %v", err)
@@ -70,7 +70,7 @@ func TestUsersService_UpdateProfile(t *testing.T) {
 
 func TestUsersService_UpdateProfile_Preferences(t *testing.T) {
 	gdb := setupTestDB(t)
-	svc := NewService(gdb)
+	svc := NewService(gdb, nil)
 	prefs := `{"theme":"dark"}`
 	err := svc.UpdateProfile("user-1", nil, nil, &prefs)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestUsersService_UpdateProfile_Preferences(t *testing.T) {
 
 func TestUsersService_UpdateStorageLimit(t *testing.T) {
 	gdb := setupTestDB(t)
-	svc := NewService(gdb)
+	svc := NewService(gdb, nil)
 	err := svc.UpdateStorageLimit("user-1", 1000000000)
 	if err != nil {
 		t.Fatalf("UpdateStorageLimit: %v", err)
@@ -98,7 +98,7 @@ func TestUsersService_UpdateStorageLimit(t *testing.T) {
 
 func TestUsersService_MarkSetupComplete(t *testing.T) {
 	gdb := setupTestDB(t)
-	svc := NewService(gdb)
+	svc := NewService(gdb, nil)
 	err := svc.MarkSetupComplete("user-1")
 	if err != nil {
 		t.Fatalf("MarkSetupComplete: %v", err)

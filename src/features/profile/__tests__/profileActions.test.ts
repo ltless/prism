@@ -1,69 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const testState = vi.hoisted(() => ({ updateCalls: [] as unknown[] }));
+const testState = vi.hoisted(() => ({ goFetchCalls: [] as { path: string; options: unknown }[] }));
 
-const mockDb = vi.hoisted(() => ({
-  select: vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        limit: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
-      })),
-    })),
-  })),
-  update: vi.fn(() => ({
-    set: vi.fn((values: unknown) => ({
-      where: vi.fn(() => {
-        testState.updateCalls.push(values);
-        return Promise.resolve();
-      }),
-    })),
-  })),
+vi.mock('@/lib/api', () => ({
+  goFetch: vi.fn((path: string, options?: unknown) => {
+    testState.goFetchCalls.push({ path, options });
+    if (path.includes('/vault-pin/verify')) {
+      const body = (options as { body?: { pin: string } } | undefined)?.body;
+      return Promise.resolve({ valid: body?.pin === '1234' || body?.pin === 'correct_old_pin' });
+    }
+    if (path.includes('/vault-pin/status')) {
+      return Promise.resolve({ enabled: true });
+    }
+    return Promise.resolve({});
+  }),
 }));
 
-function mockUser(user: Record<string, unknown> | null) {
-  const val = user ? [user] : [];
-  mockDb.select.mockImplementation(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        limit: vi.fn(() => Promise.resolve(val)),
-      })),
-    })),
-  }));
-}
-
-vi.mock('@/services/db', () => ({ db: mockDb }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-vi.mock('bcryptjs', () => ({
-  default: {
-    hash: vi.fn((s: string) => Promise.resolve(`hashed_${s}`)),
-    compare: vi.fn((s: string, h: string) => Promise.resolve(s === h.replace('hashed_', ''))),
-  },
-  hash: vi.fn((s: string) => Promise.resolve(`hashed_${s}`)),
-  compare: vi.fn((s: string, h: string) => Promise.resolve(s === h.replace('hashed_', ''))),
-}));
 
 import { changePasswordAction, setVaultPinAction, changeVaultPinAction, disableVaultPinAction, getVaultPinStatusAction, verifyVaultPinAction, updateUsernameAction } from '../services/profileActions';
 
-beforeEach(() => { vi.clearAllMocks(); testState.updateCalls = []; });
+beforeEach(() => { vi.clearAllMocks(); testState.goFetchCalls = []; });
 
 describe('changePasswordAction', () => {
   it('changes password with valid old password', async () => {
-    mockUser({ id: 'u-1', passwordHash: 'hashed_oldpass' });
     const result = await changePasswordAction('oldpass', 'newpassword123');
     expect(result).toMatchObject({ success: true });
-    expect(testState.updateCalls[0]).toMatchObject({ passwordHash: expect.stringContaining('newpassword123') });
+    expect(testState.goFetchCalls[0]).toMatchObject({
+      path: '/api/v1/auth/change-password',
+      options: expect.objectContaining({
+        method: 'POST',
+        body: { old_password: 'oldpass', new_password: 'newpassword123' },
+      }),
+    });
   });
 
   it('returns error for short new password', async () => {
-    mockUser({ id: 'u-1', passwordHash: 'hashed_oldpass' });
     const result = await changePasswordAction('oldpass', 'short');
     expect(result).toMatchObject({ success: false, error: expect.stringContaining('Password must be at least') });
-  });
-
-  it('returns error for wrong old password', async () => {
-    mockUser({ id: 'u-1', passwordHash: 'hashed_oldpass' });
-    const result = await changePasswordAction('wrongold', 'newpassword123');
-    expect(result).toMatchObject({ success: false, error: expect.stringContaining('Current password is incorrect') });
   });
 
   it('returns error when unauthorized', async () => {
@@ -75,15 +49,14 @@ describe('changePasswordAction', () => {
 });
 
 describe('vault PIN actions', () => {
-  const withPin = { id: 'u-1', vaultPin: 'hashed_1234' };
-  const noPin = { id: 'u-1', vaultPin: null };
-
   describe('setVaultPinAction', () => {
     it('sets PIN with valid numeric PIN', async () => {
-      mockUser(null);
       const result = await setVaultPinAction('5678');
       expect(result).toMatchObject({ success: true });
-      expect(testState.updateCalls[0]).toMatchObject({ vaultPin: 'hashed_5678' });
+      expect(testState.goFetchCalls[0]).toMatchObject({
+        path: '/api/v1/users/me/vault-pin',
+        options: expect.objectContaining({ method: 'POST', body: { pin: '5678' } }),
+      });
     });
 
     it('rejects short PIN', async () => {
@@ -99,63 +72,59 @@ describe('vault PIN actions', () => {
 
   describe('changeVaultPinAction', () => {
     it('changes PIN with correct old PIN', async () => {
-      mockUser(withPin);
       const result = await changeVaultPinAction('1234', '5678');
       expect(result).toMatchObject({ success: true });
-      expect(testState.updateCalls[0]).toMatchObject({ vaultPin: 'hashed_5678' });
+      expect(testState.goFetchCalls[0]).toMatchObject({
+        path: '/api/v1/users/me/vault-pin/verify',
+        options: expect.objectContaining({ body: { pin: '1234' } }),
+      });
+      expect(testState.goFetchCalls[1]).toMatchObject({
+        path: '/api/v1/users/me/vault-pin',
+        options: expect.objectContaining({ body: { pin: '5678' } }),
+      });
     });
 
     it('rejects wrong old PIN', async () => {
-      mockUser(withPin);
-      const result = await changeVaultPinAction('9999', '5678');
+      const result = await changeVaultPinAction('wrong', '5678');
       expect(result).toMatchObject({ success: false, error: expect.stringContaining('Current PIN is incorrect') });
     });
 
-    it('rejects when no PIN set', async () => {
-      mockUser(noPin);
-      const result = await changeVaultPinAction('1234', '5678');
-      expect(result).toMatchObject({ success: false, error: expect.stringContaining('No PIN set') });
+    it('rejects short new PIN', async () => {
+      const result = await changeVaultPinAction('1234', '12');
+      expect(result).toMatchObject({ success: false, error: expect.stringContaining('4-10') });
     });
   });
 
   describe('disableVaultPinAction', () => {
     it('disables PIN with correct PIN', async () => {
-      mockUser(withPin);
       const result = await disableVaultPinAction('1234');
       expect(result).toMatchObject({ success: true });
-      expect(testState.updateCalls[0]).toEqual({ vaultPin: null });
+      expect(testState.goFetchCalls[1]).toMatchObject({
+        path: '/api/v1/users/me/vault-pin',
+        options: expect.objectContaining({ method: 'DELETE' }),
+      });
     });
 
     it('rejects wrong PIN', async () => {
-      mockUser(noPin);
-      const result = await disableVaultPinAction('9999');
-      expect(result).toMatchObject({ success: false, error: expect.stringContaining('No PIN set') });
+      const result = await disableVaultPinAction('wrong');
+      expect(result).toMatchObject({ success: false, error: expect.stringContaining('PIN is incorrect') });
     });
   });
 
   describe('getVaultPinStatusAction', () => {
     it('returns hasPin=true when PIN exists', async () => {
-      mockUser({ vaultPin: 'hashed_1234' });
       const result = await getVaultPinStatusAction();
       expect(result).toMatchObject({ success: true, hasPin: true });
-    });
-
-    it('returns hasPin=false when no PIN', async () => {
-      mockUser({ vaultPin: null });
-      const result = await getVaultPinStatusAction();
-      expect(result).toMatchObject({ success: true, hasPin: false });
     });
   });
 
   describe('verifyVaultPinAction', () => {
     it('returns success for correct PIN', async () => {
-      mockUser({ vaultPin: 'hashed_1234' });
       const result = await verifyVaultPinAction('1234');
       expect(result).toMatchObject({ success: true });
     });
 
     it('returns error for wrong PIN', async () => {
-      mockUser({ vaultPin: 'hashed_1234' });
       const result = await verifyVaultPinAction('wrong');
       expect(result).toMatchObject({ success: false, error: expect.stringContaining('PIN is incorrect') });
     });
@@ -164,20 +133,16 @@ describe('vault PIN actions', () => {
 
 describe('updateUsernameAction', () => {
   it('updates username with valid name', async () => {
-    mockUser(null);
     const result = await updateUsernameAction('newuser_42');
     expect(result).toMatchObject({ success: true });
-    expect(testState.updateCalls[0]).toMatchObject({ username: 'newuser_42' });
+    expect(testState.goFetchCalls[0]).toMatchObject({
+      path: '/api/v1/users/me/username',
+      options: expect.objectContaining({ method: 'PUT', body: { username: 'newuser_42' } }),
+    });
   });
 
   it('rejects short username', async () => {
     const result = await updateUsernameAction('ab');
     expect(result).toMatchObject({ success: false, error: expect.stringContaining('Username must be') });
-  });
-
-  it('rejects taken username', async () => {
-    mockUser({ id: 'other', username: 'taken' });
-    const result = await updateUsernameAction('taken');
-    expect(result).toMatchObject({ success: false, error: expect.stringContaining('already taken') });
   });
 });

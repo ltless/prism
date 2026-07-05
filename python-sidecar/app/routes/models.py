@@ -26,12 +26,6 @@ def load_aesthetic_session(spec: registry.ModelSpec) -> None:
     aesthetic.load_aesthetic()
 
 
-def load_tagger_session(spec: registry.ModelSpec) -> None:
-    from app.models import tagger
-
-    tagger.load_tagger()
-
-
 @router.get("/model-status")
 def model_status() -> dict:
     models = []
@@ -75,8 +69,6 @@ def load_model(req: LoadModelRequest) -> dict:
             load_clip_session(spec)
         elif spec.type == "aesthetic":
             load_aesthetic_session(spec)
-        elif spec.type == "tagger":
-            load_tagger_session(spec)
         else:
             raise HTTPException(status_code=400, detail=f"unsupported model type: {spec.type}")
     except HTTPException:

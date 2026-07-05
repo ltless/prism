@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { ImageCropModal } from "@/shared/components/ImageCropModal";
-import { useSession } from "next-auth/react";
-import { useAuth } from "@/lib/auth/AuthContext";import { updateProfileImageAction } from "@/features/profile/services/profileActions";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { updateProfileImageAction } from "@/features/profile/services/profileActions";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
 import { toast } from "sonner";
 import { useAIStore } from "@/features/ai/store";
@@ -29,12 +29,10 @@ interface SettingsModalProps {
 type Tab = "general" | "ai" | "security" | "storage" | "about";
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { update } = useSession();
   const { refreshProfile } = useAuth();
-  const effectiveSession = useEffectiveSession();
+  const { session: effectiveSession } = useEffectiveSession();
   const [activeTab, setActiveTab] = useState<Tab>("general");
   const [isUploading, setIsUploading] = useState<"image" | "coverImage" | null>(null);
-  // Local override for image paths — needed for Go-auth users where update() has no effect
   const [localImageOverride, setLocalImageOverride] = useState<{ image?: string; coverImage?: string }>({});
  
  const ai = useAIStore();
@@ -94,18 +92,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     toast.success(`${type === "image" ? "Profile picture" : "Cover photo"} updated`);
     // Update local override so image displays immediately for Go-auth users
     setLocalImageOverride(prev => ({ ...prev, [type]: result.path }));
-    // Refresh Go auth profile so TopBar also updates
     await refreshProfile();
-    // Only update NextAuth session if one exists (Go-auth users have no session)
-    if (effectiveSession) {
-      await update({
-        ...effectiveSession,
-        user: {
-          ...effectiveSession.user,
-          [type]: result.path
-        }
-      });
-    }
    } else {
   toast.error(result.error || "Upload failed");
   }

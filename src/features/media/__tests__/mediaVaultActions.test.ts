@@ -1,82 +1,62 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { toggleVaultAction, bulkSetVaultAction } from "../services/mediaVaultActions";
+import { goFetch } from "@/lib/api";
 
-const mockSelect = vi.fn(() => Promise.resolve([{ id: "test-id", isVault: false }]));
-
-const mockDb = {
-  select: vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        limit: mockSelect,
-      })),
-    })),
-  })),
-  update: vi.fn(() => ({
-    set: vi.fn(() => ({
-      where: vi.fn(() => Promise.resolve()),
-    })),
-  })),
-};
-
-vi.mock("@/services/db/multitenant", () => ({
-  getUserDb: vi.fn(async () => ({
-    db: mockDb,
-    paths: { mediaDir: "/tmp", thumbDir: "/tmp/thumbs", dbPath: ":memory:" },
-  })),
+vi.mock("@/lib/api", () => ({
+  goFetch: vi.fn(),
 }));
 
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-vi.mock("@/auth", () => ({
-  auth: vi.fn(async () => ({ user: { id: "test-user-id" } })),
-}));
+const mockedGoFetch = vi.mocked(goFetch);
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+beforeEach(() => { vi.clearAllMocks(); });
 
 describe("vault actions", () => {
   describe("toggleVaultAction", () => {
     it("toggles isVault from false to true", async () => {
+      mockedGoFetch
+        .mockResolvedValueOnce({ isVault: false })
+        .mockResolvedValueOnce({ success: true });
+
       const result = await toggleVaultAction("test-id");
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.isVault).toBe(true);
-      }
-      expect(mockDb.update).toHaveBeenCalled();
+      expect(result).toEqual({ success: true, isVault: true });
+      expect(mockedGoFetch).toHaveBeenCalledTimes(2);
+      expect(mockedGoFetch).toHaveBeenNthCalledWith(1, "/api/v1/media/test-id");
+      expect(mockedGoFetch).toHaveBeenNthCalledWith(2, "/api/v1/media/bulk/vault", {
+        method: "POST",
+        body: { media_ids: ["test-id"], is_vault: true },
+      });
     });
 
     it("toggles isVault from true to false", async () => {
-      mockSelect.mockResolvedValueOnce([{ id: "test-id", isVault: true }]);
+      mockedGoFetch
+        .mockResolvedValueOnce({ isVault: true })
+        .mockResolvedValueOnce({ success: true });
 
       const result = await toggleVaultAction("test-id");
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.isVault).toBe(false);
-      }
+      expect(result).toEqual({ success: true, isVault: false });
     });
 
-    it("throws when item not found", async () => {
-      mockSelect.mockResolvedValueOnce([]);
-
+    it("returns error when item not found", async () => {
+      mockedGoFetch.mockRejectedValueOnce(new Error("Not found"));
       const result = await toggleVaultAction("nonexistent");
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe("Item not found");
+        expect(result.error).toMatch(/not found/i);
       }
     });
   });
 
   describe("bulkSetVaultAction", () => {
-    it("sets isVault=true on given ids, returns count", async () => {
+    it("returns count and success", async () => {
+      mockedGoFetch.mockResolvedValueOnce({ success: true });
       const result = await bulkSetVaultAction(["id-1", "id-2", "id-3"], true);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.count).toBe(3);
-      }
-      expect(mockDb.update).toHaveBeenCalled();
+      expect(result).toEqual({ success: true, count: 3 });
+      expect(mockedGoFetch).toHaveBeenCalledWith("/api/v1/media/bulk/vault", {
+        method: "POST",
+        body: { media_ids: ["id-1", "id-2", "id-3"], is_vault: true },
+      });
     });
   });
 });

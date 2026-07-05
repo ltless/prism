@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+from fastapi import HTTPException
+
 from app.config import settings
 
 
@@ -21,3 +23,11 @@ def resolve_media_path(file_path: str) -> str:
     if resolved != root and not resolved.startswith(root + os.sep):
         raise ValueError(f"path outside media root: {file_path}")
     return resolved
+
+
+def resolve_media_path_or_err(file_path: str) -> str:
+    """Same as resolve_media_path but raises HTTPException(403) for route handlers."""
+    try:
+        return resolve_media_path(file_path)
+    except ValueError as err:
+        raise HTTPException(status_code=403, detail=str(err)) from err

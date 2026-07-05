@@ -1,37 +1,16 @@
-import { auth } from "@/auth";
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { NextResponse } from "next/server";
 import { downloadModel } from "@/services/ai/sidecar-client";
-import { logger } from "@/core/utils/logger";
-import { rateLimit, rateLimitResponse } from "@/core/utils/rateLimit";
+import { withSidecarProxy } from "../_lib";
+import { AiDownloadModelSchema } from "../schemas";
 
-const Schema = z.object({
-  modelId: z.string().min(1).max(200),
+export const POST = withSidecarProxy({
+  rateLimit: ["ai:download-model", 10, 60_000],
+  admin: true,
+  schema: AiDownloadModelSchema,
+  badRequestMessage: "Invalid modelId",
+  label: "AI download-model proxy failed",
+  handler: async ({ data }) => {
+    const result = await downloadModel(data.modelId);
+    return NextResponse.json(result, { status: result.started ? 202 : 200 });
+  },
 });
-
-export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (session.user.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const rl = await rateLimit(`ai:download-model:${session.user.id}`, 10, 60_000);
-  if (!rl.success) return rateLimitResponse(rl.reset);
-
-  try {
-    const body = await request.json();
-    const parsed = Schema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid modelId" }, { status: 400 });
-    }
-    const data = await downloadModel(parsed.data.modelId);
-    return NextResponse.json(data, { status: data.started ? 202 : 200 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to start download";
-    logger.error("AI download-model proxy failed", { error: message });
-    return NextResponse.json({ error: message }, { status: 502 });
-  }
-}

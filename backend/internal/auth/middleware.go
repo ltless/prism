@@ -49,6 +49,16 @@ func GetClaims(c echo.Context) *Claims {
 	return claims
 }
 
+// GetClaimsOrErr returns the authenticated claims or an Unauthorized HTTPError.
+// Use this in protected handler methods to replace the 3-line nil-check pattern.
+func GetClaimsOrErr(c echo.Context) (*Claims, error) {
+	claims := GetClaims(c)
+	if claims == nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	}
+	return claims, nil
+}
+
 // RequireAdmin returns an Echo middleware that rejects non-admin callers.
 // Must be used after JWTManager.Middleware so claims are populated.
 func RequireAdmin(next echo.HandlerFunc) echo.HandlerFunc {

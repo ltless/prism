@@ -17,8 +17,8 @@ import {
 import { updateStorageLimitAction, updateGlobalStorageDefaultAction } from "@/features/settings/services/storageActions";
 import { DEFAULT_USER_QUOTA_BYTES } from "@/core/constants";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import { WizardProgress } from "./steps/WizardProgress";
 import { WizardFooter } from "./steps/WizardFooter";
@@ -36,8 +36,8 @@ const adminSteps = [profileStep, vaultStep, storageStep, finishStep];
 const userSteps = [profileStep, vaultStep, finishStep];
 
 export function SetupWizard() {
-  const { update } = useSession();
-  const session = useEffectiveSession();
+  const { session } = useEffectiveSession();
+  const { refreshProfile } = useAuth();
   const isAdmin = session?.user?.role === "admin";
   const steps = isAdmin ? adminSteps : userSteps;
 
@@ -117,12 +117,7 @@ export function SetupWizard() {
       setIsCompleting(true);
       const res = await completeSetupAction();
       if (res.success) {
-        await update({
-          user: {
-            image: profileImage,
-            coverImage: coverImage
-          }
-        });
+        await refreshProfile();
 
         toast.success("Setup completed! Welcome to Prism.");
 

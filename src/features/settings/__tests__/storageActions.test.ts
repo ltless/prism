@@ -11,42 +11,24 @@ vi.mock("@/auth", () => ({
   auth: vi.fn(async () => ({ user: { id: "test-user-id", role: "admin" } })),
 }));
 
-vi.mock("@/services/db/multitenant", () => ({
-  getUserDb: vi.fn(async () => ({
-    sqlite: {
-      prepare: vi.fn(() => ({
-        get: vi.fn(() => ({ total: 100 })),
-      })),
-    },
-  })),
+const goFetchMock = vi.hoisted(() => vi.fn(async (path: string) => {
+  if (path === "/api/v1/users/me/storage-usage") {
+    return { usage_bytes: 100, image_bytes: 50, video_bytes: 50 };
+  }
+  if (path === "/api/v1/users/me") {
+    return { role: "admin", storage_limit: 1000 };
+  }
+  if (path === "/api/v1/config/storage-default") {
+    return { storage_default_bytes: 2000 };
+  }
+  if (path === "/api/v1/config") {
+    return { ai: null };
+  }
+  return { success: true };
 }));
 
-vi.mock("@/services/db", () => ({
-  db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            get: vi.fn(() => ({ storageLimit: 1000, role: "admin" })),
-          })),
-        })),
-      })),
-    })),
-    update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn(() => ({
-          run: vi.fn(() => Promise.resolve()),
-        })),
-      })),
-    })),
-    insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        onConflictDoUpdate: vi.fn(() => ({
-          run: vi.fn(() => Promise.resolve()),
-        })),
-      })),
-    })),
-  },
+vi.mock("@/lib/api", () => ({
+  goFetch: goFetchMock,
 }));
 
 vi.mock("next/cache", () => ({

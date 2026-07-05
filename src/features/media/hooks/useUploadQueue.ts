@@ -169,24 +169,21 @@ export function useUploadQueue() {
 
   router.refresh();
 
-  if (pendingMediaIdsRef.current.length > 0) {
-  const ids = [...pendingMediaIdsRef.current];
-  pendingMediaIdsRef.current = [];
+  function startPolling<T>(
+  ids: string[],
+  checkFn: (ids: string[]) => Promise<Record<string, T>>,
+  isDone: (s: T) => boolean,
+  ) {
   let polls = 0;
   const poll = async () => {
   if (polls >= MAX_POLLS || cancelledRef.current) {
-  // Polling timed out — refresh anyway so uploaded photos appear even
-  // if AI processing is still pending (sidecar slow/crashed).
   if (!cancelledRef.current) router.refresh();
   return;
   }
   polls++;
-  const statuses = await checkAIStatus(ids);
-  // Guard against vacuous truth: every() on an empty statuses object
-  // returns true, which would stop polling before any result arrives.
+  const statuses = await checkFn(ids);
   const hasStatuses = Object.keys(statuses).length > 0;
-  const allDone = hasStatuses && Object.values(statuses).every(s => s.done);
-  if (allDone) {
+  if (hasStatuses && Object.values(statuses).every(isDone)) {
   router.refresh();
   } else {
   pollTimersRef.current.push(setTimeout(poll, POLL_INTERVAL));
@@ -195,28 +192,14 @@ export function useUploadQueue() {
   pollTimersRef.current.push(setTimeout(poll, POLL_INTERVAL));
   }
 
+  if (pendingMediaIdsRef.current.length > 0) {
+  startPolling([...pendingMediaIdsRef.current], checkAIStatus, s => s.done);
+  pendingMediaIdsRef.current = [];
+  }
+
   if (pendingTranscodeIdsRef.current.length > 0) {
-  const ids = [...pendingTranscodeIdsRef.current];
+  startPolling([...pendingTranscodeIdsRef.current], checkTranscodeStatus, s => s.status === "done" || s.status === "failed");
   pendingTranscodeIdsRef.current = [];
-  let polls = 0;
-  const poll = async () => {
-  if (polls >= MAX_POLLS || cancelledRef.current) {
-  if (!cancelledRef.current) router.refresh();
-  return;
-  }
-  polls++;
-  const statuses = await checkTranscodeStatus(ids);
-  const hasStatuses = Object.keys(statuses).length > 0;
-  const allDone = hasStatuses && Object.values(statuses).every(
-  s => s.status === "done" || s.status === "failed"
-  );
-  if (allDone) {
-  router.refresh();
-  } else {
-  pollTimersRef.current.push(setTimeout(poll, POLL_INTERVAL));
-  }
-  };
-  pollTimersRef.current.push(setTimeout(poll, POLL_INTERVAL));
   }
 
   if (uploadQueueRef.current.length > 0) {

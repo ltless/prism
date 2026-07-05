@@ -69,3 +69,30 @@ func (s *Service) Update(body map[string]interface{}) error {
 
 	return nil
 }
+
+const storageDefaultKey = "storage_default_bytes"
+
+func (s *Service) GetStorageDefault() (*int64, error) {
+	var value sql.NullString
+	err := s.global.DB.QueryRow("SELECT value FROM app_settings WHERE key = ?", storageDefaultKey).Scan(&value)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("query storage default: %w", err)
+	}
+	if !value.Valid {
+		return nil, nil
+	}
+	var bytes int64
+	if _, err := fmt.Sscanf(value.String, "%d", &bytes); err != nil {
+		return nil, nil
+	}
+	return &bytes, nil
+}
+
+func (s *Service) UpdateStorageDefault(bytes int64) error {
+	val := fmt.Sprintf("%d", bytes)
+	_, err := s.global.DB.Exec(
+		"INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?",
+		storageDefaultKey, val, val,
+	)
+	return err
+}

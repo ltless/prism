@@ -7,9 +7,8 @@
 export const DEFAULT_USER_QUOTA_BYTES = 10 * 1024 * 1024 * 1024;
 
 export const MEDIA_LIMITS = {
- MAX_FILE_SIZE_MB: 200,
- MAX_FILE_SIZE_BYTES: 200 * 1024 * 1024,
- ALLOWED_EXTENSIONS: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'mp4', 'mov', 'webm'],
+  MAX_FILE_SIZE_BYTES: 200 * 1024 * 1024,
+  ALLOWED_EXTENSIONS: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'mp4', 'mov', 'webm'],
  ALLOWED_MIME_TYPES: [
  'image/jpeg', 
  'image/png', 

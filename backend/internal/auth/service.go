@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -51,16 +50,20 @@ type userRow struct {
 }
 
 type Service struct {
-	db       *sql.DB
-	jwt      *JWTManager
-	validate *validator.Validate
+	db           *sql.DB
+	jwt          *JWTManager
+	validate     *validator.Validate
+	inviteCode   string
+	requireInvite bool
 }
 
-func NewService(db *sql.DB, jwt *JWTManager) *Service {
+func NewService(db *sql.DB, jwt *JWTManager, inviteCode string, requireInvite bool) *Service {
 	return &Service{
-		db:       db,
-		jwt:      jwt,
-		validate: validator.New(),
+		db:           db,
+		jwt:          jwt,
+		validate:     validator.New(),
+		inviteCode:   inviteCode,
+		requireInvite: requireInvite,
 	}
 }
 
@@ -104,13 +107,24 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 		return nil, fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 
-	// Invite code gate — mirrors the Next.js registerAction. If
-	// REGISTRATION_INVITE_CODE is set, the request must supply a matching code.
-	if expected := os.Getenv("REGISTRATION_INVITE_CODE"); expected != "" {
+	// Invite code gate. If RequireInvite is true (default), registration
+	// requires a matching code even if inviteCode is empty — this prevents
+	// accidental open registration when the env var is unset.
+	if s.requireInvite {
 		if req.InviteCode == "" {
 			return nil, ErrInviteRequired
 		}
-		if subtle.ConstantTimeCompare([]byte(req.InviteCode), []byte(expected)) != 1 {
+		if s.inviteCode == "" {
+			// No code configured but invite is required — reject everything.
+			return nil, ErrInviteInvalid
+		}
+		if subtle.ConstantTimeCompare([]byte(req.InviteCode), []byte(s.inviteCode)) != 1 {
+			return nil, ErrInviteInvalid
+		}
+	} else if s.inviteCode != "" {
+		// If RequireInvite is false but a code is set, still validate it
+		// when the user provides one (optional gate).
+		if req.InviteCode != "" && subtle.ConstantTimeCompare([]byte(req.InviteCode), []byte(s.inviteCode)) != 1 {
 			return nil, ErrInviteInvalid
 		}
 	}
@@ -148,12 +162,23 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 	}, nil
 }
 
-func (s *Service) Me(userID string) (*userRow, error) {
-	var user userRow
+// MeInfo contains only the fields safe to expose via the API.
+// PasswordHash is intentionally excluded to prevent accidental leakage.
+type MeInfo struct {
+	ID                string
+	Username          string
+	Role              string
+	Image             sql.NullString
+	CoverImage        sql.NullString
+	HasCompletedSetup int
+}
+
+func (s *Service) Me(userID string) (*MeInfo, error) {
+	var user MeInfo
 	err := s.db.QueryRow(
-		"SELECT id, username, password_hash, role, image, cover_image, has_completed_setup FROM users WHERE id = ?",
+		"SELECT id, username, role, image, cover_image, has_completed_setup FROM users WHERE id = ?",
 		userID,
-	).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Role, &user.Image, &user.CoverImage, &user.HasCompletedSetup)
+	).Scan(&user.ID, &user.Username, &user.Role, &user.Image, &user.CoverImage, &user.HasCompletedSetup)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("user not found")
 	}
@@ -161,6 +186,41 @@ func (s *Service) Me(userID string) (*userRow, error) {
 		return nil, fmt.Errorf("query user: %w", err)
 	}
 	return &user, nil
+}
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" validate:"required,min=6"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
+}
+
+func (s *Service) ChangePassword(userID, oldPassword, newPassword string) error {
+	if err := s.validate.Struct(&ChangePasswordRequest{
+		OldPassword: oldPassword,
+		NewPassword: newPassword,
+	}); err != nil {
+		return fmt.Errorf("%w: %w", ErrValidation, err)
+	}
+
+	var hash string
+	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = ?", userID).Scan(&hash)
+	if err == sql.ErrNoRows {
+		return ErrInvalidCredentials
+	}
+	if err != nil {
+		return fmt.Errorf("query user: %w", err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(oldPassword)); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	_, err = s.db.Exec("UPDATE users SET password_hash = ? WHERE id = ?", string(newHash), userID)
+	return err
 }
 
 func isUniqueConstraintErr(err error) bool {

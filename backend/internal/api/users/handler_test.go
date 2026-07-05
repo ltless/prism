@@ -35,7 +35,7 @@ func setupUsersHandlerDB(t *testing.T) *db.GlobalDB {
 func setupUsersHandler(t *testing.T) (*echo.Echo, *Handler, string) {
 	t.Helper()
 	gdb := setupUsersHandlerDB(t)
-	svc := NewService(gdb)
+	svc := NewService(gdb, nil)
 	h := NewHandler(svc)
 
 	jwt := auth.NewJWTManager("test-secret")

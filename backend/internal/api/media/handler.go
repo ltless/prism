@@ -27,9 +27,9 @@ func NewHandler(svc *Service, storage *mw.Storage) *Handler {
 }
 
 func (h *Handler) List(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	folderID := c.QueryParam("folder_id")
@@ -56,9 +56,9 @@ func (h *Handler) List(c echo.Context) error {
 }
 
 func (h *Handler) Get(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	id := c.Param("id")
@@ -71,9 +71,9 @@ func (h *Handler) Get(c echo.Context) error {
 }
 
 func (h *Handler) Upload(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	if c.Request().ContentLength > maxUploadSize {
@@ -167,9 +167,9 @@ func (h *Handler) Upload(c echo.Context) error {
 }
 
 func (h *Handler) Delete(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	id := c.Param("id")
@@ -184,9 +184,9 @@ func (h *Handler) Delete(c echo.Context) error {
 }
 
 func (h *Handler) Update(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	id := c.Param("id")
@@ -208,30 +208,10 @@ func (h *Handler) Update(c echo.Context) error {
 	if folderID, ok := body["folder_id"]; ok {
 		updates["folder_id"] = folderID
 	}
-	if isFavorite, ok := body["is_favorite"]; ok {
-		if b, ok := isFavorite.(bool); ok {
-			if b {
-				updates["is_favorite"] = 1
-			} else {
-				updates["is_favorite"] = 0
-			}
-		}
-	}
-	if isTrash, ok := body["is_trash"]; ok {
-		if b, ok := isTrash.(bool); ok {
-			if b {
-				updates["is_trash"] = 1
-			} else {
-				updates["is_trash"] = 0
-			}
-		}
-	}
-	if isVault, ok := body["is_vault"]; ok {
-		if b, ok := isVault.(bool); ok {
-			if b {
-				updates["is_vault"] = 1
-			} else {
-				updates["is_vault"] = 0
+	for _, field := range []string{"is_favorite", "is_trash", "is_vault"} {
+		if v, ok := body[field]; ok {
+			if b, ok := v.(bool); ok {
+				updates[field] = boolToInt(b)
 			}
 		}
 	}
@@ -247,10 +227,12 @@ func (h *Handler) Update(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
+const maxBulkMoveIDs = 500
+
 func (h *Handler) BulkMove(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	var body struct {
@@ -261,6 +243,13 @@ func (h *Handler) BulkMove(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
 
+	if len(body.MediaIDs) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "media_ids is required")
+	}
+	if len(body.MediaIDs) > maxBulkMoveIDs {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkMoveIDs))
+	}
+
 	if err := h.svc.BulkMove(claims.UserID, body.MediaIDs, body.FolderID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "move failed")
 	}
@@ -269,9 +258,9 @@ func (h *Handler) BulkMove(c echo.Context) error {
 }
 
 func (h *Handler) ServeFile(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	isThumb := c.QueryParam("thumb") == "1"
@@ -281,4 +270,222 @@ func (h *Handler) ServeFile(c echo.Context) error {
 		return h.storage.ServeThumbnail(c, claims.UserID, filePath)
 	}
 	return h.storage.ServeFile(c, claims.UserID, filePath)
+}
+
+const maxBulkIDs = 500
+
+func (h *Handler) BulkFavorite(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		MediaIDs    []string `json:"media_ids"`
+		IsFavorite  bool     `json:"is_favorite"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if len(body.MediaIDs) > maxBulkIDs {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
+	}
+	val := 0
+	if body.IsFavorite {
+		val = 1
+	}
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_favorite", val); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+func (h *Handler) BulkTrash(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		MediaIDs []string `json:"media_ids"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if len(body.MediaIDs) > maxBulkIDs {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
+	}
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_trash", 1); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+func (h *Handler) BulkRestore(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		MediaIDs []string `json:"media_ids"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if len(body.MediaIDs) > maxBulkIDs {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
+	}
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_trash", 0); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+func (h *Handler) EmptyTrash(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.svc.EmptyTrash(claims.UserID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	for _, item := range items {
+		_ = h.storage.DeleteFile(claims.UserID, item.FilePath)
+	}
+	return c.JSON(http.StatusOK, map[string]int{"deleted": len(items)})
+}
+
+func (h *Handler) BulkVault(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		MediaIDs []string `json:"media_ids"`
+		IsVault  bool     `json:"is_vault"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if len(body.MediaIDs) > maxBulkIDs {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
+	}
+	val := 0
+	if body.IsVault {
+		val = 1
+	}
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_vault", val); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+func (h *Handler) BatchAITags(c echo.Context) error {
+	_, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		MediaIDs []string `json:"media_ids"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	// TODO: implement sidecar AI tagging in Part 5
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"note":    "async batch tagging queued (not yet implemented)",
+	})
+}
+
+func (h *Handler) BatchAestheticScore(c echo.Context) error {
+	_, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		MediaIDs []string `json:"media_ids"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	// TODO: implement sidecar aesthetic scoring in Part 5
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success": true,
+		"note":    "async aesthetic scoring queued (not yet implemented)",
+	})
+}
+
+func (h *Handler) ResolveDuplicate(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		KeepID    string   `json:"keep_id"`
+		DeleteIDs []string `json:"delete_ids"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if body.KeepID == "" || len(body.DeleteIDs) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "keep_id and delete_ids required")
+	}
+	if err := h.svc.ResolveDuplicate(claims.UserID, body.KeepID, body.DeleteIDs); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	// Clean up files for deleted duplicates (best-effort)
+	for _, id := range body.DeleteIDs {
+		item, err := h.svc.Get(claims.UserID, id)
+		if err == nil {
+			_ = h.storage.DeleteFile(claims.UserID, item.FilePath)
+		}
+	}
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+func (h *Handler) Search(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	params := SearchParams{
+		Query:    c.QueryParam("q"),
+		Page:     parseInt(c.QueryParam("page")),
+		Limit:    parseInt(c.QueryParam("limit")),
+	}
+
+	folderID := c.QueryParam("folder_id")
+	if folderID != "" {
+		params.FolderID = &folderID
+	}
+
+	if tagsParam := c.QueryParam("tags"); tagsParam != "" {
+		params.Tags = strings.Split(tagsParam, ",")
+	}
+
+	resp, err := h.svc.Search(claims.UserID, params)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func parseInt(s string) int {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

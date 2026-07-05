@@ -8,11 +8,10 @@ import { SectionCard } from "@/shared/components/SectionCard";
 import { useTheme } from "@/components/ThemeProvider";
 import { updateUsernameAction } from "@/features/profile/services/profileActions";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
-import type { Session } from "next-auth";
+import type { EffectiveSession } from "@/lib/auth/useEffectiveSession";
 
 interface GeneralTabProps {
-  session: Session;
+  session: EffectiveSession;
   isUploading: "image" | "coverImage" | null;
   coverSrc: string | null;
   profileSrc: string | null;
@@ -23,7 +22,6 @@ interface GeneralTabProps {
 
 export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileSelect, coverInputRef, profileInputRef }: GeneralTabProps) {
   const { theme, setTheme } = useTheme();
-  const { update } = useSession();
   const [username, setUsername] = useState(session?.user?.name || "");
   const [isSavingUsername, setIsSavingUsername] = useState(false);
 
@@ -32,7 +30,6 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
     const res = await updateUsernameAction(username);
     if (res.success) {
       toast.success("Username updated");
-      await update({ user: { ...session?.user, name: username } });
     } else {
       toast.error(res.error || "Failed to update username");
     }

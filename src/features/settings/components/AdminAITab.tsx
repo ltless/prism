@@ -9,7 +9,7 @@ import { Toggle } from "@/shared/components/ui/Toggle";
 import type { AIModelVariant } from "@/features/ai/types";
 import { triggerConfigUpdate } from "@/features/ai/utils/triggerConfigUpdate";
 import { useModelDownload } from "@/features/ai/hooks/useModelDownload";
-import { fetchModelStatus, reconcileLoadedModels, taggerModelId } from "@/features/ai/services/aiStatusClient";
+import { fetchModelStatus, reconcileLoadedModels } from "@/features/ai/services/aiStatusClient";
 import type { ModelRow } from "@/features/ai/services/aiStatusClient";
 import { SIDECAR_MODEL_IDS } from "@/features/ai/constants";
 import type { AITabProps } from "./AITab";
@@ -65,8 +65,6 @@ export function AdminAITab({ ai, tagStats, onSetTagStats, scoreStats, onSetScore
   { id: "sharp", name: "CLIP Sharp", desc: "Better accuracy with patch16 (~0.5GB)" },
   { id: "high", name: "CLIP High", desc: "Highest precision (~1.7GB VRAM)" },
   ];
-
-  const taggerModel = models?.find((m) => m.id === taggerModelId());
 
   return (
   <div className="flex flex-col gap-6 py-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -178,23 +176,6 @@ export function AdminAITab({ ai, tagStats, onSetTagStats, scoreStats, onSetScore
   </div>
   )}
 
-  {/* Florence-2 Tagger (blocked — transformers 4.57 generation cache skew) */}
-  <div className="p-3 rounded-xl border border-main-border/30 bg-app-bg/50 flex items-center justify-between gap-3 mt-3 opacity-60">
-  <div className="flex items-center gap-2">
-  <Warning size={14} weight="fill" className="text-amber-500" />
-  <div>
-  <div className="flex items-center gap-2">
-  <span className="text-[12px] font-medium text-main-text">Florence-2 Tagger</span>
-  <span className="text-[10px] font-medium bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded">BLOCKED</span>
-  {taggerModel?.downloaded && <span className="text-[10px] font-medium bg-muted-text/10 text-muted-text px-1.5 py-0.5 rounded">DOWNLOADED</span>}
-  </div>
-  <p className="text-xs text-muted-text mt-0.5">Object-detection tagger. Incompatible with current transformers (needs 4.30-era cache API). Using CLIP zero-shot tagging instead.</p>
-  </div>
-  </div>
-  <button disabled className="px-3 py-1.5 rounded-lg bg-muted-text/10 text-muted-text text-xs font-medium cursor-not-allowed">
-  Unavailable
-  </button>
-  </div>
   </div>
 
  {/* 2. Feature Toggles */}

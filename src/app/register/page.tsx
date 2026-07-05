@@ -50,7 +50,7 @@ export default function RegisterPage() {
   } else {
   setSuccess(true);
   setTimeout(() => {
-  router.push("/dashboard");
+  router.push("/setup");
   }, 800);
   }
   }

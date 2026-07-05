@@ -22,13 +22,13 @@ export function TopBar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const effectiveSession = useEffectiveSession();
+  const { session: effectiveSession, isLoading: authLoading } = useEffectiveSession();
  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
  const ai = useAIStore();
 
   useAIInit();
-  const stats = useSystemStats(effectiveSession?.user?.role === "admin");
+  const stats = useSystemStats(effectiveSession?.user?.role === "admin" && !authLoading);
 
  const { theme, setTheme } = useTheme();
 
@@ -196,7 +196,10 @@ export function TopBar() {
  </AnimatePresence>
  </button>
 
- {effectiveSession && <UserMenu session={effectiveSession as import("next-auth").Session} onOpenSettings={() => setIsSettingsOpen(true)} />}
+ {effectiveSession && <UserMenu session={effectiveSession} onOpenSettings={() => setIsSettingsOpen(true)} />}
+ {authLoading && !effectiveSession && (
+ <div className="w-8 h-8 rounded-full bg-surface-bg animate-pulse" aria-hidden="true" />
+ )}
  </div>
  </header>
 

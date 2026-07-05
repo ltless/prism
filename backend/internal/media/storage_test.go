@@ -1,0 +1,229 @@
+package media
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/labstack/echo/v4"
+)
+
+func TestValidateUpload_AllowedExtension(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// Minimal JPEG bytes: SOI + APP0 marker
+	jpegData := []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 0}
+	if err := s.ValidateUpload(jpegData, ".jpg"); err != nil {
+		t.Fatalf("expected valid .jpg, got: %v", err)
+	}
+}
+
+func TestValidateUpload_DisallowedExtension(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	data := []byte("some content")
+	if err := s.ValidateUpload(data, ".exe"); err == nil {
+		t.Fatal("expected error for .exe extension")
+	}
+}
+
+func TestValidateUpload_WrongMagicBytes(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// PNG extension but JPEG magic bytes
+	data := []byte{0xFF, 0xD8, 0xFF, 0xE0}
+	if err := s.ValidateUpload(data, ".png"); err == nil {
+		t.Fatal("expected error for mismatched magic bytes")
+	}
+}
+
+func TestValidateUpload_TooSmall(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// Only 2 bytes, need at least 3 for JPEG magic
+	data := []byte{0xFF, 0xD8}
+	if err := s.ValidateUpload(data, ".jpg"); err == nil {
+		t.Fatal("expected error for too-small file")
+	}
+}
+
+func TestValidateUpload_NoMagicCheck(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// .heic has no magic signature defined
+	data := []byte("anything")
+	if err := s.ValidateUpload(data, ".heic"); err != nil {
+		t.Fatalf("expected no error for .heic (no magic check), got: %v", err)
+	}
+}
+
+func TestValidateUpload_WebP(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// Minimal WebP: RIFF header + WEBP at offset 8
+	data := []byte{
+		0x52, 0x49, 0x46, 0x46, // RIFF
+		0x00, 0x00, 0x00, 0x00, // file size placeholder
+		0x57, 0x45, 0x42, 0x50, // WEBP
+	}
+	if err := s.ValidateUpload(data, ".webp"); err != nil {
+		t.Fatalf("expected valid .webp, got: %v", err)
+	}
+}
+
+func TestValidateUpload_WebP_Invalid(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// RIFF header but not WEBP at offset 8
+	data := []byte{
+		0x52, 0x49, 0x46, 0x46, // RIFF
+		0x00, 0x00, 0x00, 0x00,
+		0x57, 0x45, 0x42, 0x4E, // "WEBN" not "WEBP"
+	}
+	if err := s.ValidateUpload(data, ".webp"); err == nil {
+		t.Fatal("expected error for invalid WebP")
+	}
+}
+
+func TestValidateUpload_MP4(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// Minimal MP4: ftyp box
+	data := []byte{
+		0x00, 0x00, 0x00, 0x18, // box size
+		0x66, 0x74, 0x79, 0x70, // "ftyp"
+	}
+	if err := s.ValidateUpload(data, ".mp4"); err != nil {
+		t.Fatalf("expected valid .mp4, got: %v", err)
+	}
+}
+
+func TestValidateUpload_MP4_Invalid(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// Correct box size but wrong type
+	data := []byte{
+		0x00, 0x00, 0x00, 0x18,
+		0x66, 0x74, 0x79, 0x71, // "ftyq" not "ftyp"
+	}
+	if err := s.ValidateUpload(data, ".mp4"); err == nil {
+		t.Fatal("expected error for invalid MP4")
+	}
+}
+
+func newEchoContext() (echo.Context, *httptest.ResponseRecorder) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	return e.NewContext(req, rec), rec
+}
+
+func TestServeThumbnail_PathTraversal(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	c, _ := newEchoContext()
+
+	err := s.ServeThumbnail(c, "testuser", "../../../etc/passwd.jpg")
+	if err == nil {
+		t.Fatal("expected error for path traversal in thumbnail")
+	}
+	he, ok := err.(*echo.HTTPError)
+	if !ok || he.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got: %v", err)
+	}
+}
+
+func TestServeThumbnail_AbsolutePath(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	c, _ := newEchoContext()
+
+	err := s.ServeThumbnail(c, "testuser", "/etc/passwd.jpg")
+	if err == nil {
+		t.Fatal("expected error for absolute path in thumbnail")
+	}
+	he, ok := err.(*echo.HTTPError)
+	if !ok || he.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got: %v", err)
+	}
+}
+
+func TestServeThumbnail_NotFound(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	c, _ := newEchoContext()
+
+	err := s.ServeThumbnail(c, "testuser", "nonexistent.jpg")
+	if err == nil {
+		t.Fatal("expected error for missing thumbnail")
+	}
+	he, ok := err.(*echo.HTTPError)
+	if !ok || he.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got: %v", err)
+	}
+}
+
+func TestServeThumbnail_Valid(t *testing.T) {
+	tmpDir := t.TempDir()
+	s := NewStorage(tmpDir)
+	c, rec := newEchoContext()
+
+	// Create a thumbnail file
+	userID := "testuser"
+	thumbDir := s.thumbDir(userID)
+	os.MkdirAll(thumbDir, 0755)
+	thumbFile := filepath.Join(thumbDir, "abc123.jpg")
+	os.WriteFile(thumbFile, []byte("fake jpg data"), 0644)
+
+	err := s.ServeThumbnail(c, userID, "abc123.png")
+	if err != nil {
+		t.Fatalf("expected valid thumbnail serve, got: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+}
+
+func TestResolveUserMediaPath_Valid(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	resolved, err := s.ResolveUserMediaPath("testuser", "photo.jpg")
+	if err != nil {
+		t.Fatalf("expected valid path, got: %v", err)
+	}
+	mediaDir := s.mediaDir("testuser")
+	absMediaDir, _ := filepath.Abs(mediaDir)
+	if !filepath.HasPrefix(resolved, absMediaDir+string(filepath.Separator)) && resolved != absMediaDir {
+		t.Fatalf("resolved path %s should be under %s", resolved, absMediaDir)
+	}
+}
+
+func TestResolveUserMediaPath_Traversal(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	_, err := s.ResolveUserMediaPath("testuser", "../../../etc/passwd")
+	if err == nil {
+		t.Fatal("expected error for path traversal")
+	}
+}
+
+func TestResolveUserMediaPath_AbsoluteOutside(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	_, err := s.ResolveUserMediaPath("testuser", "/etc/passwd")
+	if err == nil {
+		t.Fatal("expected error for absolute path outside media dir")
+	}
+}
+
+func TestMediaDir_TraversalUserID(t *testing.T) {
+	s := NewStorage("/safe/base")
+	dir := s.mediaDir("../../../etc")
+	absDir, _ := filepath.Abs(dir)
+	safeBase, _ := filepath.Abs("/safe/base")
+	// Should not escape the base path
+	if filepath.HasPrefix(absDir, safeBase+string(filepath.Separator)) || absDir == safeBase {
+		// Acceptable — it was sanitized to stay inside base
+	} else {
+		t.Fatalf("mediaDir escaped base path: %s is not under %s", absDir, safeBase)
+	}
+}
+
+func TestThumbDir_TraversalUserID(t *testing.T) {
+	s := NewStorage("/safe/base")
+	dir := s.thumbDir("../../../etc")
+	absDir, _ := filepath.Abs(dir)
+	safeBase, _ := filepath.Abs("/safe/base")
+	if filepath.HasPrefix(absDir, safeBase+string(filepath.Separator)) || absDir == safeBase {
+		// Acceptable — it was sanitized to stay inside base
+	} else {
+		t.Fatalf("thumbDir escaped base path: %s is not under %s", absDir, safeBase)
+	}
+}

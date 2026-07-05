@@ -8,20 +8,19 @@ from app.main import app
 from app.models import registry
 
 
-def test_registry_lists_all_five_models():
+def test_registry_lists_all_four_models():
     ids = [s.id for s in registry.REGISTRY]
     assert "openai/clip-vit-base-patch32" in ids
     assert "openai/clip-vit-base-patch16" in ids
     assert "openai/clip-vit-large-patch14" in ids
     assert "shunk031/aesthetics-predictor-v2-sac-logos-ava1-l14-linearMSE" in ids
-    assert "microsoft/Florence-2-base" in ids
-    assert len(registry.REGISTRY) == 5
+    assert len(registry.REGISTRY) == 4
 
 
 def test_registry_specs_have_required_fields():
     for spec in registry.REGISTRY:
         assert spec.id
-        assert spec.type in ("embed", "aesthetic", "tagger")
+        assert spec.type in ("embed", "aesthetic")
         assert spec.name
         assert isinstance(spec.allow_patterns, list) and len(spec.allow_patterns) > 0
 
@@ -66,7 +65,7 @@ def test_model_status_endpoint_lists_all_with_state():
         assert res.status_code == 200
         body = res.json()
         assert "models" in body
-        assert len(body["models"]) == 5
+        assert len(body["models"]) == 4
         m = body["models"][0]
         assert {"id", "type", "name", "downloaded", "loaded", "downloadState"} <= set(m.keys())
         assert m["downloaded"] is True

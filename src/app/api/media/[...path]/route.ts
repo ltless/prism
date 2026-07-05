@@ -9,7 +9,20 @@ import { logger } from "@/core/utils/logger";
 import { db as globalDb } from "@/services/db";
 import { users as usersSchema, media as mediaSchema } from "@/services/db/schema";
 import { eq } from "drizzle-orm";
+import type { ReadStream } from "fs";
 
+const VIDEO_EXTS = new Set([".mp4", ".mov", ".webm"]);
+
+function streamToReadable(stream: ReadStream): ReadableStream {
+  return new ReadableStream({
+  start(controller) {
+  stream.on("data", (chunk) => { try { controller.enqueue(chunk); } catch {} });
+  stream.on("end", () => { try { controller.close(); } catch {} });
+  stream.on("error", (err: Error) => { try { controller.error(err); } catch {} });
+  },
+  cancel() { stream.destroy(); }
+  });
+}
 function routeError(context: string) {
   return (err: unknown) => logger.error(`[...path] ${context} failed`, { error: err instanceof Error ? err.message : String(err) });
 }
@@ -87,24 +100,8 @@ export async function GET(
 
  try {
  await fsp.access(thumbnailPath);
- const stream = fs.createReadStream(thumbnailPath);
- const readable = new ReadableStream({
- start(controller) {
- stream.on("data", (chunk) => {
- try { controller.enqueue(chunk); } catch {}
- });
- stream.on("end", () => {
- try { controller.close(); } catch {}
- });
- stream.on("error", (err: Error) => {
- try { controller.error(err); } catch {}
- });
- },
- cancel() {
- stream.destroy();
- }
- });
- return new NextResponse(readable, {
+  const stream = fs.createReadStream(thumbnailPath);
+  return new NextResponse(streamToReadable(stream), {
  headers: {
  "Content-Type": "image/webp",
  "Cache-Control": "private, max-age=31536000, immutable",
@@ -114,8 +111,7 @@ export async function GET(
  // For videos, we can't generate a thumbnail with sharp.
  // SVG placeholder for missing video thumbnails.
  const ext = path.extname(absolutePath).toLowerCase();
- const videoExts = new Set([".mp4", ".mov", ".webm"]);
- if (videoExts.has(ext)) {
+  if (VIDEO_EXTS.has(ext)) {
  try {
  await fsp.access(absolutePath);
  const svgPlaceholder = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400"><rect width="400" height="400" fill="#151518"/><circle cx="200" cy="200" r="40" fill="#27272a" stroke="#3f3f46" stroke-width="2"/><polygon points="192,185 192,215 215,200" fill="#a1a1aa"/><text x="200" y="270" fill="#71717a" font-family="system-ui, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" letter-spacing="0.05em">VIDEO</text></svg>`;
@@ -148,11 +144,10 @@ export async function GET(
  }
  }
 
- let servePath = absolutePath;
- const ext = path.extname(absolutePath).toLowerCase();
- const videoExts = new Set([".mp4", ".mov", ".webm"]);
+  let servePath = absolutePath;
+  const ext = path.extname(absolutePath).toLowerCase();
 
- if (videoExts.has(ext)) {
+  if (VIDEO_EXTS.has(ext)) {
  const basename = path.basename(absolutePath, ext);
  const webPath = path.join(mediaDir, `${basename}_web.mp4`);
  try {
@@ -208,25 +203,8 @@ export async function GET(
 
  const chunkSize = end - start + 1;
 
- const stream = fs.createReadStream(servePath, { start, end });
- const readable = new ReadableStream({
- start(controller) {
- stream.on("data", (chunk) => {
- try { controller.enqueue(chunk); } catch {}
- });
- stream.on("end", () => {
- try { controller.close(); } catch {}
- });
- stream.on("error", (err: Error) => {
- try { controller.error(err); } catch {}
- });
- },
- cancel() {
- stream.destroy();
- }
- });
-
- return new NextResponse(readable, {
+  const stream = fs.createReadStream(servePath, { start, end });
+  return new NextResponse(streamToReadable(stream), {
  status: 206,
  headers: {
  "Content-Range": `bytes ${start}-${end}/${stats.size}`,
@@ -237,24 +215,8 @@ export async function GET(
  });
  }
 
- const stream = fs.createReadStream(servePath);
- const readable = new ReadableStream({
- start(controller) {
- stream.on("data", (chunk) => {
- try { controller.enqueue(chunk); } catch {}
- });
- stream.on("end", () => {
- try { controller.close(); } catch {}
- });
- stream.on("error", (err: Error) => {
- try { controller.error(err); } catch {}
- });
- },
- cancel() {
- stream.destroy();
- }
- });
- return new NextResponse(readable, {
+  const stream = fs.createReadStream(servePath);
+  return new NextResponse(streamToReadable(stream), {
  headers: {
  "Content-Type": contentType,
  "Content-Length": stats.size.toString(),

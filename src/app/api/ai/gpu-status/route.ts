@@ -1,19 +1,12 @@
-import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { fetchSidecarGpuStatus } from "@/services/ai/sidecar-client";
-import { logger } from "@/core/utils/logger";
-import { rateLimit, rateLimitResponse } from "@/core/utils/rateLimit";
+import { withSidecarProxy } from "../_lib";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const rl = await rateLimit(`ai:gpu-status:${session.user.id}`, 30, 60_000);
-  if (!rl.success) return rateLimitResponse(rl.reset);
-
-  try {
+export const GET = withSidecarProxy({
+  rateLimit: ["ai:gpu-status", 30, 60_000],
+  label: "AI gpu-status proxy failed",
+  onError: (message) => NextResponse.json({ gpuAvailable: false, error: message }, { status: 502 }),
+  handler: async () => {
     const sidecar = await fetchSidecarGpuStatus();
     const gpuAvailable = Boolean(sidecar.cudaAvailable || sidecar.mpsAvailable);
     return NextResponse.json({
@@ -24,9 +17,5 @@ export async function GET() {
       torchVersion: sidecar.torchVersion,
       error: sidecar.error,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to get GPU status";
-    logger.error("AI gpu-status proxy failed", { error: message });
-    return NextResponse.json({ gpuAvailable: false, error: message }, { status: 502 });
-  }
-}
+  },
+});

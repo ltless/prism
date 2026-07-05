@@ -1,5 +1,5 @@
 import { useAIStore } from "@/features/ai/store";
-import { ALLOWED_VARIANTS, SIDECAR_MODEL_IDS, AESTHETIC_MODEL_ID, TAGGER_MODEL_ID } from "@/features/ai/constants";
+import { ALLOWED_VARIANTS, SIDECAR_MODEL_IDS, AESTHETIC_MODEL_ID } from "@/features/ai/constants";
 import type { AIModelVariant } from "@/features/ai/types";
 import type { SidecarModelStatus, SidecarModelStatusResponse, SidecarDownloadState } from "@/services/ai/sidecar-client";
 
@@ -102,8 +102,4 @@ export function variantToModelId(variant: AIModelVariant): string {
 
 export function aestheticModelId(): string {
   return AESTHETIC_MODEL_ID;
-}
-
-export function taggerModelId(): string {
-  return TAGGER_MODEL_ID;
 }

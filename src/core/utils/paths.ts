@@ -6,10 +6,6 @@ export function getStorageRoot(): string {
 	return path.join(ROOT, "storage");
 }
 
-export function getModelsDir(): string {
-	return path.join(getStorageRoot(), "models");
-}
-
 export function getGlobalDbPath(): string {
 	return path.join(ROOT, "prism.db");
 }

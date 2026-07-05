@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SessionProvider } from "next-auth/react";
 import { MotionConfig } from "framer-motion";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -30,7 +29,6 @@ export function Providers({
 
   return (
   <QueryClientProvider client={queryClient}>
-  <SessionProvider>
   <MotionConfig reducedMotion="user">
   <AuthProvider>
   <ThemeProvider initialTheme={theme}>
@@ -41,7 +39,6 @@ export function Providers({
   </ThemeProvider>
   </AuthProvider>
   </MotionConfig>
-  </SessionProvider>
   <ReactQueryDevtools initialIsOpen={false} />
   </QueryClientProvider>
   );

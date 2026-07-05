@@ -8,15 +8,17 @@ import (
 )
 
 type Config struct {
-	Port        string
-	JWTSecret   string
-	JWTDuration string
-	GlobalDB    string
-	StoragePath string
-	ModelsPath  string
-	ONNXLibPath string
-	CORSOrigin  string
-	TrustProxy  bool
+	Port              string
+	JWTSecret         string
+	JWTDuration       string
+	GlobalDB          string
+	StoragePath       string
+	ModelsPath        string
+	ONNXLibPath       string
+	CORSOrigin        string
+	TrustProxy        bool
+	InviteCode        string
+	RequireInvite     bool
 }
 
 func Load() (*Config, error) {
@@ -28,15 +30,17 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:        getEnv("PORT", "8080"),
-		JWTSecret:   jwtSecret,
-		JWTDuration: getEnv("JWT_DURATION", "168h"),
-		GlobalDB:    getEnv("GLOBAL_DB_PATH", "../prism.db"),
-		StoragePath: getEnv("STORAGE_PATH", "../storage/users"),
-		ModelsPath:  getEnv("MODELS_PATH", "../storage/models"),
-		ONNXLibPath: getEnv("ONNX_LIB_PATH", "/usr/local/lib/libonnxruntime.so.1.26.0"),
-		CORSOrigin:  getEnv("CORS_ORIGIN", "http://localhost:3000"),
-		TrustProxy:  getEnv("TRUST_PROXY", "false") == "true",
+		Port:          getEnv("PORT", "8080"),
+		JWTSecret:     jwtSecret,
+		JWTDuration:   getEnv("JWT_DURATION", "168h"),
+		GlobalDB:      getEnv("GLOBAL_DB_PATH", "../prism.db"),
+		StoragePath:   getEnv("STORAGE_PATH", "../storage/users"),
+		ModelsPath:    getEnv("MODELS_PATH", "../storage/models"),
+		ONNXLibPath:   getEnv("ONNX_LIB_PATH", "/usr/local/lib/libonnxruntime.so.1.26.0"),
+		CORSOrigin:    getEnv("CORS_ORIGIN", "http://localhost:3000"),
+		TrustProxy:    getEnv("TRUST_PROXY", "false") == "true",
+		InviteCode:    os.Getenv("REGISTRATION_INVITE_CODE"),
+		RequireInvite: getEnv("REQUIRE_INVITE", "true") == "true",
 	}
 
 	return cfg, nil

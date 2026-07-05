@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.models import aesthetic
-from app.pathguard import resolve_media_path
+from app.pathguard import resolve_media_path_or_err
 from app.schemas import (
     AestheticScoreRequest,
     AestheticScoreResponse,
@@ -16,16 +16,9 @@ from app.schemas import (
 router = APIRouter()
 
 
-def _resolve(file_path: str) -> str:
-    try:
-        return resolve_media_path(file_path)
-    except ValueError as err:
-        raise HTTPException(status_code=403, detail=str(err)) from err
-
-
 @router.post("/aesthetic-score", response_model=AestheticScoreResponse)
 def aesthetic_score(req: AestheticScoreRequest) -> AestheticScoreResponse:
-    safe = _resolve(req.filePath)
+    safe = resolve_media_path_or_err(req.filePath)
     try:
         result = aesthetic.score_aesthetic(safe, req.model, req.variant)
     except FileNotFoundError as err:
@@ -37,7 +30,7 @@ def aesthetic_score(req: AestheticScoreRequest) -> AestheticScoreResponse:
 
 @router.post("/batch-score", response_model=BatchScoreResponse)
 def batch_score(req: BatchScoreRequest) -> BatchScoreResponse:
-    items = [{"id": it.id, "filePath": _resolve(it.filePath)} for it in req.items]
+    items = [{"id": it.id, "filePath": resolve_media_path_or_err(it.filePath)} for it in req.items]
     result = aesthetic.batch_score_aesthetic(items, req.model, req.variant, max(1, req.batchSize))
     return BatchScoreResponse(**result)
 

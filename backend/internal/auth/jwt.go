@@ -36,6 +36,8 @@ func (m *JWTManager) Generate(userID, username, role string) (string, error) {
 		Username: username,
 		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "prism",
+			Subject:   userID,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.ttl)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -51,7 +53,7 @@ func (m *JWTManager) Validate(tokenStr string) (*Claims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return m.secret, nil
-	})
+	}, jwt.WithIssuer("prism"))
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)
 	}

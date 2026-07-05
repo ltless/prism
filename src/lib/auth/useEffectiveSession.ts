@@ -1,22 +1,43 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import type { Session } from "next-auth";
 import { useAuth } from "./AuthContext";
 
-export function useEffectiveSession(): Session | null {
-  const { data: session } = useSession();
-  const { user: goUser } = useAuth();
-  return session ?? (goUser
-    ? {
+export interface EffectiveUser {
+  id: string;
+  name: string | null;
+  role: string | null;
+  image: string | null;
+  coverImage: string | null;
+}
+
+export interface EffectiveSession {
+  user: EffectiveUser;
+  expires: string;
+}
+
+interface EffectiveSessionResult {
+  session: EffectiveSession | null;
+  isLoading: boolean;
+}
+
+export function useEffectiveSession(): EffectiveSessionResult {
+  const { user, isLoading } = useAuth();
+
+  if (user) {
+    return {
+      session: {
         user: {
-          id: goUser.id,
-          name: goUser.username,
-          role: goUser.role,
-          image: goUser.image ?? null,
-          coverImage: goUser.coverImage ?? null,
+          id: user.id,
+          name: user.username,
+          role: user.role,
+          image: user.image ?? null,
+          coverImage: user.coverImage ?? null,
         },
         expires: "",
-      } as Session
-    : null);
+      },
+      isLoading: false,
+    };
+  }
+
+  return { session: null, isLoading };
 }

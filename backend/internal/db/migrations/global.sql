@@ -19,6 +19,6 @@ CREATE TABLE IF NOT EXISTS app_config (
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
-    key TEXT PRIMARY KEY NOT NULL,
-    value TEXT
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );

@@ -59,8 +59,7 @@ func TestService_Login_Valid(t *testing.T) {
 		t.Fatalf("insert user: %v", err)
 	}
 
-	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	resp, err := svc.Login(&LoginRequest{Username: "testuser", Password: "testpass"})
 	if err != nil {
@@ -86,8 +85,7 @@ func TestService_Login_WrongPassword(t *testing.T) {
 		t.Fatalf("insert user: %v", err)
 	}
 
-	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	_, err = svc.Login(&LoginRequest{Username: "testuser", Password: "wrongpass"})
 	if err == nil {
@@ -100,8 +98,7 @@ func TestService_Login_WrongPassword(t *testing.T) {
 
 func TestService_Login_UnknownUser(t *testing.T) {
 	db := setupTestDB(t)
-	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	_, err := svc.Login(&LoginRequest{Username: "nobody", Password: "testpass"})
 	if err == nil {
@@ -114,8 +111,7 @@ func TestService_Login_UnknownUser(t *testing.T) {
 
 func TestService_Register_Valid(t *testing.T) {
 	db := setupTestDB(t)
-	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	resp, err := svc.Register(&RegisterRequest{Username: "newuser", Password: "testpass"})
 	if err != nil {
@@ -141,8 +137,7 @@ func TestService_Register_DuplicateUsername(t *testing.T) {
 		t.Fatalf("insert user: %v", err)
 	}
 
-	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	_, err = svc.Register(&RegisterRequest{Username: "existing", Password: "testpass"})
 	if err == nil {
@@ -162,7 +157,7 @@ func TestService_Me_Valid(t *testing.T) {
 		t.Fatalf("insert user: %v", err)
 	}
 
-	svc := NewService(db, NewJWTManager("test-secret"))
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 	user, err := svc.Me("user-1")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
@@ -170,11 +165,14 @@ func TestService_Me_Valid(t *testing.T) {
 	if user.Username != "testuser" {
 		t.Fatalf("expected testuser, got %s", user.Username)
 	}
+	if user.Role != "admin" {
+		t.Fatalf("expected admin, got %s", user.Role)
+	}
 }
 
 func TestService_Me_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	svc := NewService(db, NewJWTManager("test-secret"))
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	_, err := svc.Me("nonexistent")
 	if err == nil {
@@ -184,8 +182,7 @@ func TestService_Me_NotFound(t *testing.T) {
 
 func TestService_Register_EmptyUsername(t *testing.T) {
 	db := setupTestDB(t)
-	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	_, err := svc.Register(&RegisterRequest{Username: "ab", Password: "testpass"})
 	if err == nil {
@@ -195,8 +192,7 @@ func TestService_Register_EmptyUsername(t *testing.T) {
 
 func TestService_Register_ShortPassword(t *testing.T) {
 	db := setupTestDB(t)
-	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, NewJWTManager("test-secret"), "", false)
 
 	_, err := svc.Register(&RegisterRequest{Username: "newuser", Password: "12345"})
 	if err == nil {

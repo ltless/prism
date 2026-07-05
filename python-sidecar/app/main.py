@@ -16,7 +16,6 @@ from app.config import settings
 from app.routes import aesthetic as aesthetic_routes
 from app.routes import clip as clip_routes
 from app.routes import models as models_routes
-from app.routes import tagger as tagger_routes
 
 # torch will eat all your CPU cores by default. 2 threads per inference
 # keeps the pc from having a existential crisis during bulk upload.
@@ -31,7 +30,6 @@ app.middleware("http")(auth_middleware)
 app.include_router(clip_routes.router)
 app.include_router(aesthetic_routes.router)
 app.include_router(models_routes.router)
-app.include_router(tagger_routes.router)
 
 
 @app.get("/health")

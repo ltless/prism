@@ -61,19 +61,6 @@ class BatchTagResponse(BaseModel):
     results: list[BatchTagResult]
 
 
-class TagImageRequest(BaseModel):
-    filePath: str
-
-
-class TagImageResponse(BaseModel):
-    tags: list[TagScore]
-
-
-class BatchTagFlorenceRequest(BaseModel):
-    items: list[BatchTagItem]
-    batchSize: int = 1
-
-
 class AestheticScoreRequest(BaseModel):
     filePath: str
     model: str = "laion"

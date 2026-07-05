@@ -37,6 +37,21 @@ const CSP = [
 ].join("; ");
 
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Auth gating for protected routes
+  const isProtected = pathname.startsWith("/dashboard") || pathname.startsWith("/editor");
+  if (isProtected && !request.cookies.has("auth_token")) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Redirect logged-in users away from login
+  if (pathname === "/login" && request.cookies.has("auth_token")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   const response = NextResponse.next();
 
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -62,10 +77,6 @@ export function middleware(request: NextRequest) {
       }
     };
 
-    // Same-origin browser fetches always send Origin OR Referer for state-changing
-    // requests. A request with NEITHER is either a cross-origin form post with
-    // `referrerpolicy="no-referrer"` or a direct non-browser attempt — both must
-    // be rejected to close the CSRF hole.
     if (!origin && !referer) {
       return csrfError();
     }
@@ -80,7 +91,7 @@ export function middleware(request: NextRequest) {
   }
 
   // rate limit — 10000 per minute per endpoint. basically "please don't spam".
-  const rlConfig = getRateLimitConfig(request.nextUrl.pathname);
+  const rlConfig = getRateLimitConfig(pathname);
   if (rlConfig) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ip = (request as any).ip
@@ -88,11 +99,9 @@ export function middleware(request: NextRequest) {
       || request.headers.get("x-real-ip")
       || "anonymous";
 
-    // per-IP+prefix keying so /api/media/upload and /api/media don't share a bucket
     const key = `${rlConfig.prefix}:${ip}`;
     const now = Date.now();
 
-    // lazy prune — don't let the map grow forever like my to-do list
     if (ipCounters.size > 1000) {
       for (const [k, v] of ipCounters.entries()) {
         if (now > v.resetAt) {
@@ -134,7 +143,5 @@ function csrfError() {
 }
 
 export const config = {
-  // exclude upload — edge middleware truncates bodies to 10mb, photos can be
-  // 200mb. the upload route has its own auth. rate limit is 10000 anyway.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|api/media/upload).*)"],
 };

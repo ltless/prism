@@ -4,23 +4,11 @@ import { updateProfileImageAction } from "../services/profileActions";
 
 const state = vi.hoisted(() => ({
   written: [] as { path: string; bytes: Buffer }[],
-  mockDb: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn(() => Promise.resolve([{ id: "test-user-id" }])),
-        })),
-      })),
-    })),
-    update: vi.fn(() => ({
-      set: vi.fn((_values: any) => ({
-        where: vi.fn(() => Promise.resolve()),
-      })),
-    })),
-  },
 }));
 
-vi.mock("@/services/db", () => ({ db: state.mockDb }));
+vi.mock("@/lib/api", () => ({
+  goFetch: vi.fn(async () => ({})),
+}));
 vi.mock("@/services/db/multitenant", () => ({
   getUserPaths: vi.fn(async () => ({ mediaDir: "/tmp/profile-test" })),
 }));
@@ -47,7 +35,7 @@ describe("updateProfileImageAction magic-byte validation", () => {
     formData.append(
       "file",
       fileFrom(
-        [0x3c, 0x21, 0x44, 0x4f, 0x43, 0x54], // "<!DOCT"
+        [0x3c, 0x21, 0x44, 0x4f, 0x43, 0x54],
         "evil.php",
         "image/jpeg"
       )

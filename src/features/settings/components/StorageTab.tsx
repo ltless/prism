@@ -20,7 +20,7 @@ interface StorageData {
 }
 
 export function StorageTab() {
-  const session = useEffectiveSession();
+  const { session } = useEffectiveSession();
   const isAdmin = session?.user?.role === "admin";
   const [data, setData] = useState<StorageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);

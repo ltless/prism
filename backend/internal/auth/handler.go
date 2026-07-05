@@ -71,10 +71,39 @@ func (h *Handler) Logout(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
+func (h *Handler) ChangePassword(c echo.Context) error {
+	claims, err := GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	var req struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	}
+
+	if err := h.service.ChangePassword(claims.UserID, req.OldPassword, req.NewPassword); err != nil {
+		switch {
+		case errors.Is(err, ErrValidation):
+			return echo.NewHTTPError(http.StatusBadRequest, "invalid password")
+		case errors.Is(err, ErrInvalidCredentials):
+			return echo.NewHTTPError(http.StatusUnauthorized, "invalid password")
+		default:
+			log.Printf("ChangePassword internal error: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
 func (h *Handler) Me(c echo.Context) error {
-	claims := GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	user, err := h.service.Me(claims.UserID)
@@ -84,9 +113,9 @@ func (h *Handler) Me(c echo.Context) error {
 	}
 
 	resp := map[string]interface{}{
-		"id":                 user.ID,
-		"username":           user.Username,
-		"role":               user.Role,
+		"id":                  user.ID,
+		"username":            user.Username,
+		"role":                user.Role,
 		"has_completed_setup": user.HasCompletedSetup == 1,
 	}
 	if user.Image.Valid {

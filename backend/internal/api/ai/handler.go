@@ -46,9 +46,9 @@ type aestheticScoreBody struct {
 }
 
 func (h *Handler) EmbedImage(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 	var body embedImageBody
 	if err := c.Bind(&body); err != nil {
@@ -68,9 +68,8 @@ func (h *Handler) EmbedImage(c echo.Context) error {
 }
 
 func (h *Handler) EmbedText(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
 	}
 	var body embedTextBody
 	if err := c.Bind(&body); err != nil {
@@ -90,9 +89,9 @@ func (h *Handler) EmbedText(c echo.Context) error {
 }
 
 func (h *Handler) GenerateTags(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 	var body generateTagsBody
 	if err := c.Bind(&body); err != nil {
@@ -112,9 +111,8 @@ func (h *Handler) GenerateTags(c echo.Context) error {
 }
 
 func (h *Handler) LoadModel(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
 	}
 	var body loadModelBody
 	if err := c.Bind(&body); err != nil {
@@ -134,18 +132,17 @@ func (h *Handler) LoadModel(c echo.Context) error {
 }
 
 func (h *Handler) Status(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
 	}
 	status := h.svc.GetStatus()
 	return c.JSON(http.StatusOK, status)
 }
 
 func (h *Handler) AestheticScore(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 	var body aestheticScoreBody
 	if err := c.Bind(&body); err != nil {
@@ -163,9 +160,8 @@ func (h *Handler) AestheticScore(c echo.Context) error {
 }
 
 func (h *Handler) GPUStatus(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"available": h.svc.HasGPU(),

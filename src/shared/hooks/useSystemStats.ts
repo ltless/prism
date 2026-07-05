@@ -1,10 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-
-interface SystemStats {
-	cpu: number;
-	ram: number;
-	ramText: string;
-}
+import type { SystemStats } from "@/core/utils/system";
 
 export function useSystemStats(enabled: boolean = true) {
 	return useQuery<SystemStats>({

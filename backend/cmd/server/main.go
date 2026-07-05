@@ -66,6 +66,9 @@ func main() {
 	serverErr := make(chan error, 1)
 	go func() {
 		log.Printf("Starting server on :%s", cfg.Port)
+		e.Server.ReadTimeout = 30 * time.Second
+		e.Server.WriteTimeout = 60 * time.Second
+		e.Server.IdleTimeout = 120 * time.Second
 		if err := e.Start(":" + cfg.Port); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 			return

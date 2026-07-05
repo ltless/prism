@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { setAuthToken } from "@/lib/api";
 
 interface User {
   id: string;
@@ -14,7 +13,6 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   login: (username: string, password: string) => Promise<{ error?: string }>;
   register: (username: string, password: string) => Promise<{ error?: string; success?: boolean }>;
   logout: () => void;
@@ -35,7 +33,6 @@ interface MeResponse {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -91,10 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (!res.ok) return { error: data.message || "Invalid credentials." };
-      setAuthToken(data.token);
-      setToken(data.token);
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
-      refreshProfile();
+      await refreshProfile();
       return {};
     } catch {
       return { error: "Cannot reach server. Make sure the backend is running." };
@@ -111,10 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (!res.ok) return { error: data.message || "Registration failed." };
-      setAuthToken(data.token);
-      setToken(data.token);
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
-      refreshProfile();
+      await refreshProfile();
       return { success: true };
     } catch {
       return { error: "Cannot reach server. Make sure the backend is running." };
@@ -127,14 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore — clear local state anyway
     }
-    setAuthToken(null);
-    setToken(null);
     setUser(null);
     window.location.href = "/login";
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, refreshProfile }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isLoading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

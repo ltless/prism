@@ -130,10 +130,19 @@ func (e *Engine) createDummyTextInputs() ([]int64, []int64) {
 	return ids, mask
 }
 
-func (e *Engine) RunVision(pixelValues []float32) ([]float32, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
+// runSession is the shared inference path for RunVision and RunText. It creates
+// the three input tensors and two output tensors, runs the session, and copies
+// outImage or outText to a fresh slice before the tensors are destroyed.
+//
+// pixelValues, inputIDs, attentionMask may be real or dummy values — the caller
+// decides which output to extract via which (image=true → image_embeds,
+// image=false → text_embeds).
+func (e *Engine) runSession(
+	pixelValues []float32,
+	inputIDs, attentionMask []int64,
+	batchSize int,
+	extractImage bool,
+) ([]float32, error) {
 	session := e.session
 	dim := e.embedDim
 	if session == nil {
@@ -143,70 +152,6 @@ func (e *Engine) RunVision(pixelValues []float32) ([]float32, error) {
 	pvTensor, err := ort.NewTensor(ort.NewShape(1, 3, ImageSize, ImageSize), pixelValues)
 	if err != nil {
 		return nil, fmt.Errorf("create pixel values tensor: %w", err)
-	}
-	defer pvTensor.Destroy()
-
-	dummyIDs, dummyMask := e.createDummyTextInputs()
-	idTensor, err := ort.NewTensor(ort.NewShape(1, 77), dummyIDs)
-	if err != nil {
-		return nil, fmt.Errorf("create dummy input ids tensor: %w", err)
-	}
-	defer idTensor.Destroy()
-
-	maskTensor, err := ort.NewTensor(ort.NewShape(1, 77), dummyMask)
-	if err != nil {
-		return nil, fmt.Errorf("create dummy attention mask tensor: %w", err)
-	}
-	defer maskTensor.Destroy()
-
-	outImage, err := ort.NewEmptyTensor[float32](ort.NewShape(1, int64(dim)))
-	if err != nil {
-		return nil, fmt.Errorf("create image output tensor: %w", err)
-	}
-	defer outImage.Destroy()
-
-	outText, err := ort.NewEmptyTensor[float32](ort.NewShape(1, int64(dim)))
-	if err != nil {
-		return nil, fmt.Errorf("create text output tensor: %w", err)
-	}
-	defer outText.Destroy()
-
-	if err := session.Run(
-		[]ort.Value{pvTensor, idTensor, maskTensor},
-		[]ort.Value{outImage, outText},
-	); err != nil {
-		return nil, fmt.Errorf("run vision: %w", err)
-	}
-
-	// Copy before Destroy — GetData() returns a slice over freed C memory.
-	data := outImage.GetData()
-	result := make([]float32, len(data))
-	copy(result, data)
-	return result, nil
-}
-
-func (e *Engine) RunText(inputIDs, attentionMask []int64) ([]float32, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	session := e.session
-	dim := e.embedDim
-	if session == nil {
-		return nil, fmt.Errorf("model not loaded")
-	}
-
-	batchSize := len(inputIDs) / 77
-	if batchSize == 0 {
-		batchSize = 1
-	}
-
-	dummyPV, err := e.createDummyPixelValues()
-	if err != nil {
-		return nil, fmt.Errorf("create dummy pixel values: %w", err)
-	}
-	pvTensor, err := ort.NewTensor(ort.NewShape(1, 3, ImageSize, ImageSize), dummyPV)
-	if err != nil {
-		return nil, fmt.Errorf("create dummy pixel values tensor: %w", err)
 	}
 	defer pvTensor.Destroy()
 
@@ -238,12 +183,41 @@ func (e *Engine) RunText(inputIDs, attentionMask []int64) ([]float32, error) {
 		[]ort.Value{pvTensor, idTensor, maskTensor},
 		[]ort.Value{outImage, outText},
 	); err != nil {
-		return nil, fmt.Errorf("run text: %w", err)
+		return nil, fmt.Errorf("run session: %w", err)
 	}
 
 	// Copy before Destroy — GetData() returns a slice over freed C memory.
-	data := outText.GetData()
+	var data []float32
+	if extractImage {
+		data = outImage.GetData()
+	} else {
+		data = outText.GetData()
+	}
 	result := make([]float32, len(data))
 	copy(result, data)
 	return result, nil
+}
+
+func (e *Engine) RunVision(pixelValues []float32) ([]float32, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	dummyIDs, dummyMask := e.createDummyTextInputs()
+	return e.runSession(pixelValues, dummyIDs, dummyMask, 1, true)
+}
+
+func (e *Engine) RunText(inputIDs, attentionMask []int64) ([]float32, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	batchSize := len(inputIDs) / 77
+	if batchSize == 0 {
+		batchSize = 1
+	}
+
+	dummyPV, err := e.createDummyPixelValues()
+	if err != nil {
+		return nil, fmt.Errorf("create dummy pixel values: %w", err)
+	}
+	return e.runSession(dummyPV, inputIDs, attentionMask, batchSize, false)
 }

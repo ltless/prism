@@ -14,7 +14,7 @@ logger = logging.getLogger("prism.sidecar.registry")
 @dataclass
 class ModelSpec:
     id: str
-    type: str  # "embed" | "aesthetic" | "tagger"
+    type: str  # "embed" | "aesthetic"
     name: str
     size: str
     variant: str | None = None
@@ -62,13 +62,6 @@ REGISTRY: list[ModelSpec] = [
         name="LAION Aesthetic v2.5",
         size="~1.2GB",
         allow_patterns=_COMMON_TRANSFORMERS_PATTERNS,
-    ),
-    ModelSpec(
-        id="microsoft/Florence-2-base",
-        type="tagger",
-        name="Florence-2 Tagger",
-        size="~460MB",
-        allow_patterns=_COMMON_TRANSFORMERS_PATTERNS + ["*.py"],
     ),
 ]
 
@@ -135,10 +128,6 @@ def is_model_loaded(spec: ModelSpec) -> bool:
             from app.models import aesthetic
 
             return aesthetic._session is not None
-        if spec.type == "tagger":
-            from app.models import tagger
-
-            return tagger._session is not None
     except Exception:
         return False
     return False

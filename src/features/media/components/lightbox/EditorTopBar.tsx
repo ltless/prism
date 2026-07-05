@@ -2,7 +2,7 @@
 
 import { List, Sun, Moon, Check, Spinner } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSidebar } from "@/components/sidebar-context";
 import { useTheme } from "@/components/ThemeProvider";
@@ -92,7 +92,7 @@ interface EditorTopBarProps {
 }
 
 export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRulers, onSaveCopy, onOverwrite, onResetAll, onAutoTone, onAutoContrast, onAutoColor, isSaving, savingMode }: EditorTopBarProps) {
-  const { data: session } = useSession();
+  const { session, isLoading: authLoading } = useEffectiveSession();
   const { theme, setTheme } = useTheme();
   const { setMobileOpen } = useSidebar();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -213,6 +213,9 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
           </button>
 
           {session && <UserMenu session={session} onOpenSettings={() => setIsSettingsOpen(true)} />}
+          {authLoading && !session && (
+            <div className="w-8 h-8 rounded-full bg-surface-bg animate-pulse" aria-hidden="true" />
+          )}
         </div>
       </header>
 

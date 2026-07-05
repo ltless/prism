@@ -23,7 +23,7 @@ func setupAuthHandler(t *testing.T) (*echo.Echo, *Handler) {
 	}
 
 	jwt := NewJWTManager("test-secret")
-	svc := NewService(db, jwt)
+	svc := NewService(db, jwt, "", false)
 	handler := NewHandler(svc)
 
 	e := echo.New()

@@ -14,7 +14,7 @@ export interface AITabProps {
 }
 
 export function AITab(props: AITabProps) {
-	const effectiveSession = useEffectiveSession();
+	const { session: effectiveSession } = useEffectiveSession();
 	const isAdmin = effectiveSession?.user?.role === "admin";
 
 	return isAdmin ? <AdminAITab {...props} /> : <UserAITab {...props} />;

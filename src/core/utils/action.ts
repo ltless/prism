@@ -30,34 +30,29 @@ function hasMatchIn(patterns: string[], target: string): boolean {
 }
 
 export function toSafeMessage(error: unknown): string {
+  let raw: string;
+  let fallback: string;
+
   if (error instanceof Error) {
-    const combined = error.message.toLowerCase();
-    if (hasMatchIn(internalPatterns, combined)) {
-      return "An internal database or system error occurred";
-    }
-    return error.message;
+    raw = error.message;
+    fallback = error.message;
+  } else if (typeof error === "string") {
+    raw = error;
+    fallback = error;
+  } else {
+    try { raw = JSON.stringify(error) || String(error); }
+    catch { raw = String(error); }
+    fallback = "An unexpected error occurred";
   }
 
-  if (typeof error === "string") {
-    const combined = error.toLowerCase();
-    if (hasMatchIn(internalPatterns, combined)) {
-      return "An internal database or system error occurred";
-    }
-    if (hasMatchIn(stackPatterns, combined)) {
-      return "An internal database or system error occurred";
-    }
-    return error;
-  }
-
-  const stringified = (() => {
-    try { return JSON.stringify(error) || String(error); }
-    catch { return String(error); }
-  })();
-  const combined = stringified.toLowerCase();
+  const combined = raw.toLowerCase();
   if (hasMatchIn(internalPatterns, combined)) {
     return "An internal database or system error occurred";
   }
-  return "An unexpected error occurred";
+  if (typeof error === "string" && hasMatchIn(stackPatterns, combined)) {
+    return "An internal database or system error occurred";
+  }
+  return fallback;
 }
 
 export type ActionResult<T = Record<string, unknown>> =

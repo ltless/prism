@@ -3,9 +3,11 @@ package users
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ltless/prism/internal/db"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserProfile struct {
@@ -22,10 +24,11 @@ type UserProfile struct {
 
 type Service struct {
 	global *db.GlobalDB
+	pool   *db.TenantPool
 }
 
-func NewService(global *db.GlobalDB) *Service {
-	return &Service{global: global}
+func NewService(global *db.GlobalDB, pool *db.TenantPool) *Service {
+	return &Service{global: global, pool: pool}
 }
 
 func (s *Service) GetProfile(userID string) (*UserProfile, error) {
@@ -94,4 +97,105 @@ func (s *Service) UpdateStorageLimit(userID string, limit int64) error {
 func (s *Service) MarkSetupComplete(userID string) error {
 	_, err := s.global.DB.Exec("UPDATE users SET has_completed_setup = 1 WHERE id = ?", userID)
 	return err
+}
+
+func (s *Service) SetVaultPin(userID, pin string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(pin), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash pin: %w", err)
+	}
+	_, err = s.global.DB.Exec("UPDATE users SET vault_pin = ? WHERE id = ?", string(hash), userID)
+	return err
+}
+
+func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
+	var stored string
+	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = ?", userID).Scan(&stored)
+	if err == sql.ErrNoRows {
+		return false, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return false, fmt.Errorf("query vault_pin: %w", err)
+	}
+	if stored == "" {
+		return false, nil
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(stored), []byte(pin)); err != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *Service) DisableVaultPin(userID string) error {
+	_, err := s.global.DB.Exec("UPDATE users SET vault_pin = NULL WHERE id = ?", userID)
+	return err
+}
+
+func (s *Service) GetVaultPinStatus(userID string) (bool, error) {
+	var stored sql.NullString
+	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = ?", userID).Scan(&stored)
+	if err == sql.ErrNoRows {
+		return false, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return false, fmt.Errorf("query vault_pin: %w", err)
+	}
+	return stored.Valid && stored.String != "", nil
+}
+
+func (s *Service) UpdateUsername(userID, newUsername string) error {
+	if len(newUsername) < 3 || len(newUsername) > 50 {
+		return fmt.Errorf("username must be 3-50 characters")
+	}
+	_, err := s.global.DB.Exec("UPDATE users SET username = ? WHERE id = ?", newUsername, userID)
+	if err != nil {
+		if isUniqueConstraintErr(err) {
+			return fmt.Errorf("username already taken")
+		}
+		return fmt.Errorf("update username: %w", err)
+	}
+	return nil
+}
+
+type StorageUsageResult struct {
+	Total       int64 `json:"usage_bytes"`
+	ImageBytes  int64 `json:"image_bytes"`
+	VideoBytes  int64 `json:"video_bytes"`
+}
+
+func (s *Service) GetStorageUsage(userID string) (*StorageUsageResult, error) {
+	tdb, err := s.pool.Get(userID)
+	if err != nil {
+		return nil, fmt.Errorf("get tenant db: %w", err)
+	}
+	var total, img, vid sql.NullInt64
+	err = tdb.QueryRow(`
+		SELECT
+			COALESCE(SUM(size), 0),
+			COALESCE(SUM(CASE WHEN mime_type LIKE 'image/%' THEN size ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN mime_type LIKE 'video/%' THEN size ELSE 0 END), 0)
+		FROM media`).Scan(&total, &img, &vid)
+	if err != nil {
+		return nil, fmt.Errorf("query storage usage: %w", err)
+	}
+	r := &StorageUsageResult{}
+	if total.Valid {
+		r.Total = total.Int64
+	}
+	if img.Valid {
+		r.ImageBytes = img.Int64
+	}
+	if vid.Valid {
+		r.VideoBytes = vid.Int64
+	}
+	return r, nil
+}
+
+func isUniqueConstraintErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "UNIQUE constraint failed") ||
+		strings.Contains(msg, "constraint failed: UNIQUE")
 }

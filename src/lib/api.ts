@@ -1,10 +1,36 @@
-// Auth token is kept in-memory by AuthProvider (see AuthContext.tsx) and is
-// NOT persisted to localStorage. The HttpOnly `auth_token` cookie set by the
-// Go backend is the source of truth and is sent automatically with every
-// same-origin request via `credentials: "include"`.
+import { cookies } from "next/headers";
 
-let _inMemoryToken: string | null = null;
+const GO_API_URL = process.env.GO_API_URL || "http://localhost:8080";
 
-export function setAuthToken(token: string | null) {
-  _inMemoryToken = token;
+interface GoFetchOptions extends Omit<RequestInit, "body"> {
+  body?: unknown;
+}
+
+export async function goFetch<T = unknown>(
+  path: string,
+  options: GoFetchOptions = {},
+): Promise<T> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${GO_API_URL}${path}`, {
+    ...options,
+    headers: { ...headers, ...(options.headers as Record<string, string>) },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error || `API error: ${res.status}`);
+  }
+
+  return res.json() as Promise<T>;
 }

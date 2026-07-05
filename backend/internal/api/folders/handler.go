@@ -17,9 +17,9 @@ func NewHandler(svc *Service) *Handler {
 }
 
 func (h *Handler) List(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	resp, err := h.svc.List(claims.UserID)
@@ -32,9 +32,9 @@ func (h *Handler) List(c echo.Context) error {
 }
 
 func (h *Handler) Create(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	var body struct {
@@ -50,6 +50,15 @@ func (h *Handler) Create(c echo.Context) error {
 	if body.Name == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
 	}
+	if len(body.Name) > 100 {
+		return echo.NewHTTPError(http.StatusBadRequest, "name must be 100 characters or less")
+	}
+
+	// Validate folder_type if provided.
+	validFolderTypes := map[string]bool{"regular": true, "smart": true}
+	if body.FolderType != "" && !validFolderTypes[body.FolderType] {
+		return echo.NewHTTPError(http.StatusBadRequest, "folder_type must be 'regular' or 'smart'")
+	}
 
 	item, err := h.svc.Create(claims.UserID, body.Name, body.Color, body.FolderType, body.FilterQuery)
 	if err != nil {
@@ -61,9 +70,9 @@ func (h *Handler) Create(c echo.Context) error {
 }
 
 func (h *Handler) Update(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	id := c.Param("id")
@@ -78,6 +87,9 @@ func (h *Handler) Update(c echo.Context) error {
 	if body.Name == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
 	}
+	if len(body.Name) > 100 {
+		return echo.NewHTTPError(http.StatusBadRequest, "name must be 100 characters or less")
+	}
 
 	if err := h.svc.Update(claims.UserID, id, body.Name); err != nil {
 		log.Printf("FolderUpdate error: %v", err)
@@ -88,9 +100,9 @@ func (h *Handler) Update(c echo.Context) error {
 }
 
 func (h *Handler) Delete(c echo.Context) error {
-	claims := auth.GetClaims(c)
-	if claims == nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
 	}
 
 	id := c.Param("id")

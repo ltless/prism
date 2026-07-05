@@ -73,7 +73,7 @@ func (s *Service) Create(userID, name, color, folderType, filterQuery string) (*
 	}
 
 	id := uuid.New().String()
-	now := 	time.Now().Unix()
+	now := time.Now().Unix()
 
 	if color == "" {
 		color = "zinc"
@@ -112,7 +112,7 @@ func (s *Service) Update(userID, id, name string) error {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 
-	now := 	time.Now().Unix()
+	now := time.Now().Unix()
 	_, err = tdb.Exec("UPDATE folders SET name = ?, updated_at = ? WHERE id = ?", name, now, id)
 	return err
 }
@@ -123,11 +123,20 @@ func (s *Service) Delete(userID, id string) error {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 
-	now := 	time.Now().Unix()
-	if _, err := tdb.Exec("UPDATE media SET folder_id = NULL, updated_at = ? WHERE folder_id = ?", now, id); err != nil {
+	tx, err := tdb.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Unix()
+	if _, err := tx.Exec("UPDATE media SET folder_id = NULL, updated_at = ? WHERE folder_id = ?", now, id); err != nil {
 		return fmt.Errorf("unlink media: %w", err)
 	}
 
-	_, err = tdb.Exec("DELETE FROM folders WHERE id = ?", id)
-	return err
+	if _, err := tx.Exec("DELETE FROM folders WHERE id = ?", id); err != nil {
+		return fmt.Errorf("delete folder: %w", err)
+	}
+
+	return tx.Commit()
 }

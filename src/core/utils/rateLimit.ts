@@ -2,30 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 const store = new Map<string, { count: number; resetTime: number }>();
 
-const CLEANUP_INTERVAL = 60_000;
-let cleanupTimer: ReturnType<typeof setInterval> | null = null;
-function startCleanup() {
- if (cleanupTimer) return;
- cleanupTimer = setInterval(() => {
- const now = Date.now();
- for (const [key, record] of store) {
- if (now > record.resetTime) store.delete(key);
- }
- if (store.size === 0 && cleanupTimer) {
- clearInterval(cleanupTimer);
- cleanupTimer = null;
- }
- }, CLEANUP_INTERVAL);
-}
-
 export async function rateLimit(
- reqOrKey: NextRequest | string,
- limit: number = 10,
- windowMs: number = 60 * 1000
+  reqOrKey: NextRequest | string,
+  limit: number = 10,
+  windowMs: number = 60 * 1000
 ): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
- startCleanup();
-
- let key: string;
+  let key: string;
  if (typeof reqOrKey === "string") {
  key = reqOrKey;
  } else {
@@ -37,8 +19,15 @@ export async function rateLimit(
  key = `${reqOrKey.nextUrl.pathname}:${ip}`;
  }
 
- const now = Date.now();
- const record = store.get(key);
+  const now = Date.now();
+
+  if (store.size > 1000) {
+  for (const [k, r] of store) {
+  if (now > r.resetTime) store.delete(k);
+  }
+  }
+
+  const record = store.get(key);
 
  if (!record || now > record.resetTime) {
  store.set(key, { count: 1, resetTime: now + windowMs });

@@ -5,10 +5,10 @@ import { GearSix, SignOut } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth/AuthContext";
-import type { Session } from "next-auth";
+import type { EffectiveSession } from "@/lib/auth/useEffectiveSession";
 
 interface UserMenuProps {
- session: Session;
+ session: EffectiveSession;
  onOpenSettings: () => void;
 }
 

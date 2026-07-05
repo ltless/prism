@@ -28,6 +28,7 @@ type TenantPool struct {
 	orderIdx map[string]*list.Element
 	basePath string
 	maxOpen  int
+	migrated map[string]bool // tracks which tenants have been initialized
 }
 
 func NewTenantPool(basePath string) *TenantPool {
@@ -37,6 +38,7 @@ func NewTenantPool(basePath string) *TenantPool {
 		orderIdx: make(map[string]*list.Element),
 		basePath: basePath,
 		maxOpen:  128,
+		migrated: make(map[string]bool),
 	}
 }
 
@@ -68,23 +70,29 @@ func (p *TenantPool) Get(userID string) (*TenantDB, error) {
 		return nil, fmt.Errorf("open tenant db: %w", err)
 	}
 
-	migrationSQL, err := tenantMigrations.ReadFile("migrations/tenant.sql")
-	if err != nil {
-		sqlDB.Close()
-		return nil, fmt.Errorf("read tenant migration: %w", err)
-	}
+	// Only run migrations for tenants we haven't initialized yet in this
+	// process. The IF NOT EXISTS in the migration SQL makes it idempotent,
+	// but skipping it avoids unnecessary DB round-trips on every pool miss.
+	if !p.migrated[userID] {
+		migrationSQL, err := tenantMigrations.ReadFile("migrations/tenant.sql")
+		if err != nil {
+			sqlDB.Close()
+			return nil, fmt.Errorf("read tenant migration: %w", err)
+		}
 
-	if _, err := sqlDB.Exec(string(migrationSQL)); err != nil {
-		sqlDB.Close()
-		return nil, fmt.Errorf("exec tenant migration: %w", err)
-	}
+		if _, err := sqlDB.Exec(string(migrationSQL)); err != nil {
+			sqlDB.Close()
+			return nil, fmt.Errorf("exec tenant migration: %w", err)
+		}
 
-	// filter_query column was added after initial schema; safe to ignore if already present
-	if _, err := sqlDB.Exec("ALTER TABLE folders ADD COLUMN filter_query TEXT"); err != nil {
-		log.Printf("ALTER TABLE folders add filter_query: %v (expected if column exists)", err)
-	}
+		// filter_query column was added after initial schema; safe to ignore if already present
+		if _, err := sqlDB.Exec("ALTER TABLE folders ADD COLUMN filter_query TEXT"); err != nil {
+			log.Printf("ALTER TABLE folders add filter_query: %v (expected if column exists)", err)
+		}
 
-	log.Printf("Tenant DB initialized for user %s", userID)
+		p.migrated[userID] = true
+		log.Printf("Tenant DB initialized for user %s", userID)
+	}
 
 	tdb := &TenantDB{sqlDB}
 	p.dbs[userID] = tdb

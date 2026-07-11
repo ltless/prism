@@ -1,8 +1,8 @@
 "use server";
 
-import { media, mediaTags, folders } from "@/services/db/schema";
-import { sql, and, eq, gte, lte, inArray, isNull, lt, or, desc } from "drizzle-orm";
-import type { SmartFolderFilter, MediaMetadata } from "../types";
+import { media } from "@/services/db/schema";
+import { sql, and, eq, gte, lte, inArray, isNull, or } from "drizzle-orm";
+import type { MediaMetadata } from "../types";
 import { getContext } from "./mediaContext";
 import { safeAction } from "@/core/utils/action";
 import { auth } from "@/auth";
@@ -10,7 +10,6 @@ import { logger } from "@/core/utils/logger";
 import { sidecarEmbedText } from "@/services/ai/sidecar-client";
 import { cosineSimilarity } from "@/shared/utils/cosineSimilarity";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { parseSmartFolderFilter } from "@/features/media/schemas";
 import type * as schema from "@/services/db/schema";
 
 const CACHE_TTL = 30 * 60 * 1000;
@@ -125,100 +124,6 @@ function syncEmbeddingCache(userId: string, db: BetterSQLite3Database<typeof sch
   } catch {
   }
 }
-
-
-
-export async function loadMoreMediaAction(cursor: { createdAt: Date; id: string } | null, limit: number = 50, folderId?: string | null, isFavorite?: boolean) {
- return safeAction("loadMoreMedia", async () => {
- const session = await auth();
- const userId = session?.user?.id;
- if (!userId) throw new Error("Unauthorized");
-
- const { db } = await getContext();
-
- // check if the requested folder is a smart folder
- let smartFilter: SmartFolderFilter | null = null;
- if (folderId) {
- const folder = db.select().from(folders).where(eq(folders.id, folderId)).get();
-	if (folder?.folderType === "smart" && folder.filterQuery) {
-		smartFilter = parseSmartFolderFilter(folder.filterQuery);
-	}
- }
-
- const cursorCondition = cursor
- ? or(
- lt(media.createdAt, cursor.createdAt),
- and(eq(media.createdAt, cursor.createdAt), lt(media.id, cursor.id))
- )
- : undefined;
-
- const favoriteCondition = isFavorite === undefined
- ? undefined
- : eq(media.isFavorite, true);
-
- if (smartFilter) {
- // smart folder: find matching media via media_tags JOIN, ignore folderId filter
- const matchingMediaIds = db
- .selectDistinct({ mediaId: mediaTags.mediaId })
- .from(mediaTags)
- .where(
- and(
- inArray(mediaTags.category, smartFilter.categories),
- gte(mediaTags.score, smartFilter.minScore)
- )
- )
- .all()
- .map(r => r.mediaId);
-
- if (matchingMediaIds.length === 0) return { items: [] };
-
- const items = db.select().from(media).where(
- and(
- eq(media.isTrash, false),
- eq(media.isVault, false),
- inArray(media.id, matchingMediaIds),
- favoriteCondition,
- cursorCondition,
- inArray(
- media.id,
- db.select({ id: sql`MIN(${media.id})` })
- .from(media)
- .where(and(eq(media.isTrash, false), eq(media.isVault, false), inArray(media.id, matchingMediaIds)))
- .groupBy(media.hash)
- )
- )
- ).orderBy(desc(media.createdAt), desc(media.id)).limit(limit).all();
-
- return { items };
- }
-
- // regular folder (existing logic)
- const folderCondition = folderId === undefined
- ? undefined
- : folderId === null
- ? isNull(media.folderId)
- : eq(media.folderId, folderId);
-
- const items = db.select().from(media).where(
- and(
- eq(media.isTrash, false),
- folderCondition,
- favoriteCondition,
- cursorCondition,
- inArray(
- media.id,
- db.select({ id: sql`MIN(${media.id})` })
- .from(media)
- .where(and(eq(media.isTrash, false), folderCondition, favoriteCondition))
- .groupBy(media.hash)
- )
- )
- ).orderBy(desc(media.createdAt), desc(media.id)).limit(limit).all();
-
- return { items };
- });
-}
-
 export async function searchMediaAction(
  query: string,
  folderId?: string | null,

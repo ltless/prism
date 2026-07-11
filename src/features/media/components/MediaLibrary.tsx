@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useEffect } from "react";import { useSearchParams, useRouter } from "next/navigation";
-import { Spinner, CaretDown, MagnifyingGlass as SearchIcon } from "@phosphor-icons/react";
+import { useMemo, useEffect, useState, useRef, useCallback } from "react";import { useSearchParams, useRouter } from "next/navigation";
+import { Spinner, MagnifyingGlass as SearchIcon } from "@phosphor-icons/react";
 import { LayoutGroup } from "framer-motion";
 import { Lightbox } from "./Lightbox";
 import { UploadZone } from "./UploadZone";
@@ -12,30 +12,35 @@ import { MediaGrid } from "./library/MediaGrid";
 import { SearchFilters } from "./library/SearchFilters";
 import { SelectionBox } from "./library/SelectionBox";
 import { BulkActionBar } from "./library/BulkActionBar";
-import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { useMediaSearch } from "../hooks/useMediaSearch";
 import { useMediaSelection } from "../hooks/useMediaSelection";
 import { downloadBatchAsZip } from "../utils/zipHelper";
 
 interface MediaLibraryProps {
- initialItems: MediaItem[];
- folders: FolderType[];
- totalCount: number;
- pageSize: number;
+  initialItems: MediaItem[];
+  folders: FolderType[];
 }
 
-export default function MediaLibrary({ initialItems, folders = [], totalCount, pageSize }: MediaLibraryProps) {
- const router = useRouter();
- const searchParams = useSearchParams();
- const view = searchParams.get('v');
- const activeFolderId = searchParams.get('f');
- const q = searchParams.get('q');
- const filterType = searchParams.get('type');
- const filterFrom = searchParams.get('from');
- const filterTo = searchParams.get('to');
+export default function MediaLibrary({ initialItems, folders = [] }: MediaLibraryProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const view = searchParams.get('v');
+  const activeFolderId = searchParams.get('f');
+  const q = searchParams.get('q');
+  const filterType = searchParams.get('type');
+  const filterFrom = searchParams.get('from');
+  const filterTo = searchParams.get('to');
 
- const { allItems, removeItem, isLoadingMore, hasMore, scrollContainerRef, sentinelRef, handleLoadMore } =
- useInfiniteScroll(initialItems, totalCount, pageSize, activeFolderId, view, q);
+  const [allItems, setAllItems] = useState<MediaItem[]>(initialItems);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setAllItems(initialItems);
+  }, [initialItems]);
+
+  const removeItem = useCallback((id: string) => {
+    setAllItems(prev => prev.filter(item => item.id !== id));
+  }, []);
 
  const { searchResults, searchLoading, searchQuery } = useMediaSearch(q, activeFolderId, {
  mimeType: filterType,
@@ -154,29 +159,10 @@ export default function MediaLibrary({ initialItems, folders = [], totalCount, p
  if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); toggleSelect(item.id, e.shiftKey, e.ctrlKey || e.metaKey); }
  else setSelectedId(item.id);
  }}
- />
- {hasMore && (
- <>
- <div ref={sentinelRef} className="flex justify-center py-4">
- {isLoadingMore && (
- <Spinner size={20} className="animate-spin text-muted-text" />
- )}
- </div>
- <div className="flex justify-center pb-8">
- <button
- onClick={() => handleLoadMore()}
- disabled={isLoadingMore}
- className="flex items-center gap-2 px-8 py-3 rounded-2xl border border-main-border bg-surface-bg text-muted-text hover:text-main-text hover:border-primary/30 text-xs transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
- >
- {isLoadingMore ? <Spinner size={14} weight="bold" className="animate-spin" /> : <CaretDown size={14} weight="bold" />}
- {isLoadingMore ? "Loading\u2026" : `Load More (${allItems.length}/${totalCount})`}
- </button>
- </div>
- </>
- )}
- </>
- )}
- </div>
+  />
+  </>
+  )}
+  </div>
  </UploadZone>
  </div>
 

@@ -1,17 +1,14 @@
 import { auth } from "@/auth";
 import MediaLibraryClient from "@/features/media/components/MediaLibraryClient";
-import type { MediaItem } from "@/features/media/types";
 import { goFetch } from "@/lib/api";
-import { mapFolder, type FolderListResponse } from "@/types/goApi";
-
-const PAGE_SIZE = 50;
+import { mapFolder, mapMedia, type FolderListResponse, type GoMedia } from "@/types/goApi";
 
 type PageProps = {
   searchParams: Promise<{ f?: string; page?: string; v?: string }>;
 };
 
 type DashboardResponse = {
-  items: MediaItem[];
+  items: GoMedia[];
   total: number;
   folderCounts: Record<string, number>;
 };
@@ -24,11 +21,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const activeFolderId = sp.f ?? null;
   const view = sp.v ?? null;
   const isFav = view === "favorite";
-  const page = Math.max(1, Number(sp.page) || 1);
 
   const params = new URLSearchParams({
-    page: String(page),
-    limit: String(PAGE_SIZE),
     dedup: "true",
   });
   if (activeFolderId) params.set("folder_id", activeFolderId);
@@ -43,10 +37,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   return (
     <MediaLibraryClient
-      initialItems={dashRes.items ?? []}
+      initialItems={(dashRes.items ?? []).map(mapMedia)}
       folders={allFolders}
-      totalCount={dashRes.total ?? 0}
-      pageSize={PAGE_SIZE}
     />
   );
 }

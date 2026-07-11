@@ -5,8 +5,6 @@ import { goFetch } from "@/lib/api";
 import { getVaultPinStatusAction } from "@/features/profile/services/profileActions";
 import { mapFolder, type FolderListResponse } from "@/types/goApi";
 
-const PAGE_SIZE = 50;
-
 type ListResponse = { items: MediaItem[]; total: number };
 
 export default async function VaultPage() {
@@ -14,7 +12,7 @@ export default async function VaultPage() {
   if (!session?.user?.id) return null;
 
   const [mediaRes, folderRes, statusRes] = await Promise.all([
-    goFetch<ListResponse>("/api/v1/media?vault=true&limit=200"),
+    goFetch<ListResponse>("/api/v1/media?vault=true"),
     goFetch<FolderListResponse>("/api/v1/folders"),
     getVaultPinStatusAction(),
   ]);
@@ -25,8 +23,6 @@ export default async function VaultPage() {
     <VaultLibraryClient
       initialItems={mediaRes.items ?? []}
       folders={(folderRes.items ?? []).map(mapFolder)}
-      totalCount={mediaRes.total ?? 0}
-      pageSize={PAGE_SIZE}
       hasPin={hasPin}
     />
   );

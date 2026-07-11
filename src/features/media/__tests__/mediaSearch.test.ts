@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loadMoreMediaAction, searchMediaAction } from '../services/mediaSearch';
+import { searchMediaAction } from '../services/mediaSearch';
 
 let mockQueryResult: unknown = [];
 
@@ -37,70 +37,12 @@ vi.mock('@/auth', () => ({
 }));
 
 vi.mock('@/services/ai/sidecar-client', () => ({
- sidecarEmbedText: vi.fn(async () => { throw new Error('sidecar down') }),
+  sidecarEmbedText: vi.fn(async () => { throw new Error('sidecar down') }),
 }));
 
 vi.mock('@/shared/utils/cosineSimilarity', () => ({
  cosineSimilarity: vi.fn(() => 0),
 }));
-
-describe('loadMoreMediaAction', () => {
- beforeEach(() => {
- vi.clearAllMocks();
- mockQueryResult = [];
- });
-
- it('should return items for first page', async () => {
- mockQueryResult = [
- { id: '1', title: 'Photo 1' },
- { id: '2', title: 'Photo 2' },
- ];
- const result = await loadMoreMediaAction(null);
- expect(result.success).toBe(true);
- if (result.success) expect(result.items).toHaveLength(2);
- });
-
- it('should return empty array when no items', async () => {
- mockQueryResult = [];
- const result = await loadMoreMediaAction(null);
- expect(result.success).toBe(true);
- if (result.success) expect(result.items).toEqual([]);
- });
-
- it('should paginate with cursor', async () => {
- mockQueryResult = [{ id: '3', title: 'Photo 3' }];
- const cursor = { createdAt: new Date('2024-01-05'), id: '5' };
- const result = await loadMoreMediaAction(cursor, 10);
- expect(result.success).toBe(true);
- });
-
- it('should filter by folder', async () => {
- mockQueryResult = [];
- const result = await loadMoreMediaAction(null, 20, 'folder-1');
- expect(result.success).toBe(true);
- });
-
- it('should filter by inbox (null folder)', async () => {
- mockQueryResult = [];
- const result = await loadMoreMediaAction(null, 20, null);
- expect(result.success).toBe(true);
- });
-
- it('should filter by favorites', async () => {
- mockQueryResult = [];
- const result = await loadMoreMediaAction(null, 20, undefined, true);
- expect(result.success).toBe(true);
- });
-
- it('should return success: false when unauthenticated', async () => {
- const authModule = await import('@/auth');
- vi.mocked(authModule.auth).mockResolvedValueOnce({ user: null } as never);
-
- const result = await loadMoreMediaAction(null);
- expect(result.success).toBe(false);
- expect((result as { success: false; error: string }).error).toBe('Unauthorized');
- });
-});
 
 describe('searchMediaAction', () => {
  beforeEach(() => {

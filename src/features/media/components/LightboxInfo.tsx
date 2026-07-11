@@ -77,9 +77,12 @@ export function LightboxInfo({ item, folders }: LightboxInfoProps) {
   const isVideo = item.mimeType?.startsWith("video/");
   const formattedDuration = item.duration ? formatDuration(item.duration) : null;
 
-  const formatDate = (date: Date | string | null | undefined) => {
+  const formatDate = (date: Date | string | number | null | undefined) => {
     if (!date) return null;
-    const d = typeof date === "string" ? new Date(date) : date;
+    let d: Date;
+    if (date instanceof Date) d = date;
+    else if (typeof date === "number") d = new Date(date < 1e12 ? date * 1000 : date);
+    else d = new Date(date);
     if (isNaN(d.getTime())) return null;
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric', month: 'short', day: 'numeric',

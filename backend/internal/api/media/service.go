@@ -85,14 +85,6 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 
 	whereClause := strings.Join(where, " AND ")
 
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 50
-	}
-	offset := (page - 1) * limit
-
 	var total int
 	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
@@ -105,10 +97,9 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 		}
 		query := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, selectCols, whereClause)
-		queryArgs := append(args, limit, offset)
+		) ORDER BY created_at DESC`, selectCols, whereClause)
 
-		rows, err := tdb.Query(query, queryArgs...)
+		rows, err := tdb.Query(query, args...)
 		if err != nil {
 			return nil, fmt.Errorf("query media dedup: %w", err)
 		}
@@ -136,10 +127,9 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 		return nil, fmt.Errorf("count media: %w", err)
 	}
 
-	query := fmt.Sprintf(`SELECT %s FROM media WHERE %s ORDER BY created_at DESC LIMIT ? OFFSET ?`, selectCols, whereClause)
-	queryArgs := append(args, limit, offset)
+	query := fmt.Sprintf(`SELECT %s FROM media WHERE %s ORDER BY created_at DESC`, selectCols, whereClause)
 
-	rows, err := tdb.Query(query, queryArgs...)
+	rows, err := tdb.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query media: %w", err)
 	}
@@ -719,21 +709,12 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		return nil, fmt.Errorf("count search: %w", err)
 	}
 
-	if params.Page < 1 {
-		params.Page = 1
-	}
-	if params.Limit < 1 || params.Limit > 100 {
-		params.Limit = 50
-	}
-	offset := (params.Page - 1) * params.Limit
-
 	query := fmt.Sprintf(`SELECT id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status
-		FROM media WHERE %s ORDER BY created_at DESC LIMIT ? OFFSET ?`, whereClause)
-	searchArgs := append(args, params.Limit, offset)
+		FROM media WHERE %s ORDER BY created_at DESC`, whereClause)
 
-	rows, err := tdb.Query(query, searchArgs...)
+	rows, err := tdb.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query search: %w", err)
 	}
@@ -1182,14 +1163,6 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 		where = append(where, "is_favorite = 1")
 	}
 
-	if params.Page < 1 {
-		params.Page = 1
-	}
-	if params.Limit < 1 || params.Limit > 100 {
-		params.Limit = 50
-	}
-	offset := (params.Page - 1) * params.Limit
-
 	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status`
@@ -1245,10 +1218,9 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 
 		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, selectCols, whereClause)
-		qArgs := append(args, params.Limit, offset)
+		) ORDER BY created_at DESC`, selectCols, whereClause)
 
-		rows, err := tdb.Query(q, qArgs...)
+		rows, err := tdb.Query(q, args...)
 		if err != nil {
 			return nil, fmt.Errorf("query smart media: %w", err)
 		}
@@ -1269,10 +1241,9 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 
 		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC LIMIT ? OFFSET ?`, selectCols, whereClause)
-		qArgs := append(args, params.Limit, offset)
+		) ORDER BY created_at DESC`, selectCols, whereClause)
 
-		rows, err := tdb.Query(q, qArgs...)
+		rows, err := tdb.Query(q, args...)
 		if err != nil {
 			return nil, fmt.Errorf("query media: %w", err)
 		}

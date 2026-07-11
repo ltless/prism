@@ -22,11 +22,9 @@ const MediaLibrary = dynamic(() => import("./MediaLibrary"), {
 interface MediaLibraryClientProps {
   initialItems: MediaItem[];
   folders: FolderType[];
-  totalCount: number;
-  pageSize: number;
 }
 
-export default function MediaLibraryClient({ initialItems, folders, totalCount, pageSize }: MediaLibraryClientProps) {
+export default function MediaLibraryClient({ initialItems, folders }: MediaLibraryClientProps) {
   const { session } = useEffectiveSession();
   const isServerSyncingRef = useRef(false);
 
@@ -77,5 +75,5 @@ export default function MediaLibraryClient({ initialItems, folders, totalCount, 
     })();
   }, [session?.user?.id]);
 
-  return <MediaLibrary initialItems={initialItems} folders={folders} totalCount={totalCount} pageSize={pageSize} />;
+  return <MediaLibrary initialItems={initialItems} folders={folders} />;
 }

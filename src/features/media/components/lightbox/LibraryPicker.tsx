@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
 import { MediaItem } from "../../types";
 import { logger } from "@/core/utils/logger";
@@ -15,33 +15,9 @@ const PAGE_SIZE = 60;
 export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const pageRef = useRef(1);
   const dialogRef = useRef<HTMLDivElement>(null);
-
-  const fetchPage = useCallback(async (page: number, append: boolean) => {
-    try {
-      const res = await fetch(`/api/v1/media?page=${page}&limit=${PAGE_SIZE}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const newItems: MediaItem[] = data.items || [];
-      setItems(prev => append ? [...prev, ...newItems] : newItems);
-      setHasMore(newItems.length === PAGE_SIZE);
-      setError(null);
-    } catch (err) {
-      if (!append) {
-        setError("Failed to load library");
-        setItems([]);
-      }
-      logger.warn("LibraryPicker fetch failed", { error: String(err) });
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,9 +25,7 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data) => {
         if (cancelled) return;
-        const newItems: MediaItem[] = data.items || [];
-        setItems(newItems);
-        setHasMore(newItems.length === PAGE_SIZE);
+        setItems(data.items || []);
         setError(null);
       })
       .catch((err) => {
@@ -63,19 +37,11 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
       .finally(() => {
         if (cancelled) return;
         setLoading(false);
-        setLoadingMore(false);
       });
     return () => {
       cancelled = true;
     };
   }, []);
-
-  const loadMore = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    pageRef.current++;
-    fetchPage(pageRef.current, true);
-  }, [fetchPage, loadingMore, hasMore]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -128,33 +94,24 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
           ) : error ? (
             <div className="text-center py-8 space-y-2">
               <p className="text-sm text-muted-text">{error}</p>
-              <button onClick={() => { setLoading(true); fetchPage(1, false); }} className="text-sm text-primary hover:underline cursor-pointer">Retry</button>
+              <button onClick={() => { setLoading(true); fetch(`/api/v1/media?page=1&limit=${PAGE_SIZE}`).then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))).then(d => { setItems(d.items || []); setError(null); }).catch(() => setError("Failed to load library")).finally(() => setLoading(false)); }} className="text-sm text-primary hover:underline cursor-pointer">Retry</button>
             </div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-text text-center py-8">No photos found</p>
           ) : (
-            <>
-              <div className="grid grid-cols-5 gap-2">
-                {filtered.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => onSelect(item)}
-                    aria-label={`Select ${item.title || "image"}`}
-                    className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-all"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/v1/media/files/${item.filePath}?thumb=1`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
-                  </button>
-                ))}
-              </div>
-              {hasMore && !search && (
-                <div className="text-center mt-4">
-                  <button onClick={loadMore} disabled={loadingMore} className="text-sm text-primary hover:underline cursor-pointer disabled:opacity-50">
-                    {loadingMore ? "Loading..." : "Load More"}
-                  </button>
-                </div>
-              )}
-            </>
+            <div className="grid grid-cols-5 gap-2">
+              {filtered.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onSelect(item)}
+                  aria-label={`Select ${item.title || "image"}`}
+                  className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-all"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/api/v1/media/files/${item.filePath}?thumb=1`} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -13,16 +13,12 @@ import Link from "next/link";
 interface VaultLibraryClientProps {
  initialItems: MediaItem[];
  folders: Folder[];
- totalCount: number;
- pageSize: number;
  hasPin: boolean;
 }
 
 export default function VaultLibraryClient({
  initialItems,
  folders,
- totalCount,
- pageSize,
  hasPin: initialHasPin,
 }: VaultLibraryClientProps) {
  const [isUnlocked, setIsUnlocked] = useState(false);
@@ -124,12 +120,10 @@ export default function VaultLibraryClient({
  // Case 2: Unlocked State -> render media library
  if (isUnlocked) {
  return (
- <MediaLibraryClient
- initialItems={initialItems}
- folders={folders}
- totalCount={totalCount}
- pageSize={pageSize}
- />
+  <MediaLibraryClient
+  initialItems={initialItems}
+  folders={folders}
+  />
  );
  }
 

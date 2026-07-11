@@ -305,13 +305,13 @@ func TestService_List_Pagination(t *testing.T) {
 		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), title, "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
 	}
 
-	// page 1, limit 3
+	// pagination removed — List now returns all items
 	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 3)
 	if err != nil {
-		t.Fatalf("List page 1: %v", err)
+		t.Fatalf("List: %v", err)
 	}
-	if len(resp.Items) != 3 {
-		t.Fatalf("expected 3 items on page 1, got %d", len(resp.Items))
+	if len(resp.Items) != 10 {
+		t.Fatalf("expected 10 items (all), got %d", len(resp.Items))
 	}
 	if resp.Total != 10 {
 		t.Fatalf("expected total 10, got %d", resp.Total)

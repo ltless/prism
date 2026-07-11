@@ -196,7 +196,7 @@ export function TopBar() {
  </AnimatePresence>
  </button>
 
- {effectiveSession && <UserMenu session={effectiveSession} onOpenSettings={() => setIsSettingsOpen(true)} />}
+  {effectiveSession && <div className="ml-1"><UserMenu session={effectiveSession} onOpenSettings={() => setIsSettingsOpen(true)} /></div>}
  {authLoading && !effectiveSession && (
  <div className="w-8 h-8 rounded-full bg-surface-bg animate-pulse" aria-hidden="true" />
  )}

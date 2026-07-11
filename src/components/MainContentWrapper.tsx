@@ -11,7 +11,7 @@ export function MainContentWrapper({ children }: { children: React.ReactNode }) 
     <main
       id="main-content"
       className={cn(
-        "flex-1 flex flex-col min-h-0 relative h-full pt-0 pr-0 pb-0 pl-0 md:pt-0 md:pr-4 md:pb-4 transition-[padding] duration-300",
+        "flex-1 flex flex-col min-h-0 relative h-full pt-0 pr-0 pb-0 pl-0 md:pt-0 transition-[padding] duration-300",
         isCollapsed ? "md:pl-[64px]" : "md:pl-[260px]"
       )}
     >

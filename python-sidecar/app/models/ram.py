@@ -10,7 +10,13 @@ from app.taxonomy import TAG_TO_CATEGORY
 
 logger = logging.getLogger("prism.sidecar.ram")
 
-DEFAULT_MODEL_ID = "xcinc/recognize-anything-plus"
+# `ram_plus(pretrained=...)` only accepts a direct .pth URL or a local path
+# (not a HuggingFace repo id), so point it at the upstream weights file.
+# Override with RAM_PRETRAINED to use a local checkpoint instead.
+DEFAULT_MODEL_ID = (
+    "https://huggingface.co/xinyu1205/recognize-anything-plus-model/"
+    "resolve/main/ram_plus_swin_large_14m.pth"
+)
 IMAGE_SIZE = 384
 # RAM applies its own sigmoid threshold internally; 0.65 keeps it close to the
 # model's tuned default (0.68) while surfacing a few more borderline tags.

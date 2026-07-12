@@ -12,6 +12,7 @@ dependencies = [
     "pillow>=10",
     "numpy>=1.26",
     "huggingface-hub>=0.25",
+    "recognize-anything>=0.1.0",
 ]
 
 [project.optional-dependencies]

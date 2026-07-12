@@ -26,6 +26,12 @@ def load_aesthetic_session(spec: registry.ModelSpec) -> None:
     aesthetic.load_aesthetic()
 
 
+def load_ram_session(spec: registry.ModelSpec) -> None:
+    from app.models import ram
+
+    ram.get_ram(spec.id)
+
+
 @router.get("/model-status")
 def model_status() -> dict:
     models = []
@@ -69,6 +75,8 @@ def load_model(req: LoadModelRequest) -> dict:
             load_clip_session(spec)
         elif spec.type == "aesthetic":
             load_aesthetic_session(spec)
+        elif spec.type == "tagger":
+            load_ram_session(spec)
         else:
             raise HTTPException(status_code=400, detail=f"unsupported model type: {spec.type}")
     except HTTPException:
@@ -76,6 +84,16 @@ def load_model(req: LoadModelRequest) -> dict:
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err)) from err
     return {"success": True, "modelId": spec.id}
+
+
+@router.post("/unload-all")
+def unload_all() -> dict:
+    from app.models import aesthetic, clip, ram
+
+    clip.unload_clip()
+    aesthetic.unload_aesthetic()
+    ram.unload_ram()
+    return {"success": True}
 
 
 @router.get("/gpu-status")

@@ -120,3 +120,32 @@ def test_download_model_endpoint_skips_if_already_downloaded():
         assert res.status_code == 200
         assert res.json()["started"] is False
         assert res.json()["downloaded"] is True
+
+
+def test_load_model_tagger_dispatches_to_ram():
+    from app.models import ram
+
+    spec = registry.find_spec("xcinc/recognize-anything-plus")
+    assert spec is not None and spec.type == "tagger"
+    with patch.object(ram, "get_ram", return_value=None) as mock_get, \
+         patch.object(registry, "find_spec", return_value=spec):
+        client = TestClient(app)
+        res = client.post("/load-model", json={"modelId": spec.id})
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+        mock_get.assert_called_once()
+
+
+def test_unload_all_calls_every_session_unload():
+    from app.models import aesthetic, clip, ram
+
+    with patch.object(clip, "unload_clip") as m_clip, \
+         patch.object(aesthetic, "unload_aesthetic") as m_aes, \
+         patch.object(ram, "unload_ram") as m_ram:
+        client = TestClient(app)
+        res = client.post("/unload-all")
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+        m_clip.assert_called_once()
+        m_aes.assert_called_once()
+        m_ram.assert_called_once()

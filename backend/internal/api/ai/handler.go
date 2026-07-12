@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -14,6 +15,16 @@ type Handler struct {
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// aiErr maps service errors to HTTP responses: an opted-out AI returns 403 so
+// clients can distinguish "AI disabled" from a real failure.
+func (h *Handler) aiErr(err error) error {
+	if errors.Is(err, ErrAIInactive) {
+		return echo.NewHTTPError(http.StatusForbidden, "AI is not active")
+	}
+	log.Printf("ai error: %v", err)
+	return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 }
 
 type addTagBody struct {
@@ -59,8 +70,7 @@ func (h *Handler) EmbedImage(c echo.Context) error {
 	}
 	emb, err := h.svc.EmbedImage(claims.UserID, body.FilePath)
 	if err != nil {
-		log.Printf("EmbedImage error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		return h.aiErr(err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"embedding": emb,
@@ -80,8 +90,7 @@ func (h *Handler) EmbedText(c echo.Context) error {
 	}
 	emb, err := h.svc.EmbedText(body.Text)
 	if err != nil {
-		log.Printf("EmbedText error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		return h.aiErr(err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"embedding": emb,
@@ -102,8 +111,7 @@ func (h *Handler) GenerateTags(c echo.Context) error {
 	}
 	tags, err := h.svc.GenerateTags(claims.UserID, body.FilePath, body.TagThreshold)
 	if err != nil {
-		log.Printf("GenerateTags error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		return h.aiErr(err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"tags": tags,
@@ -122,8 +130,7 @@ func (h *Handler) LoadModel(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "modelId required")
 	}
 	if err := h.svc.LoadModel(body.ModelID); err != nil {
-		log.Printf("LoadModel error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		return h.aiErr(err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":  true,
@@ -136,8 +143,7 @@ func (h *Handler) Unload(c echo.Context) error {
 		return err
 	}
 	if err := h.svc.Unload(); err != nil {
-		log.Printf("Unload error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		return h.aiErr(err)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{"success": true})
 }
@@ -164,8 +170,7 @@ func (h *Handler) AestheticScore(c echo.Context) error {
 	}
 	res, err := h.svc.ScoreAesthetic(claims.UserID, body.FilePath)
 	if err != nil {
-		log.Printf("AestheticScore error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		return h.aiErr(err)
 	}
 	return c.JSON(http.StatusOK, res)
 }
@@ -233,7 +238,9 @@ func (h *Handler) DownloadModel(c echo.Context) error {
 	}
 	result, err := h.svc.DownloadModel(body.ModelID)
 	if err != nil {
-		log.Printf("DownloadModel error: %v", err)
+		if errors.Is(err, ErrAIInactive) {
+			return echo.NewHTTPError(http.StatusForbidden, "AI is not active")
+		}
 		return echo.NewHTTPError(http.StatusBadGateway, "sidecar unreachable: "+err.Error())
 	}
 	status := http.StatusOK

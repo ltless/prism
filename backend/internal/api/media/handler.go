@@ -3,6 +3,7 @@ package media
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/api/ai"
 	"github.com/ltless/prism/internal/auth"
 	mw "github.com/ltless/prism/internal/media"
 )
@@ -447,6 +449,9 @@ func (h *Handler) BatchAITags(c echo.Context) error {
 	mediaDir := h.storage.MediaDir(claims.UserID)
 	result, err := h.svc.BatchTag(claims.UserID, mediaDir)
 	if err != nil {
+		if errors.Is(err, ai.ErrAIInactive) {
+			return echo.NewHTTPError(http.StatusForbidden, "AI is not active")
+		}
 		log.Printf("BatchAITags error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

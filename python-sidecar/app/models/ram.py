@@ -65,7 +65,9 @@ class RAMSession:
         mapped = map_tags_to_taxonomy(raw_tags)
         result: list[dict[str, Any]] = []
         for m in mapped:
-            if m["score"] < threshold:
+            # RAM yields one generation confidence for the whole tag set;
+            # filter the set by that confidence, not the placeholder 1.0 score.
+            if conf < threshold:
                 continue
             result.append({
                 "tag": m["tag"],

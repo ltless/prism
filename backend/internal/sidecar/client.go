@@ -240,3 +240,54 @@ func (c *Client) DownloadModel(req DownloadModelRequest) (*DownloadModelResult, 
 	}
 	return &resp, nil
 }
+
+type EmbedResponse struct {
+	Embedding []float32 `json:"embedding"`
+}
+
+type TagScore struct {
+	Tag      string  `json:"tag"`
+	Score    float32 `json:"score"`
+	Category string  `json:"category"`
+}
+
+type TagsResponse struct {
+	Tags []TagScore `json:"tags"`
+}
+
+type ScoreResponse struct {
+	Score float32 `json:"score"`
+	Raw   float32 `json:"raw"`
+}
+
+func (c *Client) EmbedImage(filePath, variant string) ([]float32, error) {
+	var r EmbedResponse
+	if err := c.post("/embed-image", map[string]any{"filePath": filePath, "variant": variant}, &r); err != nil {
+		return nil, err
+	}
+	return r.Embedding, nil
+}
+
+func (c *Client) EmbedText(text, variant string) ([]float32, error) {
+	var r EmbedResponse
+	if err := c.post("/embed-text", map[string]any{"text": text, "variant": variant}, &r); err != nil {
+		return nil, err
+	}
+	return r.Embedding, nil
+}
+
+func (c *Client) GenerateTags(filePath string, taxonomy map[string][]string, threshold float32, variant string) ([]TagScore, error) {
+	var r TagsResponse
+	if err := c.post("/generate-tags", map[string]any{"filePath": filePath, "taxonomy": taxonomy, "tagThreshold": threshold, "variant": variant}, &r); err != nil {
+		return nil, err
+	}
+	return r.Tags, nil
+}
+
+func (c *Client) ScoreAesthetic(filePath, model, variant string) (*ScoreResponse, error) {
+	var r ScoreResponse
+	if err := c.post("/aesthetic-score", map[string]any{"filePath": filePath, "model": model, "variant": variant}, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}

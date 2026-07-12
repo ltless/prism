@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import threading
 from typing import Any
 
@@ -18,53 +17,6 @@ _MODEL_IDS = {
 _session: "ClipSession | None" = None
 _loaded_variant: str | None = None
 _load_lock = threading.Lock()
-
-
-def _softmax_top_k(
-    logits: list[float],
-    candidates: list[str],
-    threshold: float,
-    k: int = 15,
-) -> list[dict[str, float]]:
-    if not logits or not candidates:
-        return []
-    max_logit = max(logits)
-    exp_scores = [math.exp(v - max_logit) for v in logits]
-    sum_exp = sum(exp_scores)
-    probs = [e / sum_exp for e in exp_scores]
-    result = [
-        {"tag": candidates[i], "score": probs[i]}
-        for i in range(min(len(candidates), len(probs)))
-        if probs[i] > threshold
-    ]
-    result.sort(key=lambda r: r["score"], reverse=True)
-    return result[:k]
-
-
-def _assemble_batch_result(
-    items: list[dict[str, str]],
-    valid_results: list[tuple[int, list[float], list[float]]],
-    candidates: list[str],
-    threshold: float,
-) -> dict[str, Any]:
-    embeddings: list[list[float] | None] = [None] * len(items)
-    tag_sets: list[list[dict[str, float]]] = [[] for _ in range(len(items))]
-    for g, emb, logits_row in valid_results:
-        embeddings[g] = emb
-        tag_sets[g] = _softmax_top_k(logits_row, candidates, threshold)
-    results = []
-    tagged = 0
-    for i, item in enumerate(items):
-        tags = tag_sets[i]
-        results.append({
-            "id": item["id"],
-            "tags": [t["tag"] for t in tags],
-            "tagScores": [t["score"] for t in tags],
-            "embedding": embeddings[i],
-        })
-        if embeddings[i] is not None:
-            tagged += 1
-    return {"tagged": tagged, "results": results}
 
 
 class ClipSession:
@@ -107,63 +59,6 @@ class ClipSession:
         with torch.no_grad():
             outputs = self.model(**inputs)
         return outputs.text_embeds[0].detach().cpu().float().tolist()
-
-    def generate_tags(self, image_path: str, candidates: list[str], threshold: float = 0.1) -> list[dict[str, float]]:
-        import torch
-        from PIL import Image
-
-        image = Image.open(image_path).convert("RGB")
-        texts = [f"a photo of {t}" for t in candidates]
-        inputs = self.processor(
-            images=image, text=texts, return_tensors="pt",
-            padding=True, truncation=True, max_length=77,
-        )
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-        logits = outputs.logits_per_image[0].detach().cpu().float().tolist()
-        return _softmax_top_k(logits, candidates, threshold)
-
-    def batch_tag(
-        self,
-        items: list[dict[str, str]],
-        candidates: list[str],
-        threshold: float,
-        batch_size: int,
-    ) -> dict[str, Any]:
-        import torch
-        from PIL import Image
-
-        texts = [f"a photo of {t}" for t in candidates]
-        valid_results: list[tuple[int, list[float], list[float]]] = []
-        for start in range(0, len(items), batch_size):
-            chunk = items[start:start + batch_size]
-            images: list[Any] = []
-            idxs: list[int] = []
-            for i, item in enumerate(chunk):
-                try:
-                    img = Image.open(item["filePath"]).convert("RGB")
-                    images.append(img)
-                    idxs.append(start + i)
-                except Exception as err:
-                    logger.error("batch.tag.read.fail file=%s error=%s", item.get("filePath"), err)
-            if not images:
-                continue
-            try:
-                inputs = self.processor(
-                    images=images, text=texts, return_tensors="pt",
-                    padding=True, truncation=True, max_length=77,
-                )
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
-                with torch.no_grad():
-                    outputs = self.model(**inputs)
-                emb = outputs.image_embeds.detach().cpu().float().tolist()
-                logits = outputs.logits_per_image.detach().cpu().float().tolist()
-                for j, g in enumerate(idxs):
-                    valid_results.append((g, emb[j], logits[j]))
-            except Exception as err:
-                logger.error("batch.tag.fail chunk=%s error=%s", start, err)
-        return _assemble_batch_result(items, valid_results, candidates, threshold)
 
 
 def get_clip(variant: str = "standard") -> ClipSession:

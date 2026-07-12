@@ -219,6 +219,9 @@ def score_aesthetic(
         return _score_with_clip(image_path, variant)
     try:
         return get_aesthetic().score(image_path)
+    except FileNotFoundError:
+        # missing file → 404, never a reason to fall back to clip scoring.
+        raise
     except Exception as err:
         # laion failed. fall back to clip rather than ruining someone's upload.
         logger.warning("aesthetic.laion.fail fallback=clip error=%s", err)

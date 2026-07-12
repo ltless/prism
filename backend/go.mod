@@ -9,6 +9,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.15.4
 	golang.org/x/crypto v0.53.0
+	golang.org/x/image v0.43.0
 	modernc.org/sqlite v1.53.0
 )
 
@@ -25,8 +26,6 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/yalue/onnxruntime_go v1.31.0 // indirect
-	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect

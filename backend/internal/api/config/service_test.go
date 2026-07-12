@@ -113,3 +113,28 @@ func TestConfigService_Update_RejectsOversizedAI(t *testing.T) {
 		t.Fatalf("expected ErrInvalidAIConfig, got %v", err)
 	}
 }
+
+func TestConfigService_IsAIActive(t *testing.T) {
+	gdb := setupConfigTestDB(t)
+	svc := NewService(gdb)
+
+	active, err := svc.IsAIActive()
+	if err != nil {
+		t.Fatalf("IsAIActive empty: %v", err)
+	}
+	if active {
+		t.Fatal("expected false when no config stored")
+	}
+
+	svc.Update(map[string]interface{}{"ai": map[string]interface{}{
+		"enabled": true,
+		"aiActive": true,
+	}})
+	active, err = svc.IsAIActive()
+	if err != nil {
+		t.Fatalf("IsAIActive set: %v", err)
+	}
+	if !active {
+		t.Fatal("expected true after aiActive=true stored")
+	}
+}

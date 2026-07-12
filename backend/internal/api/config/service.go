@@ -43,6 +43,25 @@ func (s *Service) Get() (*AppConfigResponse, error) {
 	return &resp, nil
 }
 
+// IsAIActive reports whether AI is opt-in enabled. Defaults to false when no
+// config is stored or the blob is malformed.
+func (s *Service) IsAIActive() (bool, error) {
+	resp, err := s.Get()
+	if err != nil {
+		return false, err
+	}
+	if resp.AI == nil {
+		return false, nil
+	}
+	var m struct {
+		AiActive bool `json:"aiActive"`
+	}
+	if err := json.Unmarshal([]byte(*resp.AI), &m); err != nil {
+		return false, fmt.Errorf("parse ai config: %w", err)
+	}
+	return m.AiActive, nil
+}
+
 func (s *Service) Update(body map[string]interface{}) error {
 	if ai, ok := body["ai"]; ok {
 		// Only accept a JSON object; reject strings/numbers/arrays/etc. so

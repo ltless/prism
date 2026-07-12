@@ -51,9 +51,13 @@ func setupTenantDB(t *testing.T) *db.TenantPool {
 func intPtr(v int) *int { return &v }
 func strPtr(v string) *string { return &v }
 
+type stubActive struct{ active bool }
+
+func (s stubActive) IsAIActive() (bool, error) { return s.active, nil }
+
 func TestService_List_Empty(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -68,7 +72,7 @@ func TestService_List_Empty(t *testing.T) {
 
 func TestService_CreateAndList(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	item, dup, err := svc.Create("test-user", "", "test.jpg", "Test Image", "image/jpeg", "abc123", 1024, intPtr(100), intPtr(200), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -94,7 +98,7 @@ func TestService_CreateAndList(t *testing.T) {
 
 func TestService_Create_DuplicateHash(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	_, dup, err := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "samehash", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("first create: %v", err)
@@ -114,7 +118,7 @@ func TestService_Create_DuplicateHash(t *testing.T) {
 
 func TestService_List_WithTrashFilter(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -147,7 +151,7 @@ func TestService_List_WithTrashFilter(t *testing.T) {
 
 func TestService_Get_Found(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	created, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -167,7 +171,7 @@ func TestService_Get_Found(t *testing.T) {
 
 func TestService_Get_NotFound(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	_, err := svc.Get("test-user", "nonexistent-id")
 	if err == nil {
 		t.Fatal("expected error for nonexistent media")
@@ -176,7 +180,7 @@ func TestService_Get_NotFound(t *testing.T) {
 
 func TestService_Update_Whitelist(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	item, _, err := svc.Create("test-user", "", "test.jpg", "Original", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -205,7 +209,7 @@ func TestService_Update_Whitelist(t *testing.T) {
 
 func TestService_Delete(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -227,7 +231,7 @@ func TestService_Delete(t *testing.T) {
 
 func TestService_BulkMove(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 
 	// Create a folder first
 	tdb, err := pool.Get("test-user")
@@ -257,7 +261,7 @@ func TestService_BulkMove(t *testing.T) {
 
 func TestService_List_Search(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	svc.Create("test-user", "", "cat.jpg", "Cute Cat", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
 	svc.Create("test-user", "", "dog.jpg", "Happy Dog", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
 
@@ -272,7 +276,7 @@ func TestService_List_Search(t *testing.T) {
 
 func TestService_List_SearchWildcardEscaped(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	svc.Create("test-user", "", "a.jpg", "100% Done", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
 	svc.Create("test-user", "", "b.jpg", "50% Done", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
 	svc.Create("test-user", "", "c.jpg", "Plain", "image/jpeg", "h3", 100, nil, nil, nil, nil, nil, nil)
@@ -299,7 +303,7 @@ func TestService_List_SearchWildcardEscaped(t *testing.T) {
 
 func TestService_List_Pagination(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	for i := 0; i < 10; i++ {
 		title := fmt.Sprintf("Item %d", i)
 		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), title, "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
@@ -339,7 +343,7 @@ func TestService_SanitizeTitle(t *testing.T) {
 
 func TestService_SanitizeTitle_Applied(t *testing.T) {
 	pool := setupTenantDB(t)
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	item, _, err := svc.Create("test-user", "", "x.jpg", "<script>alert(1)</script>", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)

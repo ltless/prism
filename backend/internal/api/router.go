@@ -42,7 +42,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	authH := auth.NewHandler(authSvc)
 
 	mediaStorage := mediaS.NewStorage(cfg.StoragePath)
-	mediaSvc := mediaH.NewService(tenantPool)
+	mediaSvc := mediaH.NewService(tenantPool, configH.NewService(global))
 	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage)
 
 	folderSvc := folderH.NewService(tenantPool)
@@ -127,7 +127,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	usersG.PUT("/me/username", usersHandler.UpdateUsername)
 	usersG.GET("/me/storage-usage", usersHandler.GetStorageUsage)
 
-	aiSvc := aiH.NewService(mediaStorage, sidecarClient)
+	aiSvc := aiH.NewService(mediaStorage, sidecarClient, configH.NewService(global))
 	aiSvc.SetSidecarClient(sidecarClient)
 	aiHandler := aiH.NewHandler(aiSvc)
 	aiG := protected.Group("/ai")
@@ -136,6 +136,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	aiG.POST("/generate-tags", aiHandler.GenerateTags)
 	aiG.POST("/aesthetic-score", aiHandler.AestheticScore)
 	aiG.POST("/load-model", aiHandler.LoadModel, auth.RequireAdmin)
+	aiG.POST("/unload", aiHandler.Unload, auth.RequireAdmin)
 	aiG.GET("/status", aiHandler.Status)
 	aiG.GET("/gpu-status", aiHandler.GPUStatus)
 	aiG.GET("/sidecar-status", aiHandler.SidecarStatus)

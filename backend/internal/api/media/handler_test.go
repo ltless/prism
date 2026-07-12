@@ -26,7 +26,7 @@ func setupMediaHandler(t *testing.T) (*echo.Echo, *Handler, string, *auth.JWTMan
 	}
 
 	storage := mw.NewStorage(t.TempDir())
-	svc := NewService(pool)
+	svc := NewService(pool, stubActive{true})
 	handler := NewHandler(svc, storage)
 
 	e := echo.New()
@@ -92,7 +92,7 @@ func TestHandler_CreateAndGet(t *testing.T) {
 	jwt := auth.NewJWTManager("test-secret")
 	token, _ := jwt.Generate("test-user", "testuser", "admin")
 
-	svc := NewService(sharedPool)
+	svc := NewService(sharedPool, stubActive{true})
 	h := NewHandler(svc, storage)
 	e := echo.New()
 	e.Use(jwt.Middleware)
@@ -135,7 +135,7 @@ func TestHandler_Update_Valid(t *testing.T) {
 	e, h, token, _ := setupMediaHandler(t)
 	e.PATCH("/api/v1/media/:id", h.Update)
 
-	svc := NewService(setupTenantDB(t))
+	svc := NewService(setupTenantDB(t), stubActive{true})
 	item, _, _ := svc.Create("test-user", "", "test.jpg", "Old", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 
 	body := `{"title":"New Title"}`

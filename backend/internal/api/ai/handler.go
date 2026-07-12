@@ -38,7 +38,7 @@ type generateTagsBody struct {
 }
 
 type loadModelBody struct {
-	Variant string `json:"variant"`
+	ModelID string `json:"modelId"`
 }
 
 type aestheticScoreBody struct {
@@ -118,17 +118,28 @@ func (h *Handler) LoadModel(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
-	if body.Variant == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "variant required")
+	if body.ModelID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "modelId required")
 	}
-	if err := h.svc.LoadModel(body.Variant); err != nil {
+	if err := h.svc.LoadModel(body.ModelID); err != nil {
 		log.Printf("LoadModel error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"success":       true,
-		"activeVariant": body.Variant,
+		"success":  true,
+		"modelId":  body.ModelID,
 	})
+}
+
+func (h *Handler) Unload(c echo.Context) error {
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
+	}
+	if err := h.svc.Unload(); err != nil {
+		log.Printf("Unload error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{"success": true})
 }
 
 func (h *Handler) Status(c echo.Context) error {

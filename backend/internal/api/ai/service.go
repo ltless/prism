@@ -1,10 +1,14 @@
 package ai
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/sidecar"
 )
+
+var ErrAIInactive = errors.New("AI is not active")
 
 // PathResolver validates and resolves a user-supplied file path against the
 // caller's media directory. *media.Storage implements this in production.
@@ -32,17 +36,49 @@ type StatusResponse struct {
 type Service struct {
 	resolver PathResolver
 	sidecar  *sidecar.Client
+	checker  config.ActiveChecker
 }
 
-func NewService(resolver PathResolver, sc *sidecar.Client) *Service {
+func NewService(resolver PathResolver, sc *sidecar.Client, checker config.ActiveChecker) *Service {
 	return &Service{
 		resolver: resolver,
 		sidecar:  sc,
+		checker:  checker,
 	}
 }
 
 func (s *Service) SetSidecarClient(c *sidecar.Client) {
 	s.sidecar = c
+}
+
+// enforceActive blocks AI work when opted-out. A nil checker fails open
+// (allows) so misconfiguration never hard-blocks; production always sets one.
+func (s *Service) enforceActive() error {
+	if s.checker == nil {
+		return nil
+	}
+	active, err := s.checker.IsAIActive()
+	if err != nil {
+		return fmt.Errorf("check ai active: %w", err)
+	}
+	if !active {
+		return ErrAIInactive
+	}
+	return nil
+}
+
+func (s *Service) loadModelOnServer(modelID string) error {
+	if s.sidecar == nil {
+		return fmt.Errorf("sidecar not configured")
+	}
+	return s.sidecar.LoadModel(sidecar.LoadModelRequest{ModelID: modelID})
+}
+
+func (s *Service) unloadAllOnServer() error {
+	if s.sidecar == nil {
+		return fmt.Errorf("sidecar not configured")
+	}
+	return s.sidecar.UnloadAll()
 }
 
 func (s *Service) SidecarHealth() error {
@@ -74,6 +110,9 @@ func (s *Service) resolvePath(userID, filePath string) (string, error) {
 }
 
 func (s *Service) EmbedImage(userID, filePath string) ([]float32, error) {
+	if err := s.enforceActive(); err != nil {
+		return nil, err
+	}
 	if s.sidecar == nil {
 		return nil, fmt.Errorf("sidecar not configured")
 	}
@@ -85,6 +124,9 @@ func (s *Service) EmbedImage(userID, filePath string) ([]float32, error) {
 }
 
 func (s *Service) EmbedText(text string) ([]float32, error) {
+	if err := s.enforceActive(); err != nil {
+		return nil, err
+	}
 	if s.sidecar == nil {
 		return nil, fmt.Errorf("sidecar not configured")
 	}
@@ -92,6 +134,9 @@ func (s *Service) EmbedText(text string) ([]float32, error) {
 }
 
 func (s *Service) GenerateTags(userID, filePath string, threshold float32) ([]TagResult, error) {
+	if err := s.enforceActive(); err != nil {
+		return nil, err
+	}
 	if s.sidecar == nil {
 		return nil, fmt.Errorf("sidecar not configured")
 	}
@@ -111,6 +156,9 @@ func (s *Service) GenerateTags(userID, filePath string, threshold float32) ([]Ta
 }
 
 func (s *Service) ScoreAesthetic(userID, filePath string) (*AestheticScoreResponse, error) {
+	if err := s.enforceActive(); err != nil {
+		return nil, err
+	}
 	if s.sidecar == nil {
 		return nil, fmt.Errorf("sidecar not configured")
 	}
@@ -125,11 +173,21 @@ func (s *Service) ScoreAesthetic(userID, filePath string) (*AestheticScoreRespon
 	return &AestheticScoreResponse{Score: res.Score, Raw: res.Raw}, nil
 }
 
-func (s *Service) LoadModel(variant string) error {
-	return nil
+func (s *Service) LoadModel(modelID string) error {
+	if err := s.enforceActive(); err != nil {
+		return err
+	}
+	return s.loadModelOnServer(modelID)
+}
+
+func (s *Service) Unload() error {
+	return s.unloadAllOnServer()
 }
 
 func (s *Service) DownloadModel(modelID string) (*sidecar.DownloadModelResult, error) {
+	if err := s.enforceActive(); err != nil {
+		return nil, err
+	}
 	if s.sidecar == nil {
 		return &sidecar.DownloadModelResult{Error: "sidecar not configured"}, nil
 	}

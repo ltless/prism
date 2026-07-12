@@ -89,6 +89,12 @@ func (s *Service) Update(body map[string]interface{}) error {
 	return nil
 }
 
+// ActiveChecker reports whether AI is opted-in (active). *Service implements
+// it via IsAIActive.
+type ActiveChecker interface {
+	IsAIActive() (bool, error)
+}
+
 const storageDefaultKey = "storage_default_bytes"
 
 func (s *Service) GetStorageDefault() (*int64, error) {

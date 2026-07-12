@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/db"
 	"github.com/ltless/prism/internal/sidecar"
 )
@@ -42,10 +43,11 @@ type ListResponse struct {
 type Service struct {
 	pool          *db.TenantPool
 	sidecarClient *sidecar.Client
+	checker       config.ActiveChecker
 }
 
-func NewService(pool *db.TenantPool) *Service {
-	return &Service{pool: pool}
+func NewService(pool *db.TenantPool, checker config.ActiveChecker) *Service {
+	return &Service{pool: pool, checker: checker}
 }
 
 func (s *Service) SetSidecarClient(c *sidecar.Client) {
@@ -756,6 +758,15 @@ type BatchScoreResult struct {
 }
 
 func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
+	if s.checker != nil {
+		active, err := s.checker.IsAIActive()
+		if err != nil {
+			return nil, fmt.Errorf("check ai active: %w", err)
+		}
+		if !active {
+			return nil, fmt.Errorf("AI is not active")
+		}
+	}
 	if s.sidecarClient == nil {
 		return &BatchTagResult{Error: "sidecar not configured"}, nil
 	}

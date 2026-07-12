@@ -30,7 +30,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 		e.IPExtractor = echo.ExtractIPFromXFFHeader()
 	}
 
-	e.Use(echomw.Logger())
+	e.Use(appmw.QuietLogger())
 	e.Use(echomw.Recover())
 	e.Use(appmw.CORS(cfg.CORSOrigin))
 

@@ -104,6 +104,7 @@ export const useAIStore = create<AIState>()(
         aestheticEnabled: false,
         autoFavoriteEnabled: false,
         globalAIEnabled: false,
+        aiActive: false,
         activeVariant: null,
         status: 'idle',
         progress: 0,

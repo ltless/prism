@@ -3,7 +3,7 @@ import { logger } from "@/core/utils/logger";
 
 const SIDECAR_URL = process.env.SIDECAR_URL || "http://localhost:8081";
 
-export type SidecarModelType = "embed" | "aesthetic";
+export type SidecarModelType = "embed" | "aesthetic" | "tagger";
 
 export interface SidecarDownloadState {
   status: "idle" | "downloading" | "done" | "error";

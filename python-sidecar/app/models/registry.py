@@ -136,6 +136,10 @@ def is_model_loaded(spec: ModelSpec) -> bool:
             from app.models import aesthetic
 
             return aesthetic._session is not None
+        if spec.type == "tagger":
+            from app.models import ram
+
+            return ram._session is not None
     except Exception:
         return False
     return False

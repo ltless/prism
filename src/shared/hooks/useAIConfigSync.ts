@@ -25,6 +25,7 @@ export function useAIConfigSync({ activeTab, isAdmin, setTagStats, setScoreStats
  const configRes = await getAppConfigAction();
  if (configRes.success && configRes.config) {
  store.setGlobalAIEnabled(configRes.config.enabled);
+ store.setAiActive(configRes.config.aiActive);
  store.setVariant(configRes.config.variant);
  store.setTagThreshold(configRes.config.tagThreshold);
  store.setAutoFavoriteThreshold(configRes.config.autoFavoriteThreshold);

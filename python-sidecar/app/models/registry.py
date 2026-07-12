@@ -14,7 +14,7 @@ logger = logging.getLogger("prism.sidecar.registry")
 @dataclass
 class ModelSpec:
     id: str
-    type: str  # "embed" | "aesthetic"
+    type: str  # "embed" | "aesthetic" | "tagger"
     name: str
     size: str
     variant: str | None = None
@@ -54,6 +54,14 @@ REGISTRY: list[ModelSpec] = [
         name="CLIP High",
         size="~1.7GB",
         variant="high",
+        allow_patterns=_COMMON_TRANSFORMERS_PATTERNS,
+    ),
+    ModelSpec(
+        id="xcinc/recognize-anything-plus",
+        type="tagger",
+        name="RAM++ Tagger",
+        size="~1.5GB",
+        variant=None,
         allow_patterns=_COMMON_TRANSFORMERS_PATTERNS,
     ),
     ModelSpec(

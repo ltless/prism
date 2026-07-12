@@ -54,6 +54,20 @@ func (s *Service) SetSidecarClient(c *sidecar.Client) {
 	s.sidecarClient = c
 }
 
+func (s *Service) enforceActive() error {
+	if s.checker == nil {
+		return nil
+	}
+	active, err := s.checker.IsAIActive()
+	if err != nil {
+		return fmt.Errorf("check ai active: %w", err)
+	}
+	if !active {
+		return config.ErrAIInactive
+	}
+	return nil
+}
+
 func (s *Service) List(userID string, folderID *string, favorites, trash, vault, dedup bool, search string, page, limit int) (*ListResponse, error) {
 	tdb, err := s.pool.Get(userID)
 	if err != nil {
@@ -758,14 +772,8 @@ type BatchScoreResult struct {
 }
 
 func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
-	if s.checker != nil {
-		active, err := s.checker.IsAIActive()
-		if err != nil {
-			return nil, fmt.Errorf("check ai active: %w", err)
-		}
-		if !active {
-			return nil, fmt.Errorf("AI is not active")
-		}
+	if err := s.enforceActive(); err != nil {
+		return nil, err
 	}
 	if s.sidecarClient == nil {
 		return &BatchTagResult{Error: "sidecar not configured"}, nil
@@ -893,6 +901,9 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 }
 
 func (s *Service) BatchScore(userID, mediaDir string) (*BatchScoreResult, error) {
+	if err := s.enforceActive(); err != nil {
+		return nil, err
+	}
 	if s.sidecarClient == nil {
 		return &BatchScoreResult{Error: "sidecar not configured"}, nil
 	}

@@ -1,14 +1,11 @@
 package ai
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/sidecar"
 )
-
-var ErrAIInactive = errors.New("AI is not active")
 
 // PathResolver validates and resolves a user-supplied file path against the
 // caller's media directory. *media.Storage implements this in production.
@@ -62,7 +59,7 @@ func (s *Service) enforceActive() error {
 		return fmt.Errorf("check ai active: %w", err)
 	}
 	if !active {
-		return ErrAIInactive
+		return config.ErrAIInactive
 	}
 	return nil
 }

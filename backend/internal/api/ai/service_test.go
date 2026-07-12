@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/sidecar"
 )
 
@@ -151,22 +152,22 @@ func TestService_EnforceInactive(t *testing.T) {
 	})
 	defer srv.Close()
 	svc := NewService(&mockResolver{}, c, stubActive{false})
-	if _, err := svc.EmbedImage("u", "/tmp/x.jpg"); !errors.Is(err, ErrAIInactive) {
+	if _, err := svc.EmbedImage("u", "/tmp/x.jpg"); !errors.Is(err, config.ErrAIInactive) {
 		t.Fatalf("EmbedImage: %v", err)
 	}
-	if _, err := svc.EmbedText("hi"); !errors.Is(err, ErrAIInactive) {
+	if _, err := svc.EmbedText("hi"); !errors.Is(err, config.ErrAIInactive) {
 		t.Fatalf("EmbedText: %v", err)
 	}
-	if _, err := svc.GenerateTags("u", "/tmp/x.jpg", 0.5); !errors.Is(err, ErrAIInactive) {
+	if _, err := svc.GenerateTags("u", "/tmp/x.jpg", 0.5); !errors.Is(err, config.ErrAIInactive) {
 		t.Fatalf("GenerateTags: %v", err)
 	}
-	if _, err := svc.ScoreAesthetic("u", "/tmp/x.jpg"); !errors.Is(err, ErrAIInactive) {
+	if _, err := svc.ScoreAesthetic("u", "/tmp/x.jpg"); !errors.Is(err, config.ErrAIInactive) {
 		t.Fatalf("ScoreAesthetic: %v", err)
 	}
-	if err := svc.LoadModel("m"); !errors.Is(err, ErrAIInactive) {
+	if err := svc.LoadModel("m"); !errors.Is(err, config.ErrAIInactive) {
 		t.Fatalf("LoadModel: %v", err)
 	}
-	if _, err := svc.DownloadModel("m"); !errors.Is(err, ErrAIInactive) {
+	if _, err := svc.DownloadModel("m"); !errors.Is(err, config.ErrAIInactive) {
 		t.Fatalf("DownloadModel: %v", err)
 	}
 	// Unload must always be allowed (cleanup).

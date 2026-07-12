@@ -13,6 +13,15 @@ import (
 // object or exceeds the allowed size. Handlers map it to a 400.
 var ErrInvalidAIConfig = errors.New("invalid ai config")
 
+// ErrAIInactive is returned by AI work when the opt-in flag (app_config.ai.aiActive)
+// is false. Handlers map it to HTTP 403.
+var ErrAIInactive = errors.New("AI is not active")
+
+// ActiveChecker reports whether AI is opted-in (active).
+type ActiveChecker interface {
+	IsAIActive() (bool, error)
+}
+
 // Cap stored AI config so an admin (or a leaked admin token) can't stuff an
 // arbitrarily large blob into app_config.
 const maxAIConfigBytes = 64 * 1024
@@ -87,12 +96,6 @@ func (s *Service) Update(body map[string]interface{}) error {
 	}
 
 	return nil
-}
-
-// ActiveChecker reports whether AI is opted-in (active). *Service implements
-// it via IsAIActive.
-type ActiveChecker interface {
-	IsAIActive() (bool, error)
 }
 
 const storageDefaultKey = "storage_default_bytes"

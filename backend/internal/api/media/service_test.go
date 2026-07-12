@@ -1,10 +1,12 @@
 package media
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/db"
 	_ "modernc.org/sqlite"
 )
@@ -350,5 +352,23 @@ func TestService_SanitizeTitle_Applied(t *testing.T) {
 	}
 	if item.Title != "&lt;script&gt;alert(1)&lt;/script&gt;" {
 		t.Fatalf("expected sanitized title, got: %s", item.Title)
+	}
+}
+
+func TestService_BatchTag_Inactive(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, stubActive{false})
+	_, err := svc.BatchTag("u", "/media")
+	if !errors.Is(err, config.ErrAIInactive) {
+		t.Fatalf("expected ErrAIInactive, got %v", err)
+	}
+}
+
+func TestService_BatchScore_Inactive(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, stubActive{false})
+	_, err := svc.BatchScore("u", "/media")
+	if !errors.Is(err, config.ErrAIInactive) {
+		t.Fatalf("expected ErrAIInactive, got %v", err)
 	}
 }

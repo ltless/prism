@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/auth"
 )
 
@@ -20,7 +21,7 @@ func NewHandler(svc *Service) *Handler {
 // aiErr maps service errors to HTTP responses: an opted-out AI returns 403 so
 // clients can distinguish "AI disabled" from a real failure.
 func (h *Handler) aiErr(err error) error {
-	if errors.Is(err, ErrAIInactive) {
+	if errors.Is(err, config.ErrAIInactive) {
 		return echo.NewHTTPError(http.StatusForbidden, "AI is not active")
 	}
 	log.Printf("ai error: %v", err)
@@ -238,7 +239,7 @@ func (h *Handler) DownloadModel(c echo.Context) error {
 	}
 	result, err := h.svc.DownloadModel(body.ModelID)
 	if err != nil {
-		if errors.Is(err, ErrAIInactive) {
+		if errors.Is(err, config.ErrAIInactive) {
 			return echo.NewHTTPError(http.StatusForbidden, "AI is not active")
 		}
 		return echo.NewHTTPError(http.StatusBadGateway, "sidecar unreachable: "+err.Error())

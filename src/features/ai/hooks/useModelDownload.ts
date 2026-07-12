@@ -8,7 +8,9 @@ import {
   fetchModelStatus,
   variantToModelId,
   aestheticModelId,
+  unloadAllOnServer,
 } from "@/features/ai/services/aiStatusClient";
+import { RAM_MODEL_ID } from "@/features/ai/constants";
 
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 10 * 60_000;
@@ -114,7 +116,8 @@ export function useModelDownload(ai: AIState) {
   const activateModel = useCallback(async (variant: AIModelVariant) => {
     try {
       ai.setStatus("loading");
-      const { success, error } = await loadModelOnServer(variant);
+      const modelId = variantToModelId(variant);
+      const { success, error } = await loadModelOnServer(modelId);
       if (success) {
         ai.setActiveVariant(variant);
         ai.setStatus("ready");
@@ -180,6 +183,69 @@ export function useModelDownload(ai: AIState) {
     }
   }, [ai]);
 
+  const downloadRAM = useCallback(async () => {
+    try {
+      ai.setStatus("downloading");
+      ai.setProgress(0);
+      const label = "RAM++ (Recognize Anything)";
+      const res = await downloadModelOnServer(RAM_MODEL_ID);
+      if (res.error) {
+        ai.setStatus("idle");
+        toast.error(`${label}: ${res.error}`);
+        return false;
+      }
+      if (res.downloaded) {
+        ai.setProgress(100);
+        ai.setStatus("idle");
+        toast.success(`${label} already downloaded`);
+        return true;
+      }
+      if (!res.started && !res.alreadyDownloading) {
+        ai.setStatus("idle");
+        toast.error(`${label}: failed to start download`);
+        return false;
+      }
+
+      const ok = await pollUntilDone({
+        modelId: RAM_MODEL_ID,
+        label,
+        onProgress: (pct) => ai.setProgress(pct),
+        signal: { cancelled: false },
+      });
+      if (!ok) {
+        ai.setStatus("idle");
+        return false;
+      }
+      ai.setProgress(100);
+      ai.setStatus("idle");
+      toast.success(`${label} downloaded!`);
+      return true;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Download failed");
+      ai.setStatus("idle");
+      return false;
+    }
+  }, [ai]);
+
+  const activateRAM = useCallback(async () => {
+    try {
+      ai.setStatus("loading");
+      const { success, error } = await loadModelOnServer(RAM_MODEL_ID);
+      if (success) {
+        ai.setStatus("ready");
+        toast.success("RAM++ activated");
+        return true;
+      }
+      ai.setStatus("idle");
+      toast.error(error || "RAM++ activation failed");
+      return false;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "RAM++ activation failed");
+      ai.setStatus("idle");
+      return false;
+    }
+  }, [ai]);
+
   const cancelClip = useCallback(() => { clipCancelRef.current.cancelled = true; }, []);
   const cancelAesthetic = useCallback(() => { aestheticCancelRef.current.cancelled = true; }, []);
 
@@ -187,6 +253,8 @@ export function useModelDownload(ai: AIState) {
     downloadCLIP,
     activateModel,
     downloadAesthetic,
+    downloadRAM,
+    activateRAM,
     cancelClip,
     cancelAesthetic,
     aestheticDownloaded,

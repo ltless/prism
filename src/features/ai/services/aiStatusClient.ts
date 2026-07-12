@@ -50,11 +50,21 @@ async function extractError(res: Response, fallback: string): Promise<string> {
   return fallback;
 }
 
-export async function loadModelOnServer(variant: AIModelVariant): Promise<{ success: boolean; error?: string }> {
+export async function loadModelOnServer(modelId: string): Promise<{ success: boolean; error?: string }> {
   const res = await fetch("/api/v1/ai/load-model", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ variant }),
+    body: JSON.stringify({ modelId }),
+  });
+  if (!res.ok) return { success: false, error: await extractError(res, `HTTP ${res.status}`) };
+  const data = await res.json();
+  return { success: !!data.success, error: data.error };
+}
+
+export async function unloadAllOnServer(): Promise<{ success: boolean; error?: string }> {
+  const res = await fetch("/api/v1/ai/unload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) return { success: false, error: await extractError(res, `HTTP ${res.status}`) };
   const data = await res.json();

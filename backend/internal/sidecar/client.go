@@ -241,6 +241,18 @@ func (c *Client) DownloadModel(req DownloadModelRequest) (*DownloadModelResult, 
 	return &resp, nil
 }
 
+type LoadModelRequest struct {
+	ModelID string `json:"modelId"`
+}
+
+func (c *Client) LoadModel(req LoadModelRequest) error {
+	return c.post("/load-model", req, nil)
+}
+
+func (c *Client) UnloadAll() error {
+	return c.post("/unload-all", map[string]any{}, nil)
+}
+
 type EmbedResponse struct {
 	Embedding []float32 `json:"embedding"`
 }

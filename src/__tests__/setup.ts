@@ -1,6 +1,35 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// jsdom in this env doesn't ship a localStorage; zustand's persist middleware
+// (used by the AI store) needs it. Provide a minimal in-memory polyfill.
+if (typeof window !== 'undefined' && typeof window.localStorage === 'undefined') {
+  class MemoryStorage {
+    private store = new Map<string, string>();
+    getItem(key: string): string | null {
+      return this.store.has(key) ? (this.store.get(key) as string) : null;
+    }
+    setItem(key: string, value: string): void {
+      this.store.set(key, String(value));
+    }
+    removeItem(key: string): void {
+      this.store.delete(key);
+    }
+    clear(): void {
+      this.store.clear();
+    }
+    key(index: number): string | null {
+      return Array.from(this.store.keys())[index] ?? null;
+    }
+    get length(): number {
+      return this.store.size;
+    }
+  }
+  const storage = new MemoryStorage();
+  Object.defineProperty(window, 'localStorage', { value: storage, configurable: true, writable: true });
+  Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true, writable: true });
+}
+
 // jsdom doesn't ship matchMedia — provide a minimal mock for hooks like
 // useReducedMotion that read prefers-reduced-motion on mount.
 if (typeof window !== 'undefined' && !window.matchMedia) {

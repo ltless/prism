@@ -4,8 +4,9 @@ export type AestheticModelType = 'clip' | 'laion';
 export type AIDevice = 'cpu' | 'gpu';
 
 export interface AppAIConfig {
- enabled: boolean;
- variant: AIModelVariant;
+  enabled: boolean;
+  aiActive: boolean;
+  variant: AIModelVariant;
  aestheticModel: AestheticModelType;
  tagThreshold: number;
  autoFavoriteThreshold: number;
@@ -22,9 +23,10 @@ export interface UserAIPreferences {
 }
 
 export interface EffectiveAIConfig {
- isEnabled: boolean;
- userAIEnabled: boolean;
- variant: AIModelVariant;
+  isEnabled: boolean;
+  userAIEnabled: boolean;
+  aiActive: boolean;
+  variant: AIModelVariant;
  aestheticModel: AestheticModelType;
  tagThreshold: number;
  aestheticEnabled: boolean;
@@ -40,8 +42,9 @@ export interface UserPreferences {
 }
 
 export const DEFAULT_APP_AI_CONFIG: AppAIConfig = {
- enabled: false,
- variant: 'standard',
+  enabled: false,
+  aiActive: false,
+  variant: 'standard',
  aestheticModel: 'clip',
  tagThreshold: 0.12,
  autoFavoriteThreshold: 0.75,

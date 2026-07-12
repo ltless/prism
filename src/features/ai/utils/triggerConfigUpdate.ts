@@ -3,7 +3,8 @@ import type { AIState } from "@/features/ai/store";
 export function triggerConfigUpdate(ai: AIState, update: Record<string, unknown>) {
  import("@/features/settings/services/configActions").then(({ updateAppConfigAction }) => {
  updateAppConfigAction({
- enabled: ai.globalAIEnabled,
+  enabled: ai.globalAIEnabled,
+  aiActive: ai.aiActive,
  variant: ai.variant,
  aestheticModel: ai.aestheticModel || "clip",
  aestheticEnabled: ai.aestheticEnabled,

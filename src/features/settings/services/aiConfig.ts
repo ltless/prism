@@ -31,6 +31,7 @@ export async function getEffectiveAIConfig() {
       config: {
         isEnabled: globalAI.enabled,
         userAIEnabled: userAI.enabled,
+        aiActive: globalAI.aiActive,
         variant: globalAI.variant,
         aestheticModel: globalAI.aestheticModel,
         tagThreshold: globalAI.tagThreshold,

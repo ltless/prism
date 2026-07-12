@@ -70,9 +70,10 @@ export function useAIConfigSync({ activeTab, isAdmin, setTagStats, setScoreStats
  configSaveRef.current = setTimeout(async () => {
  try {
  const { updateAppConfigAction } = await import("@/features/settings/services/configActions");
- await updateAppConfigAction({
- enabled: state.globalAIEnabled,
- variant: state.variant,
+  await updateAppConfigAction({
+  enabled: state.globalAIEnabled,
+  aiActive: state.aiActive,
+  variant: state.variant,
  aestheticModel: state.aestheticModel,
  aestheticEnabled: state.aestheticEnabled,
  tagThreshold: state.tagThreshold,

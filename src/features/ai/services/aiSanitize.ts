@@ -4,6 +4,7 @@ import { DEFAULT_APP_AI_CONFIG, DEFAULT_USER_AI_PREFERENCES } from "@/features/a
 
 const appAIConfigSchema = z.object({
  enabled: z.boolean().default(DEFAULT_APP_AI_CONFIG.enabled),
+ aiActive: z.boolean().default(DEFAULT_APP_AI_CONFIG.aiActive),
  variant: z.enum(["standard", "sharp", "high"]).default(DEFAULT_APP_AI_CONFIG.variant),
  aestheticModel: z.enum(["clip", "laion"]).default(DEFAULT_APP_AI_CONFIG.aestheticModel),
  tagThreshold: z.number().default(DEFAULT_APP_AI_CONFIG.tagThreshold),

@@ -10,8 +10,9 @@ export interface AIState {
  device: AIDevice;
  customTaxonomy?: Record<string, string[]>;
 
- globalAIEnabled: boolean;
- variant: AIModelVariant;
+  globalAIEnabled: boolean;
+  aiActive: boolean;
+  variant: AIModelVariant;
  tagThreshold: number;
  autoFavoriteThreshold: number;
 
@@ -23,7 +24,8 @@ export interface AIState {
  currentUserId: string | null;
 
  setEnabled: (enabled: boolean) => void;
- setGlobalAIEnabled: (enabled: boolean) => void;
+  setGlobalAIEnabled: (enabled: boolean) => void;
+  setAiActive: (enabled: boolean) => void;
  setVariant: (variant: AIModelVariant) => void;
  setAestheticModel: (model: AestheticModelType) => void;
  setDevice: (device: AIDevice) => void;
@@ -47,9 +49,10 @@ export interface AIState {
 export const useAIStore = create<AIState>()(
  persist(
  (set, get) => ({
- isEnabled: false,
- globalAIEnabled: false,
- variant: 'standard',
+  isEnabled: false,
+  globalAIEnabled: false,
+  aiActive: false,
+  variant: 'standard',
  aestheticModel: 'clip',
  device: 'gpu',
  activeVariant: null,
@@ -65,7 +68,8 @@ export const useAIStore = create<AIState>()(
  customTaxonomy: undefined,
 
  setEnabled: (enabled) => set({ isEnabled: enabled }),
- setGlobalAIEnabled: (enabled) => set({ globalAIEnabled: enabled }),
+  setGlobalAIEnabled: (enabled) => set({ globalAIEnabled: enabled }),
+  setAiActive: (enabled) => set({ aiActive: enabled }),
  setVariant: (variant) => set({ variant }),
  setAestheticModel: (model) => set({ aestheticModel: model }),
  setDevice: (device) => set({ device }),
@@ -112,7 +116,8 @@ export const useAIStore = create<AIState>()(
 
  syncFromServer: (config) => {
  set({
- globalAIEnabled: config.isEnabled,
+  globalAIEnabled: config.isEnabled,
+  aiActive: config.aiActive,
  variant: config.variant,
  aestheticModel: config.aestheticModel || 'clip',
  tagThreshold: config.tagThreshold,
@@ -150,6 +155,7 @@ export const useAIStore = create<AIState>()(
   // `syncUser` wipes them on user change.
   isEnabled: state.isEnabled,
   globalAIEnabled: state.globalAIEnabled,
+  aiActive: state.aiActive,
   variant: state.variant,
   aestheticModel: state.aestheticModel,
   tagThreshold: state.tagThreshold,

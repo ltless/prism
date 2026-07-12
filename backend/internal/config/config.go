@@ -14,7 +14,6 @@ type Config struct {
 	GlobalDB          string
 	StoragePath       string
 	ModelsPath        string
-	ONNXLibPath       string
 	CORSOrigin        string
 	TrustProxy        bool
 	InviteCode        string
@@ -38,7 +37,6 @@ func Load() (*Config, error) {
 		GlobalDB:      getEnv("GLOBAL_DB_PATH", "../prism.db"),
 		StoragePath:   getEnv("STORAGE_PATH", "../storage/users"),
 		ModelsPath:    getEnv("MODELS_PATH", "../storage/models"),
-		ONNXLibPath:   getEnv("ONNX_LIB_PATH", "/usr/local/lib/libonnxruntime.so.1.26.0"),
 		CORSOrigin:    getEnv("CORS_ORIGIN", "http://localhost:3000"),
 		TrustProxy:    getEnv("TRUST_PROXY", "false") == "true",
 		InviteCode:    os.Getenv("REGISTRATION_INVITE_CODE"),

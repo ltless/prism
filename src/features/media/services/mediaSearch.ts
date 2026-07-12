@@ -162,7 +162,7 @@ export async function searchMediaAction(
  .groupBy(media.hash);
 
   try {
-  const embedResult = await sidecarEmbedText(query, "standard");
+  const embedResult = await sidecarEmbedText(query, "high");
   if (embedResult.embedding) {
   const queryEmbedding = new Float32Array(embedResult.embedding);
 

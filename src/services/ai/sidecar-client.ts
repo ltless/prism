@@ -209,7 +209,7 @@ export interface SidecarEmbedImageResponse {
   embedding: number[];
 }
 
-export async function sidecarEmbedImage(filePath: string, variant: string): Promise<SidecarEmbedImageResponse> {
+export async function sidecarEmbedImage(filePath: string, variant: string = "high"): Promise<SidecarEmbedImageResponse> {
   const res = await sidecarFetch("/embed-image", {
     method: "POST",
     body: JSON.stringify({ filePath, variant }),
@@ -217,7 +217,7 @@ export async function sidecarEmbedImage(filePath: string, variant: string): Prom
   return res.json();
 }
 
-export async function sidecarEmbedText(text: string, variant: string): Promise<SidecarEmbedImageResponse> {
+export async function sidecarEmbedText(text: string, variant: string = "high"): Promise<SidecarEmbedImageResponse> {
   const res = await sidecarFetch("/embed-text", {
     method: "POST",
     body: JSON.stringify({ text, variant }),

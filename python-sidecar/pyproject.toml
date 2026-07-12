@@ -12,7 +12,9 @@ dependencies = [
     "pillow>=10",
     "numpy>=1.26",
     "huggingface-hub>=0.25",
-    "recognize-anything>=0.1.0",
+    # RAM++ tagger — not on PyPI; the upstream GitHub repo builds a dist named
+    # `ram` (import is `from ram.models import ram_plus`). Source in [tool.uv.sources].
+    "ram",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +31,9 @@ explicit = true
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
 torchvision = { index = "pytorch-cpu" }
+# RAM++ tagger is not published on PyPI; the upstream GitHub repo builds a dist
+# named `ram`. Pull it from there instead of the (unrelated) PyPI `ram` package.
+ram = { git = "https://github.com/xinyu1205/recognize-anything.git" }
 
 [tool.uv]
 package = false

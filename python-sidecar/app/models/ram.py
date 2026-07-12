@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-import math
+import os
 import threading
 from typing import Any
 
@@ -11,6 +11,10 @@ from app.taxonomy import TAG_TO_CATEGORY
 logger = logging.getLogger("prism.sidecar.ram")
 
 DEFAULT_MODEL_ID = "xcinc/recognize-anything-plus"
+IMAGE_SIZE = 384
+# RAM applies its own sigmoid threshold internally; 0.65 keeps it close to the
+# model's tuned default (0.68) while surfacing a few more borderline tags.
+DEFAULT_RAM_THRESHOLD = 0.65
 
 _session: "RAMSession | None" = None
 _load_lock = threading.Lock()
@@ -31,9 +35,9 @@ def map_tags_to_taxonomy(raw_tags: list[str]) -> list[dict[str, Any]]:
 
 
 class RAMSession:
-    def __init__(self, model: Any, processor: Any, device: str) -> None:
+    def __init__(self, model: Any, transform: Any, device: str) -> None:
         self.model = model
-        self.processor = processor
+        self.transform = transform
         self.device = device
 
     def generate_tags(self, image_path: str, threshold: float = 0.0) -> list[dict[str, Any]]:
@@ -41,75 +45,40 @@ class RAMSession:
         from PIL import Image
 
         image = Image.open(image_path).convert("RGB")
-        inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+        tensor = self.transform(image).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            out = self.model.generate(
-                **inputs,
-                output_scores=True,
-                return_dict_in_generate=True,
-                num_beams=3,
-                max_new_tokens=30,
-            )
-
-        beam_scores = out.sequences_scores[0].detach().cpu().float().tolist()
-        max_score = max(beam_scores)
-        exp_scores = [math.exp(s - max_score) for s in beam_scores]
-        sum_exp = sum(exp_scores)
-        probs = [e / sum_exp for e in exp_scores]
-        conf = round(max(probs), 4)
-
-        decoded = self.processor.decode(
-            out.sequences[0], skip_special_tokens=True
-        )
-        raw_tags = [t for t in _split_tags(decoded) if t]
-        mapped = map_tags_to_taxonomy(raw_tags)
-        result: list[dict[str, Any]] = []
-        for m in mapped:
-            # RAM yields one generation confidence for the whole tag set;
-            # filter the set by that confidence, not the placeholder 1.0 score.
-            if conf < threshold:
-                continue
-            result.append({
-                "tag": m["tag"],
-                "score": conf,
-                "category": m["category"],
-            })
-        return result
+            tag_output, _ = self.model.generate_tag(tensor, threshold=DEFAULT_RAM_THRESHOLD)
+        tag_str = tag_output[0] if tag_output else ""
+        raw_tags = [p.strip() for p in tag_str.split("|") if p.strip()]
+        # RAM already applied its internal threshold, so app `threshold` is not
+        # re-applied here; map to our taxonomy and assign a uniform confidence.
+        return map_tags_to_taxonomy(raw_tags)
 
 
-def _split_tags(text: str) -> list[str]:
-    parts = []
-    for chunk in text.replace(".", ",").split(","):
-        tag = chunk.strip().lower()
-        if tag:
-            parts.append(tag)
-    return parts
-
-
-def get_ram(model_id: str = DEFAULT_MODEL_ID) -> RAMSession:
+def get_ram(model_id: str | None = None) -> RAMSession:
     global _session
     if _session is not None:
         return _session
     with _load_lock:
         if _session is not None:
             return _session
-        _session = _load_ram(model_id)
+        _session = _load_ram(model_id or os.environ.get("RAM_PRETRAINED", DEFAULT_MODEL_ID))
     return _session
 
 
-def _load_ram(model_id: str = DEFAULT_MODEL_ID) -> RAMSession:
+def _load_ram(model_id: str) -> RAMSession:
+    from ram import get_transform
+    from ram.models import ram_plus
     import torch
-    from recognize_anything import RAMModel, RAMProcessor
 
     device = settings.device
     torch_device = torch.device(device)
-
-    logger.info("loading RAM model model=%s device=%s", model_id, device)
-    model = RAMModel.from_pretrained(model_id, cache_dir=settings.models_dir).to(torch_device)
-    model.eval()
-    processor = RAMProcessor.from_pretrained(model_id, cache_dir=settings.models_dir)
-    logger.info("RAM model ready model=%s", model_id)
-    return RAMSession(model, processor, device)
+    logger.info("loading RAM tagger model=%s device=%s", model_id, device)
+    transform = get_transform(image_size=IMAGE_SIZE)
+    model = ram_plus(pretrained=model_id, image_size=IMAGE_SIZE, vit="swin_l")
+    model.eval().to(torch_device)
+    logger.info("RAM tagger ready model=%s", model_id)
+    return RAMSession(model, transform, device)
 
 
 def unload_ram() -> None:

@@ -3,7 +3,6 @@ package ai
 import (
 	"fmt"
 
-	"github.com/ltless/prism/internal/ai"
 	"github.com/ltless/prism/internal/sidecar"
 )
 
@@ -31,17 +30,14 @@ type StatusResponse struct {
 }
 
 type Service struct {
-	engine    Engine
-	tokenizer *ai.Tokenizer
-	resolver  PathResolver
-	sidecar   *sidecar.Client
+	resolver PathResolver
+	sidecar  *sidecar.Client
 }
 
-func NewService(engine Engine, tokenizer *ai.Tokenizer, resolver PathResolver) *Service {
+func NewService(resolver PathResolver, sc *sidecar.Client) *Service {
 	return &Service{
-		engine:    engine,
-		tokenizer: tokenizer,
-		resolver:  resolver,
+		resolver: resolver,
+		sidecar:  sc,
 	}
 }
 
@@ -78,47 +74,32 @@ func (s *Service) resolvePath(userID, filePath string) (string, error) {
 }
 
 func (s *Service) EmbedImage(userID, filePath string) ([]float32, error) {
-	if s.engine == nil {
-		return nil, fmt.Errorf("AI engine not initialized")
-	}
-	if !s.engine.IsLoaded() {
-		return nil, fmt.Errorf("model not loaded")
+	if s.sidecar == nil {
+		return nil, fmt.Errorf("sidecar not configured")
 	}
 	safePath, err := s.resolvePath(userID, filePath)
 	if err != nil {
 		return nil, err
 	}
-	return s.engine.EmbedImage(safePath)
+	return s.sidecar.EmbedImage(safePath, "high")
 }
 
 func (s *Service) EmbedText(text string) ([]float32, error) {
-	if s.engine == nil {
-		return nil, fmt.Errorf("AI engine not initialized")
+	if s.sidecar == nil {
+		return nil, fmt.Errorf("sidecar not configured")
 	}
-	if !s.engine.IsLoaded() {
-		return nil, fmt.Errorf("model not loaded")
-	}
-	if s.tokenizer == nil {
-		return nil, fmt.Errorf("tokenizer not available")
-	}
-	return s.engine.EmbedText(text, s.tokenizer)
+	return s.sidecar.EmbedText(text, "high")
 }
 
 func (s *Service) GenerateTags(userID, filePath string, threshold float32) ([]TagResult, error) {
-	if s.engine == nil {
-		return nil, fmt.Errorf("AI engine not initialized")
-	}
-	if !s.engine.IsLoaded() {
-		return nil, fmt.Errorf("model not loaded")
-	}
-	if s.tokenizer == nil {
-		return nil, fmt.Errorf("tokenizer not available")
+	if s.sidecar == nil {
+		return nil, fmt.Errorf("sidecar not configured")
 	}
 	safePath, err := s.resolvePath(userID, filePath)
 	if err != nil {
 		return nil, err
 	}
-	tags, err := s.engine.GenerateTags(safePath, threshold, s.tokenizer)
+	tags, err := s.sidecar.GenerateTags(safePath, nil, threshold, "high")
 	if err != nil {
 		return nil, err
 	}
@@ -130,20 +111,14 @@ func (s *Service) GenerateTags(userID, filePath string, threshold float32) ([]Ta
 }
 
 func (s *Service) ScoreAesthetic(userID, filePath string) (*AestheticScoreResponse, error) {
-	if s.engine == nil {
-		return nil, fmt.Errorf("AI engine not initialized")
-	}
-	if !s.engine.IsLoaded() {
-		return nil, fmt.Errorf("model not loaded")
-	}
-	if s.tokenizer == nil {
-		return nil, fmt.Errorf("tokenizer not available")
+	if s.sidecar == nil {
+		return nil, fmt.Errorf("sidecar not configured")
 	}
 	safePath, err := s.resolvePath(userID, filePath)
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.engine.ScoreAesthetic(safePath, s.tokenizer)
+	res, err := s.sidecar.ScoreAesthetic(safePath, "laion", "high")
 	if err != nil {
 		return nil, err
 	}
@@ -151,10 +126,7 @@ func (s *Service) ScoreAesthetic(userID, filePath string) (*AestheticScoreRespon
 }
 
 func (s *Service) LoadModel(variant string) error {
-	if s.engine == nil {
-		return fmt.Errorf("AI engine not initialized")
-	}
-	return s.engine.LoadModel(variant)
+	return nil
 }
 
 func (s *Service) DownloadModel(modelID string) (*sidecar.DownloadModelResult, error) {
@@ -165,26 +137,9 @@ func (s *Service) DownloadModel(modelID string) (*sidecar.DownloadModelResult, e
 }
 
 func (s *Service) HasGPU() bool {
-	if s.engine == nil {
-		return false
-	}
-	return s.engine.HasGPU()
+	return s.sidecar != nil
 }
 
 func (s *Service) GetStatus() StatusResponse {
-	if s.engine == nil {
-		return StatusResponse{Variants: []string{"standard", "sharp", "high"}}
-	}
-	active := s.engine.GetActiveVariant()
-	available := []string{}
-	for _, v := range []string{"standard", "sharp", "high"} {
-		if s.engine.CheckModelExists(v) {
-			available = append(available, v)
-		}
-	}
-	return StatusResponse{
-		ActiveVariant: active,
-		Available:     available,
-		Variants:      []string{"standard", "sharp", "high"},
-	}
+	return StatusResponse{Variants: []string{"standard", "sharp", "high"}}
 }

@@ -6,11 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/ltless/prism/internal/ai"
 	"github.com/ltless/prism/internal/api"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/config"
@@ -39,26 +37,7 @@ func main() {
 	}
 	jwt := auth.NewJWTManager(cfg.JWTSecret, jwtDuration)
 
-	if err := ai.InitORT(cfg.ONNXLibPath); err != nil {
-		log.Fatalf("Failed to init ONNX Runtime: %v", err)
-	}
-	aiEngine, err := ai.NewEngine(cfg.ModelsPath)
-	if err != nil {
-		log.Fatalf("Failed to create AI engine: %v", err)
-	}
-	aiTokenizer, err := ai.NewTokenizer(
-		filepath.Join(cfg.ModelsPath, "Xenova/clip-vit-large-patch14/vocab.json"),
-		filepath.Join(cfg.ModelsPath, "Xenova/clip-vit-large-patch14/merges.txt"),
-	)
-	if err != nil {
-		log.Printf("Warning: AI tokenizer init failed (models not downloaded yet): %v", err)
-		aiTokenizer = nil
-	}
-	if aiTokenizer == nil {
-		log.Println("AI tokenizer unavailable (download models in Settings to enable)")
-	}
-
-	e := api.New(global, tenantPool, jwt, cfg, aiEngine, aiTokenizer)
+	e := api.New(global, tenantPool, jwt, cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

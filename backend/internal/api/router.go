@@ -6,7 +6,6 @@ import (
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 
-	"github.com/ltless/prism/internal/ai"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/config"
 	"github.com/ltless/prism/internal/db"
@@ -21,7 +20,7 @@ import (
 	appmw "github.com/ltless/prism/internal/middleware"
 )
 
-func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, cfg *config.Config, aiEngine *ai.Engine, aiTokenizer *ai.Tokenizer) *echo.Echo {
+func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, cfg *config.Config) *echo.Echo {
 	e := echo.New()
 
 	// Only trust X-Forwarded-For when explicitly behind a known proxy. Default
@@ -128,7 +127,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	usersG.PUT("/me/username", usersHandler.UpdateUsername)
 	usersG.GET("/me/storage-usage", usersHandler.GetStorageUsage)
 
-	aiSvc := aiH.NewService(aiEngine, aiTokenizer, mediaStorage)
+	aiSvc := aiH.NewService(mediaStorage, sidecarClient)
 	aiSvc.SetSidecarClient(sidecarClient)
 	aiHandler := aiH.NewHandler(aiSvc)
 	aiG := protected.Group("/ai")

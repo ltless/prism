@@ -11,9 +11,22 @@ from app.schemas import (
     BatchScoreResponse,
     LoadAestheticModelRequest,
     LoadAestheticModelResponse,
+    ScoreRequest,
+    ScoreResponse,
 )
 
 router = APIRouter()
+
+
+@router.post("/score", response_model=ScoreResponse)
+def score(req: ScoreRequest) -> ScoreResponse:
+    from app.models import aesthetic
+    safe = resolve_media_path_or_err(req.filePath)
+    try:
+        res = aesthetic.score_aesthetic(safe, req.model, req.variant)
+    except FileNotFoundError as err:
+        raise HTTPException(status_code=404, detail="image not found") from err
+    return ScoreResponse(score=res["score"], raw=res["raw"])
 
 
 @router.post("/aesthetic-score", response_model=AestheticScoreResponse)

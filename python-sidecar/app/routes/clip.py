@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.models import clip
+from app.models import clip, ram
 from app.pathguard import resolve_media_path_or_err
 from app.schemas import (
     BatchTagRequest,
     BatchTagResponse,
+    BatchTagResult,
     EmbedImageRequest,
     EmbedTextRequest,
     EmbeddingResponse,
@@ -14,7 +15,6 @@ from app.schemas import (
     TagScore,
     TagsResponse,
 )
-from app.taxonomy import flatten_taxonomy
 
 router = APIRouter()
 
@@ -39,11 +39,9 @@ def embed_text(req: EmbedTextRequest) -> EmbeddingResponse:
 
 @router.post("/generate-tags", response_model=TagsResponse)
 def generate_tags(req: GenerateTagsRequest) -> TagsResponse:
-    session = clip.get_clip(req.variant)
-    candidates = flatten_taxonomy(req.taxonomy)
     safe = resolve_media_path_or_err(req.filePath)
     try:
-        tags = session.generate_tags(safe, candidates, req.tagThreshold)
+        tags = ram.get_ram().generate_tags(safe, req.tagThreshold)
     except FileNotFoundError as err:
         raise HTTPException(status_code=404, detail="image not found") from err
     return TagsResponse(tags=[TagScore(**t) for t in tags])
@@ -52,7 +50,22 @@ def generate_tags(req: GenerateTagsRequest) -> TagsResponse:
 @router.post("/batch-tag", response_model=BatchTagResponse)
 def batch_tag(req: BatchTagRequest) -> BatchTagResponse:
     session = clip.get_clip(req.variant)
-    candidates = flatten_taxonomy(req.taxonomy)
-    items = [{"id": it.id, "filePath": resolve_media_path_or_err(it.filePath), "mediaDir": it.mediaDir} for it in req.items]
-    result = session.batch_tag(items, candidates, req.tagThreshold, max(1, req.batchSize))
-    return BatchTagResponse(**result)
+    results: list[BatchTagResult] = []
+    for it in req.items:
+        safe = resolve_media_path_or_err(it.filePath)
+        try:
+            embedding = session.embed_image(safe)
+            tags = ram.get_ram().generate_tags(safe, req.tagThreshold)
+            results.append(
+                BatchTagResult(
+                    id=it.id,
+                    tags=[t["tag"] for t in tags],
+                    tagScores=[t["score"] for t in tags],
+                    embedding=embedding,
+                )
+            )
+        except Exception as err:
+            results.append(
+                BatchTagResult(id=it.id, tags=[], tagScores=[], embedding=None, error=str(err))
+            )
+    return BatchTagResponse(tagged=len(results), results=results)

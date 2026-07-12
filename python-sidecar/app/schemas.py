@@ -61,6 +61,17 @@ class BatchTagResponse(BaseModel):
     results: list[BatchTagResult]
 
 
+class ScoreRequest(BaseModel):
+    filePath: str
+    model: str = "laion"
+    variant: str = "standard"
+
+
+class ScoreResponse(BaseModel):
+    score: float
+    raw: float
+
+
 class AestheticScoreRequest(BaseModel):
     filePath: str
     model: str = "laion"

@@ -5,8 +5,8 @@ import path from 'path';
 import os from 'os';
 
 vi.mock('@/core/utils/paths', () => ({
-  getDrizzleDir: vi.fn(() => path.join(__dirname, '..', '..', '..', '..', 'drizzle')),
   getStorageRoot: vi.fn(() => tmpDir),
+  getDatabaseUrl: vi.fn(() => 'postgresql://prism:prism_dev_2024@localhost:5432/prism'),
 }));
 
 vi.mock('@/core/utils/logger', () => ({
@@ -27,19 +27,16 @@ afterAll(async () => {
 });
 
 describe('multitenant DB integration', () => {
-  it('creates DB on first access for a user', async () => {
+  it('returns user paths for a user', async () => {
     const result = await getUserDb('test-user-id');
-    expect(result.paths.dbPath).toContain('test-user-id');
     expect(result.paths.mediaDir).toContain('test-user-id');
     expect(result.paths.thumbDir).toContain('test-user-id');
-
-    const dbFile = path.join(tmpDir, 'users', 'test-user-id', 'prism.db');
-    await expect(fs.access(dbFile)).resolves.not.toThrow();
+    expect(result.db).toBeDefined();
   });
 
-  it('returns cached DB on second access', async () => {
+  it('returns same db instance on second access', async () => {
     const first = await getUserDb('cached-user');
     const second = await getUserDb('cached-user');
-    expect(second).toBe(first);
+    expect(second.db).toBe(first.db);
   });
 });

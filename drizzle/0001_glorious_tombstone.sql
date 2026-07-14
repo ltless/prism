@@ -1,1 +1,0 @@
-DROP INDEX `media_hash_unique`;

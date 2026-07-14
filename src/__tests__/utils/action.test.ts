@@ -8,8 +8,8 @@ describe("toSafeMessage", () => {
  expect(toSafeMessage(new Error("Invalid email address"))).toBe("Invalid email address");
  });
 
- it("filters SQLite errors", () => {
- const err = new Error("Sqlite error: table users has no column foo");
+ it("filters PostgreSQL errors", () => {
+ const err = new Error("Postgres error: relation users does not exist");
  expect(toSafeMessage(err)).toBe("An internal database or system error occurred");
  });
 
@@ -32,7 +32,7 @@ describe("toSafeMessage", () => {
  });
 
  it("handles non-string/non-Error objects gracefully", () => {
- const err = { someKey: "sqlite_broken" };
+ const err = { someKey: "pg_broken" };
  expect(toSafeMessage(err)).toBe("An internal database or system error occurred");
 
  const regularErrObj = { someKey: "harmless error message" };

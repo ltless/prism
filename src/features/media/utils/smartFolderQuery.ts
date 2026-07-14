@@ -1,11 +1,11 @@
 import { mediaTags, folders } from "@/services/db/schema";
 import { eq, and, inArray, gte, or } from "drizzle-orm";
 import { parseSmartFolderFilter } from "@/features/media/schemas";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type * as schema from "@/services/db/schema";
 
-export function getSmartFolderMatchingMediaIds(db: BetterSQLite3Database<typeof schema>): string[] {
-	const smartFolders = db.select().from(folders).where(eq(folders.folderType, "smart")).all();
+export async function getSmartFolderMatchingMediaIds(db: NodePgDatabase<typeof schema>): Promise<string[]> {
+	const smartFolders = await db.select().from(folders).where(eq(folders.folderType, "smart"));
 	if (smartFolders.length === 0) return [];
 
 	const conditions = smartFolders.map((f) => {
@@ -19,13 +19,12 @@ export function getSmartFolderMatchingMediaIds(db: BetterSQLite3Database<typeof 
 		return null;
 	}).filter((c): c is NonNullable<typeof c> => c !== null);
 
- if (conditions.length === 0) return [];
+  if (conditions.length === 0) return [];
 
- const matchingRows = db
- .selectDistinct({ mediaId: mediaTags.mediaId })
- .from(mediaTags)
- .where(or(...conditions))
- .all();
+  const matchingRows = await db
+    .selectDistinct({ mediaId: mediaTags.mediaId })
+    .from(mediaTags)
+    .where(or(...conditions));
 
- return matchingRows.map((r) => r.mediaId);
+  return matchingRows.map((r) => r.mediaId);
 }

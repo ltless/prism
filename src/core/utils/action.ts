@@ -1,9 +1,9 @@
 import { logger } from "@/core/utils/logger";
 
 const internalPatterns = [
-  "sqlite",
   "drizzle",
-  "better-sqlite3",
+  "postgres",
+  "pg_",
   "filesystem",
   "node:fs",
   "\\bfs\\b",

@@ -2,26 +2,21 @@ package users
 
 import (
 	"database/sql"
-	"os"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
+	"github.com/ltless/prism/internal/dbtest"
 	"golang.org/x/crypto/bcrypt"
-	_ "modernc.org/sqlite"
 )
 
 func setupTestDB(t *testing.T) *db.GlobalDB {
 	t.Helper()
-	p := t.TempDir() + "/global.db"
-	gdb, err := db.NewGlobalDB(p)
-	if err != nil {
-		t.Fatalf("NewGlobalDB: %v", err)
-	}
-	t.Cleanup(func() { gdb.Close(); os.Remove(p) })
+	sqlDB := dbtest.NewDB(t)
+	gdb := &db.GlobalDB{DB: sqlDB}
 
 	h, _ := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
-	_, err = gdb.Exec("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-		"user-1", "testuser", string(h), "admin")
+	_, err := gdb.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+	"user-1", "testuser", string(h), "admin")
 	if err != nil {
 		t.Fatalf("insert test user: %v", err)
 	}
@@ -81,18 +76,18 @@ func TestUsersService_UpdateProfile_Preferences(t *testing.T) {
 func TestUsersService_UpdateStorageLimit(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
-	err := svc.UpdateStorageLimit("user-1", 1000000000)
+	err := svc.UpdateStorageLimit("user-1", 1000000)
 	if err != nil {
 		t.Fatalf("UpdateStorageLimit: %v", err)
 	}
 
 	var limit sql.NullInt64
-	err = gdb.QueryRow("SELECT storage_limit FROM users WHERE id = ?", "user-1").Scan(&limit)
+	err = gdb.QueryRow("SELECT storage_limit FROM users WHERE id = $1", "user-1").Scan(&limit)
 	if err != nil {
 		t.Fatalf("query storage_limit: %v", err)
 	}
-	if !limit.Valid || limit.Int64 != 1000000000 {
-		t.Fatalf("expected 1000000000, got %v", limit)
+	if !limit.Valid || limit.Int64 != 1000000 {
+		t.Fatalf("expected 1000000, got %v", limit)
 	}
 }
 
@@ -104,12 +99,12 @@ func TestUsersService_MarkSetupComplete(t *testing.T) {
 		t.Fatalf("MarkSetupComplete: %v", err)
 	}
 
-	var completed int
-	err = gdb.QueryRow("SELECT has_completed_setup FROM users WHERE id = ?", "user-1").Scan(&completed)
+	var completed bool
+	err = gdb.QueryRow("SELECT has_completed_setup FROM users WHERE id = $1", "user-1").Scan(&completed)
 	if err != nil {
 		t.Fatalf("query has_completed_setup: %v", err)
 	}
-	if completed != 1 {
-		t.Fatalf("expected 1, got %d", completed)
+	if !completed {
+		t.Fatalf("expected true, got %v", completed)
 	}
 }

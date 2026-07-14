@@ -12,6 +12,7 @@ type Config struct {
 	JWTSecret         string
 	JWTDuration       string
 	GlobalDB          string
+	DatabaseURL       string // PostgreSQL connection string (migration target)
 	StoragePath       string
 	ModelsPath        string
 	CORSOrigin        string
@@ -35,6 +36,7 @@ func Load() (*Config, error) {
 		JWTSecret:     jwtSecret,
 		JWTDuration:   getEnv("JWT_DURATION", "168h"),
 		GlobalDB:      getEnv("GLOBAL_DB_PATH", "../prism.db"),
+		DatabaseURL:   getEnv("DATABASE_URL", "postgresql://prism:prism_dev_2024@localhost:5432/prism"),
 		StoragePath:   getEnv("STORAGE_PATH", "../storage/users"),
 		ModelsPath:    getEnv("MODELS_PATH", "../storage/models"),
 		CORSOrigin:    getEnv("CORS_ORIGIN", "http://localhost:3000"),

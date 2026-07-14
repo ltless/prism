@@ -1,1 +1,0 @@
-ALTER TABLE `users` ADD `vault_pin` text;

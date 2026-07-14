@@ -5,56 +5,45 @@ import (
 	"embed"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-//go:embed migrations/global.sql
-var globalMigrations embed.FS
+//go:embed migrations/postgres.sql
+var pgMigrations embed.FS
 
 type GlobalDB struct {
 	*sql.DB
 }
 
-func NewGlobalDB(path string) (*GlobalDB, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return nil, fmt.Errorf("create global db dir: %w", err)
-	}
-
-	// Foreign keys + WAL must be set via DSN so every pooled connection enforces them.
-	// Setting them via db.Exec only affects a single connection in the pool.
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", path)
-	db, err := sql.Open("sqlite", dsn)
+func NewGlobalDB(databaseURL string) (*GlobalDB, error) {
+	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("open global db: %w", err)
+		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	if err := runGlobalMigrations(db); err != nil {
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("ping db: %w", err)
+	}
+
+	if err := runMigrations(db); err != nil {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
+	log.Println("PostgreSQL connected and migrations applied")
 	return &GlobalDB{db}, nil
 }
 
-func runGlobalMigrations(db *sql.DB) error {
-	migrationSQL, err := globalMigrations.ReadFile("migrations/global.sql")
+func runMigrations(db *sql.DB) error {
+	migrationSQL, err := pgMigrations.ReadFile("migrations/postgres.sql")
 	if err != nil {
-		return fmt.Errorf("read global migration: %w", err)
+		return fmt.Errorf("read migration: %w", err)
 	}
 
 	if _, err := db.Exec(string(migrationSQL)); err != nil {
-		return fmt.Errorf("exec global migration: %w", err)
+		return fmt.Errorf("exec migration: %w", err)
 	}
 
-	// Best-effort column additions for legacy DBs created before schema updates
-	for _, col := range []string{"vault_pin TEXT", "storage_limit INTEGER", "preferences TEXT"} {
-		if _, err := db.Exec("ALTER TABLE users ADD COLUMN " + col); err != nil {
-			log.Printf("ALTER TABLE users add %s: %v (expected if column exists)", col, err)
-		}
-	}
-
-	log.Println("Global migrations applied")
+	log.Println("Database migrations applied")
 	return nil
 }

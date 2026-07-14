@@ -9,7 +9,7 @@ import { auth } from "@/auth";
 import { logger } from "@/core/utils/logger";
 import { sidecarEmbedText } from "@/services/ai/sidecar-client";
 import { cosineSimilarity } from "@/shared/utils/cosineSimilarity";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type * as schema from "@/services/db/schema";
 
 const CACHE_TTL = 30 * 60 * 1000;
@@ -51,7 +51,7 @@ function getUserCache(userId: string): Map<string, Float32Array> {
   return entry.data;
 }
 
-function syncEmbeddingCache(userId: string, db: BetterSQLite3Database<typeof schema>) {
+async function syncEmbeddingCache(userId: string, db: NodePgDatabase<typeof schema>) {
   const now = Date.now();
   const userLastSync = lastSyncPerUser.get(userId) ?? 0;
   if (now - userLastSync < 2000 && embeddingCache.size > 0) {
@@ -59,7 +59,7 @@ function syncEmbeddingCache(userId: string, db: BetterSQLite3Database<typeof sch
   }
   
   try {
-    const stats = db.select({
+    const statsRows = await db.select({
       maxUpdated: sql`MAX(${media.updatedAt})`,
       count: sql`COUNT(${media.id})`
     }).from(media).where(
@@ -68,9 +68,10 @@ function syncEmbeddingCache(userId: string, db: BetterSQLite3Database<typeof sch
         eq(media.isVault, false),
         sql`${media.metadata} IS NOT NULL`
       )
-    ).get() as { maxUpdated: number | null; count: number };
+    ).limit(1);
     
-    const currentMax = stats?.maxUpdated ? new Date(stats.maxUpdated).getTime() : 0;
+    const stats = statsRows[0] as { maxUpdated: number | null; count: number } | undefined;
+    const currentMax = stats?.maxUpdated ?? 0;
     const userCache = getUserCache(userId);
 
     const userMaxUpdated = lastMaxUpdatedAt.get(userId) ?? 0;
@@ -87,13 +88,13 @@ function syncEmbeddingCache(userId: string, db: BetterSQLite3Database<typeof sch
     let batches = 0;
 
     while (batches < MAX_BATCHES) {
-      const rows = db.select({ id: media.id, metadata: media.metadata }).from(media).where(
+      const rows = await db.select({ id: media.id, metadata: media.metadata }).from(media).where(
         and(
           eq(media.isTrash, false),
           eq(media.isVault, false),
           sql`${media.metadata} IS NOT NULL`
         )
-      ).limit(BATCH_SIZE).offset(offset).all();
+      ).limit(BATCH_SIZE).offset(offset);
 
       if (rows.length === 0) break;
 
@@ -147,13 +148,13 @@ export async function searchMediaAction(
  : sql`${media.mimeType} LIKE 'video/%'`
  : undefined;
 
- // Drizzle column descriptors are never null in JS, so SQLite's COALESCE does the heavy lifting
+ // Drizzle column descriptors are never null in JS, so COALESCE does the heavy lifting
  const dateCol = sql`COALESCE(${media.capturedAt}, ${media.createdAt})`;
  const dateCondition = filters?.dateFrom
- ? gte(dateCol, Math.floor(new Date(filters.dateFrom).getTime() / 1000))
+ ? gte(dateCol, new Date(filters.dateFrom).getTime())
  : undefined;
  const dateToCondition = filters?.dateTo
- ? lte(dateCol, Math.floor(new Date(filters.dateTo).getTime() / 1000))
+ ? lte(dateCol, new Date(filters.dateTo).getTime())
  : undefined;
 
  const dedupSubquery = db.select({ id: sql`MIN(${media.id})` })
@@ -167,11 +168,11 @@ export async function searchMediaAction(
   const queryEmbedding = new Float32Array(embedResult.embedding);
 
     // Synchronize in-memory embedding cache from database
-    syncEmbeddingCache(userId, db);
+    await syncEmbeddingCache(userId, db);
 
     const userCache = getUserCache(userId);
 
-    const items = db.select().from(media).where(
+    const items = await db.select().from(media).where(
  and(
  eq(media.isTrash, false),
  folderCondition,
@@ -180,7 +181,7 @@ export async function searchMediaAction(
  dateToCondition,
  inArray(media.id, dedupSubquery)
  )
- ).all();
+ );
 
     const qLower = query.toLowerCase();
     const scored = items
@@ -216,7 +217,7 @@ export async function searchMediaAction(
  }
 
  const qLike = `%${query.toLowerCase()}%`;
- const items = db.select().from(media).where(
+ const items = await db.select().from(media).where(
  and(
  eq(media.isTrash, false),
  folderCondition,
@@ -226,10 +227,10 @@ export async function searchMediaAction(
  inArray(media.id, dedupSubquery),
  or(
  sql`LOWER(${media.title}) LIKE ${qLike}`,
- sql`${media.metadata} IS NOT NULL AND LOWER(${media.metadata}) LIKE ${qLike}`
+ sql`${media.metadata} IS NOT NULL AND LOWER(${media.metadata}::text) LIKE ${qLike}`
  )
  )
- ).all();
+ );
 
  return { items, total: items.length, query, mode: "keyword" as const };
  });

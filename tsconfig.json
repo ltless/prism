@@ -6,6 +6,7 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    "types": ["vitest/globals"],
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",

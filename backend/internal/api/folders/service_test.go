@@ -2,53 +2,24 @@ package folders
 
 import (
 	"database/sql"
-	"os"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
-	_ "modernc.org/sqlite"
+	"github.com/ltless/prism/internal/dbtest"
 )
 
 func setupTestPool(t *testing.T) *db.TenantPool {
 	t.Helper()
-	base := t.TempDir()
+	sqlDB := dbtest.NewDB(t)
 
-	// Manually init tenant DB for test-user — create raw sqlite without pool migration
-	f := base + "/test-user/prism.db"
-	if err := os.MkdirAll(base+"/test-user", 0755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	raw, err := sql.Open("sqlite", f)
+	// Insert a user for FK constraints
+	_, err := sqlDB.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+		"test-user", "testuser", "hash", "admin")
 	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	defer raw.Close()
-
-	_, err = raw.Exec(`CREATE TABLE IF NOT EXISTS folders (
-		id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT,
-		parent_id TEXT, created_at INTEGER, updated_at INTEGER,
-		folder_type TEXT NOT NULL DEFAULT 'manual',
-		filter_query TEXT
-	)`)
-	if err != nil {
-		t.Fatalf("create folders table: %v", err)
-	}
-	_, err = raw.Exec(`CREATE TABLE IF NOT EXISTS media (
-		id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, file_path TEXT NOT NULL,
-		mime_type TEXT NOT NULL, size INTEGER NOT NULL, width INTEGER, height INTEGER,
-		hash TEXT NOT NULL, captured_at INTEGER, metadata TEXT, folder_id TEXT,
-		is_favorite INTEGER DEFAULT 0, is_trash INTEGER DEFAULT 0,
-		updated_at INTEGER, created_at INTEGER, duration INTEGER,
-		transcode_status TEXT, is_vault INTEGER DEFAULT 0
-	)`)
-	if err != nil {
-		t.Fatalf("create media table: %v", err)
+		t.Fatalf("insert test user: %v", err)
 	}
 
-	// Use MultiTenant for media queries but skip its migration by pre-creating the DB file
-	pool2 := db.NewTenantPool(base)
-	t.Cleanup(func() { os.RemoveAll(base) })
-	return pool2
+	return db.NewTenantPool(sqlDB)
 }
 
 func TestFolderService_List_Empty(t *testing.T) {
@@ -134,17 +105,20 @@ func TestFolderService_DeleteWithMediaUnlinks(t *testing.T) {
 
 	// Insert media with this folder_id
 	tdb, _ := pool.Get("test-user")
-	tdb.Exec("INSERT INTO media (id, title, file_path, mime_type, size, hash, folder_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		"media-1", "Test", "f.jpg", "image/jpeg", 100, "h1", f.ID, 1000)
+	_, err := tdb.Exec("INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash, folder_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		"media-1", "test-user", "Test", "f.jpg", "image/jpeg", 100, "h1", f.ID, 1000)
+	if err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
 
-	err := svc.Delete("test-user", f.ID)
+	err = svc.Delete("test-user", f.ID)
 	if err != nil {
 		t.Fatalf("Delete with media: %v", err)
 	}
 
 	// Verify media folder_id is now NULL
 	var folderID sql.NullString
-	tdb.QueryRow("SELECT folder_id FROM media WHERE id = ?", "media-1").Scan(&folderID)
+	tdb.QueryRow("SELECT folder_id FROM media WHERE id = $1", "media-1").Scan(&folderID)
 	if folderID.Valid {
 		t.Fatal("expected media folder_id to be NULL after folder delete")
 	}

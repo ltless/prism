@@ -1,24 +1,19 @@
 package config
 
 import (
+	"database/sql"
 	"errors"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
-	_ "modernc.org/sqlite"
+	"github.com/ltless/prism/internal/dbtest"
 )
 
 func setupConfigTestDB(t *testing.T) *db.GlobalDB {
 	t.Helper()
-	p := t.TempDir() + "/global.db"
-	gdb, err := db.NewGlobalDB(p)
-	if err != nil {
-		t.Fatalf("NewGlobalDB: %v", err)
-	}
-	t.Cleanup(func() { gdb.Close(); os.Remove(p) })
-	return gdb
+	sqlDB := dbtest.NewDB(t)
+	return &db.GlobalDB{DB: sqlDB}
 }
 
 func TestConfigService_Get_Empty(t *testing.T) {
@@ -78,7 +73,7 @@ func TestConfigService_Update_UnrelatedKey(t *testing.T) {
 
 	// Should not have created an AI config entry
 	var count int
-	gdb.QueryRow("SELECT COUNT(*) FROM app_config").Scan(&count)
+	gdb.DB.QueryRow("SELECT COUNT(*) FROM app_config").Scan(&count)
 	if count != 0 {
 		t.Fatalf("expected 0 rows, got %d", count)
 	}
@@ -96,7 +91,7 @@ func TestConfigService_Update_RejectsNonObjectAI(t *testing.T) {
 
 	// Nothing should have been written.
 	var count int
-	gdb.QueryRow("SELECT COUNT(*) FROM app_config").Scan(&count)
+	gdb.DB.QueryRow("SELECT COUNT(*) FROM app_config").Scan(&count)
 	if count != 0 {
 		t.Fatalf("expected 0 rows after rejected update, got %d", count)
 	}
@@ -127,7 +122,7 @@ func TestConfigService_IsAIActive(t *testing.T) {
 	}
 
 	svc.Update(map[string]interface{}{"ai": map[string]interface{}{
-		"enabled": true,
+		"enabled":  true,
 		"aiActive": true,
 	}})
 	active, err = svc.IsAIActive()
@@ -138,3 +133,5 @@ func TestConfigService_IsAIActive(t *testing.T) {
 		t.Fatal("expected true after aiActive=true stored")
 	}
 }
+
+var _ = sql.ErrNoRows

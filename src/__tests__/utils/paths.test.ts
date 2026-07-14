@@ -12,12 +12,6 @@ describe("paths", () => {
   expect(getStorageRoot()).toBe(path.join("/app", "storage"));
   });
 
-  it("getGlobalDbPath returns ROOT/prism.db", async () => {
- vi.stubGlobal("process", { cwd: () => "/app" });
- const { getGlobalDbPath } = await import("@/core/utils/paths");
- expect(getGlobalDbPath()).toBe(path.join("/app", "prism.db"));
- });
-
  it("getDrizzleDir returns ROOT/drizzle", async () => {
  vi.stubGlobal("process", { cwd: () => "/app" });
  const { getDrizzleDir } = await import("@/core/utils/paths");

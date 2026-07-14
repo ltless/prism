@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "@/services/db/schema";
 import { DEFAULT_USER_QUOTA_BYTES } from "@/core/constants";
 
@@ -20,14 +20,13 @@ export function parseGlobalDefaultBytes(value: string | null | undefined): numbe
 }
 
 /** Read the admin-configured global default quota from app_settings. null = unlimited. */
-export function getGlobalStorageDefaultBytes(db: BetterSQLite3Database<typeof schema>): number | null {
-  const row = db
+export async function getGlobalStorageDefaultBytes(db: NodePgDatabase<typeof schema>): Promise<number | null> {
+  const rows = await db
     .select({ value: schema.appSettings.value })
     .from(schema.appSettings)
     .where(eq(schema.appSettings.key, STORAGE_DEFAULT_KEY))
-    .limit(1)
-    .get();
-  return parseGlobalDefaultBytes(row?.value ?? null);
+    .limit(1);
+  return parseGlobalDefaultBytes(rows[0]?.value ?? null);
 }
 
 /**

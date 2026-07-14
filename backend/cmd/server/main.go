@@ -21,13 +21,13 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	global, err := db.NewGlobalDB(cfg.GlobalDB)
+	global, err := db.NewGlobalDB(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to init global DB: %v", err)
 	}
 	defer global.Close()
 
-	tenantPool := db.NewTenantPool(cfg.StoragePath)
+	tenantPool := db.NewTenantPool(global.DB)
 	defer tenantPool.Close()
 
 	jwtDuration, err := time.ParseDuration(cfg.JWTDuration)

@@ -16,8 +16,8 @@ func setupAuthHandler(t *testing.T) (*echo.Echo, *Handler) {
 	t.Helper()
 	db := setupTestDB(t)
 	h, _ := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
-	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-		"user-1", "testuser", string(h), "admin")
+	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+	"user-1", "testuser", string(h), "admin")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestHandler_Register_WeakPassword(t *testing.T) {
 	err := h.Register(c)
 	he, ok := err.(*echo.HTTPError)
 	if !ok {
-		t.Fatalf("expected echo.HTTPError, got %T", err)
+		t.Fatalf("expected echo.HTTPError, got %T: %v", err, err)
 	}
 	if he.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for weak password, got %d", he.Code)

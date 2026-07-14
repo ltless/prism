@@ -116,7 +116,7 @@ func (h *Handler) Me(c echo.Context) error {
 		"id":                  user.ID,
 		"username":            user.Username,
 		"role":                user.Role,
-		"has_completed_setup": user.HasCompletedSetup == 1,
+		"has_completed_setup": user.HasCompletedSetup,
 	}
 	if user.Image.Valid {
 		resp["image"] = user.Image.String

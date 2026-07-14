@@ -74,29 +74,32 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	where := []string{"1=1"}
-	args := []interface{}{}
+	where := []string{"user_id = $1"}
+	args := []interface{}{userID}
+	argIdx := 2
 
 	if !vault {
-		where = append(where, "is_vault = 0")
+		where = append(where, "is_vault = FALSE")
 	}
 	if folderID != nil {
-		where = append(where, "folder_id = ?")
+		where = append(where, fmt.Sprintf("folder_id = $%d", argIdx))
 		args = append(args, *folderID)
+		argIdx++
 	}
 	if favorites {
-		where = append(where, "is_favorite = 1")
+		where = append(where, "is_favorite = TRUE")
 	}
 	if trash {
-		where = append(where, "is_trash = 1")
+		where = append(where, "is_trash = TRUE")
 	} else if !vault {
-		where = append(where, "is_trash = 0")
+		where = append(where, "is_trash = FALSE")
 	}
 	if search != "" {
-		where = append(where, "title LIKE ? ESCAPE '\\'")
-		escaped := strings.ReplaceAll(search, "%", "\\%")
-		escaped = strings.ReplaceAll(escaped, "_", "\\_")
+		where = append(where, fmt.Sprintf("title ILIKE $%d ESCAPE '\\'", argIdx))
+	escaped := strings.ReplaceAll(search, "%", "\\%")
+	escaped = strings.ReplaceAll(escaped, "_", "\\_")
 		args = append(args, "%"+escaped+"%")
+		argIdx++
 	}
 
 	whereClause := strings.Join(where, " AND ")
@@ -110,15 +113,15 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause)
 		if err := tdb.QueryRow(countQuery, args...).Scan(&total); err != nil {
 			return nil, fmt.Errorf("count dedup: %w", err)
-		}
+	}
 		query := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC`, selectCols, whereClause)
+	) ORDER BY created_at DESC`, selectCols, whereClause)
 
 		rows, err := tdb.Query(query, args...)
 		if err != nil {
 			return nil, fmt.Errorf("query media dedup: %w", err)
-		}
+	}
 		defer rows.Close()
 
 		var items []MediaItem
@@ -128,13 +131,13 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 				return nil, fmt.Errorf("scan media: %w", err)
 			}
 			items = append(items, *item)
-		}
+	}
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("rows iteration: %w", err)
-		}
+	}
 		if items == nil {
 			items = []MediaItem{}
-		}
+	}
 		return &ListResponse{Items: items, Total: total}, nil
 	}
 
@@ -156,7 +159,7 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 		item, err := scanMediaItem(rows)
 		if err != nil {
 			return nil, fmt.Errorf("scan media: %w", err)
-		}
+	}
 		items = append(items, *item)
 	}
 	if err := rows.Err(); err != nil {
@@ -179,7 +182,7 @@ func (s *Service) Get(userID, id string) (*MediaItem, error) {
 	row := tdb.QueryRow(`SELECT id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status
-		FROM media WHERE id = ?`, id)
+		FROM media WHERE user_id = $1 AND id = $2`, userID, id)
 
 	item, err := scanMediaItemRow(row)
 	if err == sql.ErrNoRows {
@@ -198,35 +201,56 @@ type rowScanner interface {
 
 func scanMediaItemRow(row rowScanner) (*MediaItem, error) {
 	var item MediaItem
-	var fav, trashInt, vaultInt int
+	var fav, trashBool, vaultBool bool
 	var capturedAt, updatedAt, createdAt sql.NullInt64
 	var meta, transcodeStatus sql.NullString
 	var width, height, duration sql.NullInt64
 	var folderID sql.NullString
 
 	err := row.Scan(
-		&item.ID, &item.Title, &item.FilePath, &item.MimeType, &item.Size,
-		&width, &height, &item.Hash,
-		&folderID, &fav, &trashInt, &vaultInt,
-		&capturedAt, &updatedAt, &createdAt,
-		&meta, &duration, &transcodeStatus,
+	&item.ID, &item.Title, &item.FilePath, &item.MimeType, &item.Size,
+	&width, &height, &item.Hash,
+	&folderID, &fav, &trashBool, &vaultBool,
+	&capturedAt, &updatedAt, &createdAt,
+	&meta, &duration, &transcodeStatus,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	item.IsFavorite = fav == 1
-	item.IsTrash = trashInt == 1
-	item.IsVault = vaultInt == 1
-	if folderID.Valid { item.FolderID = &folderID.String }
-	if capturedAt.Valid { item.CapturedAt = &capturedAt.Int64 }
-	if updatedAt.Valid { item.UpdatedAt = &updatedAt.Int64 }
-	if createdAt.Valid { item.CreatedAt = &createdAt.Int64 }
-	if meta.Valid { item.Metadata = &meta.String }
-	if width.Valid { w := int(width.Int64); item.Width = &w }
-	if height.Valid { h := int(height.Int64); item.Height = &h }
-	if duration.Valid { d := int(duration.Int64); item.Duration = &d }
-	if transcodeStatus.Valid { item.TranscodeStatus = &transcodeStatus.String }
+	item.IsFavorite = fav
+	item.IsTrash = trashBool
+	item.IsVault = vaultBool
+	if folderID.Valid {
+		item.FolderID = &folderID.String
+	}
+	if capturedAt.Valid {
+		item.CapturedAt = &capturedAt.Int64
+	}
+	if updatedAt.Valid {
+		item.UpdatedAt = &updatedAt.Int64
+	}
+	if createdAt.Valid {
+		item.CreatedAt = &createdAt.Int64
+	}
+	if meta.Valid {
+		item.Metadata = &meta.String
+	}
+	if width.Valid {
+		w := int(width.Int64)
+		item.Width = &w
+	}
+	if height.Valid {
+		h := int(height.Int64)
+		item.Height = &h
+	}
+	if duration.Valid {
+		d := int(duration.Int64)
+		item.Duration = &d
+	}
+	if transcodeStatus.Valid {
+		item.TranscodeStatus = &transcodeStatus.String
+	}
 
 	return &item, nil
 }
@@ -241,52 +265,19 @@ func sanitizeTitle(s string) string {
 	for _, r := range s {
 		if r == '<' {
 			b.WriteString("&lt;")
-		} else if r == '>' {
+	} else if r == '>' {
 			b.WriteString("&gt;")
-		} else if r == '&' {
+	} else if r == '&' {
 			b.WriteString("&amp;")
-		} else if r == '"' {
+	} else if r == '"' {
 			b.WriteString("&quot;")
-		} else if r == '\'' {
+	} else if r == '\'' {
 			b.WriteString("&#39;")
-		} else {
+	} else {
 			b.WriteRune(r)
-		}
+	}
 	}
 	return b.String()
-}
-
-func isRetryable(err error) bool {
-	if err == nil {
-		return false
-	}
-	s := err.Error()
-	return strings.Contains(s, "database is locked") || strings.Contains(s, "SQLITE_BUSY")
-}
-
-func retryDB[T any](fn func() (T, error)) (T, error) {
-	const maxRetries = 3
-	var lastErr error
-	for i := 0; i < maxRetries; i++ {
-		result, err := fn()
-		if err == nil {
-			return result, nil
-		}
-		if !isRetryable(err) {
-			return result, err
-		}
-		lastErr = err
-		time.Sleep(time.Duration(50*(1<<i)) * time.Millisecond)
-	}
-	var zero T
-	return zero, fmt.Errorf("retry exhausted: %w", lastErr)
-}
-
-func retryDBErr(fn func() error) error {
-	_, err := retryDB(func() (struct{}, error) {
-		return struct{}{}, fn()
-	})
-	return err
 }
 
 func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash string, size int64, width, height *int, capturedAt *int64, metadata *string, duration *int, transcodeStatus *string) (*MediaItem, bool, error) {
@@ -304,13 +295,12 @@ func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash strin
 		fID = &folderID
 	}
 
-	res, err := retryDB(func() (sql.Result, error) {
-		return tdb.Exec(
-			`INSERT OR IGNORE INTO media (id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now, now,
-		)
-	})
+	res, err := tdb.Exec(
+	`INSERT INTO media (id, user_id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		ON CONFLICT DO NOTHING`,
+		id, userID, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now, now,
+	)
 	if err != nil {
 		return nil, false, fmt.Errorf("insert media: %w", err)
 	}
@@ -323,13 +313,13 @@ func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash strin
 	return &MediaItem{
 		ID:              id,
 		Title:           title,
-		FilePath:        filePath,
+	FilePath:        filePath,
 		MimeType:        mimeType,
 		Size:            size,
-		Hash:            hash,
+	Hash:            hash,
 		FolderID:        fID,
 		Duration:        duration,
-		TranscodeStatus: transcodeStatus,
+	TranscodeStatus: transcodeStatus,
 	}, false, nil
 }
 
@@ -354,8 +344,8 @@ func (s *Service) SaveEditorOverwrite(userID, mediaID, filePath, hash string, wi
 	}
 	now := time.Now().Unix()
 	_, err = tdb.Exec(
-		`UPDATE media SET file_path = ?, hash = ?, width = ?, height = ?, size = ?, mime_type = ?, metadata = ?, updated_at = ? WHERE id = ?`,
-		filePath, hash, width, height, size, mimeType, metadata, now, mediaID,
+	`UPDATE media SET file_path = $1, hash = $2, width = $3, height = $4, size = $5, mime_type = $6, metadata = $7, updated_at = $8 WHERE user_id = $9 AND id = $10`,
+		filePath, hash, width, height, size, mimeType, metadata, now, userID, mediaID,
 	)
 	return err
 }
@@ -368,18 +358,21 @@ func (s *Service) Update(userID, id string, updates map[string]interface{}) erro
 
 	setClauses := []string{}
 	args := []interface{}{}
+	argIdx := 1
 	for k, v := range updates {
 		if !allowedUpdateColumns[k] {
 			continue
-		}
-		setClauses = append(setClauses, fmt.Sprintf("%s = ?", k))
-		args = append(args, v)
 	}
-	setClauses = append(setClauses, "updated_at = ?")
-	args = append(args, 	time.Now().Unix())
-	args = append(args, id)
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", k, argIdx))
+		args = append(args, v)
+		argIdx++
+	}
+	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIdx))
+	args = append(args, time.Now().Unix())
+	argIdx++
 
-	query := fmt.Sprintf("UPDATE media SET %s WHERE id = ?", strings.Join(setClauses, ", "))
+	query := fmt.Sprintf("UPDATE media SET %s WHERE user_id = $%d AND id = $%d", strings.Join(setClauses, ", "), argIdx, argIdx+1)
+	args = append(args, userID, id)
 	_, err = tdb.Exec(query, args...)
 	return err
 }
@@ -395,7 +388,7 @@ func (s *Service) Delete(userID, id string) (*MediaItem, error) {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	res, err := tdb.Exec("DELETE FROM media WHERE id = ?", id)
+	res, err := tdb.Exec("DELETE FROM media WHERE user_id = $1 AND id = $2", userID, id)
 	if err != nil {
 		return nil, fmt.Errorf("delete media: %w", err)
 	}
@@ -415,9 +408,7 @@ func (s *Service) HashExists(userID, hash string) (bool, error) {
 		return false, fmt.Errorf("get tenant db: %w", err)
 	}
 	var existing string
-	err = retryDBErr(func() error {
-		return tdb.QueryRow("SELECT id FROM media WHERE hash = ? LIMIT 1", hash).Scan(&existing)
-	})
+	err = tdb.QueryRow("SELECT id FROM media WHERE user_id = $1 AND hash = $2 LIMIT 1", userID, hash).Scan(&existing)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -435,13 +426,13 @@ func (s *Service) BulkMove(userID string, mediaIDs []string, folderID *string) e
 
 	now := time.Now().Unix()
 	placeholders := make([]string, len(mediaIDs))
-	args := make([]interface{}, 0, len(mediaIDs)+2)
-	args = append(args, folderID, now)
+	args := make([]interface{}, 0, len(mediaIDs)+3)
+	args = append(args, folderID, now, userID) // $1, $2, $3
 	for i, id := range mediaIDs {
-		placeholders[i] = "?"
+	placeholders[i] = fmt.Sprintf("$%d", i+4)
 		args = append(args, id)
 	}
-	query := fmt.Sprintf("UPDATE media SET folder_id = ?, updated_at = ? WHERE id IN (%s)", strings.Join(placeholders, ","))
+	query := fmt.Sprintf("UPDATE media SET folder_id = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", strings.Join(placeholders, ","))
 	_, err = tdb.Exec(query, args...)
 	return err
 }
@@ -452,14 +443,15 @@ func (s *Service) BulkSetField(userID string, mediaIDs []string, field string, v
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 	now := time.Now().Unix()
+	boolVal := value != 0
 	placeholders := make([]string, len(mediaIDs))
-	args := make([]interface{}, 0, len(mediaIDs)+2)
-	args = append(args, value, now)
+	args := make([]interface{}, 0, len(mediaIDs)+3)
+	args = append(args, boolVal, now, userID) // $1, $2, $3
 	for i, id := range mediaIDs {
-		placeholders[i] = "?"
+	placeholders[i] = fmt.Sprintf("$%d", i+4)
 		args = append(args, id)
 	}
-	query := fmt.Sprintf("UPDATE media SET %s = ?, updated_at = ? WHERE id IN (%s)", field, strings.Join(placeholders, ","))
+	query := fmt.Sprintf("UPDATE media SET %s = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", field, strings.Join(placeholders, ","))
 	_, err = tdb.Exec(query, args...)
 	return err
 }
@@ -475,7 +467,7 @@ func (s *Service) EmptyTrash(userID string) ([]TrashedItem, error) {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	rows, err := tdb.Query("SELECT id, file_path FROM media WHERE is_trash = 1")
+	rows, err := tdb.Query("SELECT id, file_path FROM media WHERE user_id = $1 AND is_trash = TRUE", userID)
 	if err != nil {
 		return nil, fmt.Errorf("query trashed: %w", err)
 	}
@@ -486,14 +478,14 @@ func (s *Service) EmptyTrash(userID string) ([]TrashedItem, error) {
 		var item TrashedItem
 		if err := rows.Scan(&item.ID, &item.FilePath); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-		}
+	}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows: %w", err)
 	}
 
-	if _, err := tdb.Exec("DELETE FROM media WHERE is_trash = 1"); err != nil {
+	if _, err := tdb.Exec("DELETE FROM media WHERE user_id = $1 AND is_trash = TRUE", userID); err != nil {
 		return nil, fmt.Errorf("delete trashed: %w", err)
 	}
 
@@ -512,18 +504,20 @@ func (s *Service) ResolveDuplicate(userID, keepID string, deleteIDs []string) er
 	}
 	defer tx.Rollback()
 
+	// DELETE: WHERE user_id = $1 AND id IN ($2, $3, ...)
+	deleteArgs := []interface{}{userID}
 	placeholders := make([]string, len(deleteIDs))
-	args := make([]interface{}, len(deleteIDs))
 	for i, id := range deleteIDs {
-		placeholders[i] = "?"
-		args[i] = id
+	placeholders[i] = fmt.Sprintf("$%d", i+2)
+		deleteArgs = append(deleteArgs, id)
 	}
-	query := fmt.Sprintf("DELETE FROM media WHERE id IN (%s)", strings.Join(placeholders, ","))
-	if _, err := tx.Exec(query, args...); err != nil {
+	query := fmt.Sprintf("DELETE FROM media WHERE user_id = $1 AND id IN (%s)", strings.Join(placeholders, ","))
+	if _, err := tx.Exec(query, deleteArgs...); err != nil {
 		return fmt.Errorf("delete duplicates: %w", err)
 	}
 
-	if _, err := tx.Exec("UPDATE media SET updated_at = ? WHERE id = ?", time.Now().Unix(), keepID); err != nil {
+	if _, err := tx.Exec("UPDATE media SET updated_at = $3 WHERE user_id = $1 AND id = $2",
+		userID, keepID, time.Now().Unix()); err != nil {
 		return fmt.Errorf("update kept: %w", err)
 	}
 
@@ -544,7 +538,7 @@ func (s *Service) DeleteAll(userID string) ([]TrashedItem, error) {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	rows, err := tdb.Query("SELECT id, file_path FROM media")
+	rows, err := tdb.Query("SELECT id, file_path FROM media WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, fmt.Errorf("query all media: %w", err)
 	}
@@ -555,14 +549,14 @@ func (s *Service) DeleteAll(userID string) ([]TrashedItem, error) {
 		var item TrashedItem
 		if err := rows.Scan(&item.ID, &item.FilePath); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-		}
+	}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows: %w", err)
 	}
 
-	if _, err := tdb.Exec("DELETE FROM media"); err != nil {
+	if _, err := tdb.Exec("DELETE FROM media WHERE user_id = $1", userID); err != nil {
 		return nil, fmt.Errorf("delete all media: %w", err)
 	}
 
@@ -575,10 +569,10 @@ func (s *Service) AutoCleanup(userID string, olderThan *int64) ([]TrashedItem, e
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	query := "SELECT id, file_path FROM media WHERE is_trash = 1"
-	args := []interface{}{}
+	query := "SELECT id, file_path FROM media WHERE user_id = $1 AND is_trash = TRUE"
+	args := []interface{}{userID}
 	if olderThan != nil && *olderThan > 0 {
-		query += " AND updated_at < ?"
+		query += fmt.Sprintf(" AND updated_at < $%d", len(args)+1)
 		args = append(args, *olderThan)
 	}
 
@@ -593,18 +587,20 @@ func (s *Service) AutoCleanup(userID string, olderThan *int64) ([]TrashedItem, e
 		var item TrashedItem
 		if err := rows.Scan(&item.ID, &item.FilePath); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-		}
+	}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows: %w", err)
 	}
 
-	deleteQuery := "DELETE FROM media WHERE is_trash = 1"
+	deleteQuery := "DELETE FROM media WHERE user_id = $1 AND is_trash = TRUE"
+	deleteArgs := []interface{}{userID}
 	if olderThan != nil && *olderThan > 0 {
-		deleteQuery += " AND updated_at < ?"
+		deleteQuery += fmt.Sprintf(" AND updated_at < $%d", len(deleteArgs)+1)
+		deleteArgs = append(deleteArgs, *olderThan)
 	}
-	if _, err := tdb.Exec(deleteQuery, args...); err != nil {
+	if _, err := tdb.Exec(deleteQuery, deleteArgs...); err != nil {
 		return nil, fmt.Errorf("delete trashed: %w", err)
 	}
 
@@ -619,7 +615,7 @@ func (s *Service) UpdateByHash(userID, hash string, updates map[string]interface
 
 	// First look up the media ID by hash
 	var id string
-	err = tdb.QueryRow("SELECT id FROM media WHERE hash = ?", hash).Scan(&id)
+	err = tdb.QueryRow("SELECT id FROM media WHERE user_id = $1 AND hash = $2", userID, hash).Scan(&id)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("media not found for hash: %s", hash)
 	}
@@ -630,21 +626,24 @@ func (s *Service) UpdateByHash(userID, hash string, updates map[string]interface
 	// Now update by ID using the existing update logic
 	setClauses := []string{}
 	args := []interface{}{}
+	argIdx := 1
 	for k, v := range updates {
 		if !allowedUpdateColumns[k] {
 			continue
-		}
-		setClauses = append(setClauses, fmt.Sprintf("%s = ?", k))
+	}
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", k, argIdx))
 		args = append(args, v)
+		argIdx++
 	}
 	if len(setClauses) == 0 {
 		return nil
 	}
-	setClauses = append(setClauses, "updated_at = ?")
+	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIdx))
 	args = append(args, time.Now().Unix())
-	args = append(args, id)
+	argIdx++
 
-	query := fmt.Sprintf("UPDATE media SET %s WHERE id = ?", strings.Join(setClauses, ", "))
+	query := fmt.Sprintf("UPDATE media SET %s WHERE user_id = $%d AND id = $%d", strings.Join(setClauses, ", "), argIdx, argIdx+1)
+	args = append(args, userID, id)
 	_, err = tdb.Exec(query, args...)
 	return err
 }
@@ -671,8 +670,8 @@ func (s *Service) CountTagged(userID string) (*AICountResponse, error) {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 	var total, tagged int
-	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE is_trash = 0").Scan(&total)
-	tdb.QueryRow("SELECT COUNT(DISTINCT media_id) FROM media_tags").Scan(&tagged)
+	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total)
+	tdb.QueryRow("SELECT COUNT(DISTINCT media_id) FROM media_tags WHERE user_id = $1", userID).Scan(&tagged)
 	return &AICountResponse{Total: total, Tagged: tagged}, nil
 }
 
@@ -682,8 +681,8 @@ func (s *Service) CountScored(userID string) (*AIScoreResponse, error) {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 	var total, scored int
-	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE is_trash = 0").Scan(&total)
-	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE metadata IS NOT NULL AND json_extract(metadata, '$.aestheticScored') = 1").Scan(&scored)
+	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total)
+	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND metadata IS NOT NULL AND metadata->>'aestheticScored' = 'true'", userID).Scan(&scored)
 	return &AIScoreResponse{Total: total, Scored: scored}, nil
 }
 
@@ -693,28 +692,32 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	where := []string{"is_trash = 0", "is_vault = 0"}
-	args := []interface{}{}
+	where := []string{"user_id = $1", "is_trash = FALSE", "is_vault = FALSE"}
+	args := []interface{}{userID}
+	argIdx := 2
 
 	if params.Query != "" {
-		where = append(where, "title LIKE ? ESCAPE '\\'")
-		escaped := strings.ReplaceAll(params.Query, "%", "\\%")
-		escaped = strings.ReplaceAll(escaped, "_", "\\_")
+		where = append(where, fmt.Sprintf("title ILIKE $%d ESCAPE '\\'", argIdx))
+	escaped := strings.ReplaceAll(params.Query, "%", "\\%")
+	escaped = strings.ReplaceAll(escaped, "_", "\\_")
 		args = append(args, "%"+escaped+"%")
+		argIdx++
 	}
 
 	if params.FolderID != nil && *params.FolderID != "" {
-		where = append(where, "folder_id = ?")
+		where = append(where, fmt.Sprintf("folder_id = $%d", argIdx))
 		args = append(args, *params.FolderID)
+		argIdx++
 	}
 
 	if len(params.Tags) > 0 {
-		placeholders := make([]string, len(params.Tags))
+		tagPlaceholders := make([]string, len(params.Tags))
 		for i, tag := range params.Tags {
-			placeholders[i] = "?"
+			tagPlaceholders[i] = fmt.Sprintf("$%d", argIdx)
 			args = append(args, tag)
-		}
-		where = append(where, fmt.Sprintf("id IN (SELECT media_id FROM media_tags WHERE tag IN (%s))", strings.Join(placeholders, ",")))
+			argIdx++
+	}
+		where = append(where, fmt.Sprintf("id IN (SELECT media_id FROM media_tags WHERE user_id = $1 AND tag IN (%s))", strings.Join(tagPlaceholders, ",")))
 	}
 
 	whereClause := strings.Join(where, " AND ")
@@ -741,7 +744,7 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		item, err := scanMediaItem(rows)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-		}
+	}
 		items = append(items, *item)
 	}
 	if err := rows.Err(); err != nil {
@@ -785,9 +788,9 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 	}
 
 	rows, err := tdb.Query(
-		`SELECT id, file_path, metadata FROM media
-		WHERE is_trash = 0 AND json_extract(metadata, '$.aiProcessed') IS NULL
-		LIMIT ?`, batchLimit,
+	`SELECT id, file_path, metadata FROM media
+		WHERE user_id = $1 AND is_trash = FALSE AND metadata->>'aiProcessed' IS NULL
+		LIMIT $2`, userID, batchLimit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query untagged: %w", err)
@@ -805,10 +808,10 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 		var meta sql.NullString
 		if err := rows.Scan(&it.id, &it.filePath, &meta); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-		}
+	}
 		if meta.Valid {
 			it.metadata = &meta.String
-		}
+	}
 		items = append(items, it)
 	}
 	if err := rows.Err(); err != nil {
@@ -824,13 +827,13 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 			ID:       it.id,
 			FilePath: mediaDir + "/" + it.filePath,
 			MediaDir: mediaDir,
-		}
+	}
 	}
 
 	resp, err := s.sidecarClient.BatchTag(sidecar.BatchTagRequest{
-		Items:        sidecarItems,
+	Items:        sidecarItems,
 		Variant:      "standard",
-		TagThreshold: 0.1,
+	TagThreshold: 0.1,
 		BatchSize:    1,
 	})
 	if err != nil {
@@ -844,7 +847,7 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 				json.Unmarshal([]byte(*it.metadata), &oldMeta)
 				break
 			}
-		}
+	}
 		oldMeta["embedding"] = r.Embedding
 		oldMeta["tags"] = r.Tags
 		oldMeta["tagScores"] = r.TagScores
@@ -852,24 +855,24 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 		oldMeta["updatedAt"] = time.Now().UTC().Format(time.RFC3339)
 		metaBytes, _ := json.Marshal(oldMeta)
 
-		tdb.Exec("UPDATE media SET metadata = ?, updated_at = ? WHERE id = ?",
-			string(metaBytes), time.Now().Unix(), r.ID)
+		tdb.Exec("UPDATE media SET metadata = $1, updated_at = $2 WHERE user_id = $3 AND id = $4",
+			string(metaBytes), time.Now().Unix(), userID, r.ID)
 	}
 
 	tagMediaIDs := make([]string, 0, len(resp.Results))
 	for _, r := range resp.Results {
 		if len(r.Tags) > 0 {
 			tagMediaIDs = append(tagMediaIDs, r.ID)
-		}
+	}
 	}
 	if len(tagMediaIDs) > 0 {
-		placeholders := make([]string, len(tagMediaIDs))
-		args := make([]interface{}, len(tagMediaIDs))
+		deletePlaceholders := make([]string, len(tagMediaIDs))
+		deleteArgs := []interface{}{userID} // $1
 		for i, id := range tagMediaIDs {
-			placeholders[i] = "?"
-			args[i] = id
-		}
-		tdb.Exec("DELETE FROM media_tags WHERE media_id IN ("+strings.Join(placeholders, ",")+")", args...)
+			deletePlaceholders[i] = fmt.Sprintf("$%d", i+2)
+			deleteArgs = append(deleteArgs, id)
+	}
+		tdb.Exec("DELETE FROM media_tags WHERE user_id = $1 AND media_id IN ("+strings.Join(deletePlaceholders, ",")+")", deleteArgs...)
 
 		for _, r := range resp.Results {
 			if len(r.Tags) == 0 {
@@ -881,21 +884,22 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 					score = float64(r.TagScores[i])
 				}
 				category := CategoryForTag(tag)
-				tdb.Exec("INSERT INTO media_tags (media_id, tag, score, category) VALUES (?, ?, ?, ?)",
-					r.ID, tag, score, category)
+				tdb.Exec("INSERT INTO media_tags (media_id, user_id, tag, score, category) VALUES ($1, $2, $3, $4, $5)",
+					r.ID, userID, tag, score, category)
 			}
-		}
+	}
 	}
 
 	var remaining int
 	tdb.QueryRow(
-		`SELECT COUNT(*) FROM media
-		WHERE is_trash = 0 AND json_extract(metadata, '$.aiProcessed') IS NULL`,
+	`SELECT COUNT(*) FROM media
+		WHERE user_id = $1 AND is_trash = FALSE AND metadata->>'aiProcessed' IS NULL`,
+		userID,
 	).Scan(&remaining)
 
 	return &BatchTagResult{
-		Tagged:    resp.Tagged,
-		Remaining: remaining,
+	Tagged:    resp.Tagged,
+	Remaining: remaining,
 		Done:      remaining == 0,
 	}, nil
 }
@@ -914,9 +918,9 @@ func (s *Service) BatchScore(userID, mediaDir string) (*BatchScoreResult, error)
 	}
 
 	rows, err := tdb.Query(
-		`SELECT id, file_path, metadata FROM media
-		WHERE is_trash = 0 AND json_extract(metadata, '$.aestheticScored') IS NULL
-		LIMIT ?`, batchLimit,
+	`SELECT id, file_path, metadata FROM media
+		WHERE user_id = $1 AND is_trash = FALSE AND metadata->>'aestheticScored' IS NULL
+		LIMIT $2`, userID, batchLimit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query unscored: %w", err)
@@ -934,10 +938,10 @@ func (s *Service) BatchScore(userID, mediaDir string) (*BatchScoreResult, error)
 		var meta sql.NullString
 		if err := rows.Scan(&it.id, &it.filePath, &meta); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-		}
+	}
 		if meta.Valid {
 			it.metadata = &meta.String
-		}
+	}
 		items = append(items, it)
 	}
 	if err := rows.Err(); err != nil {
@@ -952,11 +956,11 @@ func (s *Service) BatchScore(userID, mediaDir string) (*BatchScoreResult, error)
 		sidecarItems[i] = sidecar.BatchScoreItem{
 			ID:       it.id,
 			FilePath: mediaDir + "/" + it.filePath,
-		}
+	}
 	}
 
 	resp, err := s.sidecarClient.BatchScore(sidecar.BatchScoreRequest{
-		Items:     sidecarItems,
+	Items:     sidecarItems,
 		Model:     "laion",
 		Variant:   "standard",
 		BatchSize: 1,
@@ -972,32 +976,33 @@ func (s *Service) BatchScore(userID, mediaDir string) (*BatchScoreResult, error)
 				json.Unmarshal([]byte(*it.metadata), &oldMeta)
 				break
 			}
-		}
+	}
 		if r.Score != nil {
 			oldMeta["aestheticScore"] = *r.Score
-		}
+	}
 		if r.Raw != nil {
 			oldMeta["aestheticRaw"] = *r.Raw
-		}
+	}
 		oldMeta["aestheticModel"] = r.Model
 		oldMeta["aestheticScored"] = true
 		oldMeta["aestheticScoredAt"] = time.Now().UTC().Format(time.RFC3339)
 		oldMeta["updatedAt"] = time.Now().UTC().Format(time.RFC3339)
 		metaBytes, _ := json.Marshal(oldMeta)
 
-		tdb.Exec("UPDATE media SET metadata = ?, updated_at = ? WHERE id = ?",
-			string(metaBytes), time.Now().Unix(), r.ID)
+		tdb.Exec("UPDATE media SET metadata = $1, updated_at = $2 WHERE user_id = $3 AND id = $4",
+			string(metaBytes), time.Now().Unix(), userID, r.ID)
 	}
 
 	var remaining int
 	tdb.QueryRow(
-		`SELECT COUNT(*) FROM media
-		WHERE is_trash = 0 AND json_extract(metadata, '$.aestheticScored') IS NULL`,
+	`SELECT COUNT(*) FROM media
+		WHERE user_id = $1 AND is_trash = FALSE AND metadata->>'aestheticScored' IS NULL`,
+		userID,
 	).Scan(&remaining)
 
 	return &BatchScoreResult{
 		Scored:    resp.Scored,
-		Remaining: remaining,
+	Remaining: remaining,
 		Done:      remaining == 0,
 	}, nil
 }
@@ -1014,21 +1019,21 @@ func (s *Service) BatchAIStatus(userID string, ids []string) (map[string]AIStatu
 	}
 
 	if len(ids) > 200 {
-		ids = ids[:200]
+	ids = ids[:200]
 	}
 	if len(ids) == 0 {
 		return map[string]AIStatusResult{}, nil
 	}
 
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
+	args := []interface{}{userID} // $1
 	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
+	placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
 	}
 
 	rows, err := tdb.Query(
-		`SELECT id, metadata FROM media WHERE id IN (`+strings.Join(placeholders, ",")+`)`,
+	`SELECT id, metadata FROM media WHERE user_id = $1 AND id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
 	if err != nil {
@@ -1042,7 +1047,7 @@ func (s *Service) BatchAIStatus(userID string, ids []string) (map[string]AIStatu
 		var meta sql.NullString
 		if err := rows.Scan(&id, &meta); err != nil {
 			continue
-		}
+	}
 		r := AIStatusResult{}
 		if meta.Valid && meta.String != "" {
 			var parsed map[string]interface{}
@@ -1056,7 +1061,7 @@ func (s *Service) BatchAIStatus(userID string, ids []string) (map[string]AIStatu
 					}
 				}
 			}
-		}
+	}
 		statuses[id] = r
 	}
 	if err := rows.Err(); err != nil {
@@ -1077,21 +1082,21 @@ func (s *Service) BatchTranscodeStatus(userID string, ids []string) (map[string]
 	}
 
 	if len(ids) > 200 {
-		ids = ids[:200]
+	ids = ids[:200]
 	}
 	if len(ids) == 0 {
 		return map[string]TranscodeStatusResult{}, nil
 	}
 
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
+	args := []interface{}{userID} // $1
 	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
+	placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
 	}
 
 	rows, err := tdb.Query(
-		`SELECT id, transcode_status, duration FROM media WHERE id IN (`+strings.Join(placeholders, ",")+`)`,
+	`SELECT id, transcode_status, duration FROM media WHERE user_id = $1 AND id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
 	if err != nil {
@@ -1106,15 +1111,15 @@ func (s *Service) BatchTranscodeStatus(userID string, ids []string) (map[string]
 		var dur sql.NullInt64
 		if err := rows.Scan(&id, &ts, &dur); err != nil {
 			continue
-		}
+	}
 		r := TranscodeStatusResult{}
 		if ts.Valid {
 			r.Status = &ts.String
-		}
+	}
 		if dur.Valid {
 			d := int(dur.Int64)
 			r.Duration = &d
-		}
+	}
 		statuses[id] = r
 	}
 	if err := rows.Err(); err != nil {
@@ -1129,7 +1134,7 @@ func (s *Service) IsSharedPath(userID, filePath, excludeID string) (bool, error)
 		return false, fmt.Errorf("get tenant db: %w", err)
 	}
 	var count int
-	err = tdb.QueryRow("SELECT COUNT(*) FROM media WHERE file_path = ? AND id != ?", filePath, excludeID).Scan(&count)
+	err = tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND file_path = $2 AND id != $3", userID, filePath, excludeID).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check shared path: %w", err)
 	}
@@ -1144,7 +1149,7 @@ func (s *Service) FindByHash(userID, hash string) (*MediaItem, error) {
 	row := tdb.QueryRow(`SELECT id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status
-		FROM media WHERE hash = ? LIMIT 1`, hash)
+		FROM media WHERE user_id = $1 AND hash = $2 LIMIT 1`, userID, hash)
 	item, err := scanMediaItemRow(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -1170,19 +1175,21 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	where := []string{"is_trash = 0", "is_vault = 0"}
-	args := []interface{}{}
+	where := []string{"user_id = $1", "is_trash = FALSE", "is_vault = FALSE"}
+	args := []interface{}{userID}
+	argIdx := 2
 
 	if params.FolderID != nil && len(params.Categories) == 0 {
 		if *params.FolderID == "" {
 			where = append(where, "folder_id IS NULL")
-		} else {
-			where = append(where, "folder_id = ?")
+	} else {
+			where = append(where, fmt.Sprintf("folder_id = $%d", argIdx))
 			args = append(args, *params.FolderID)
-		}
+			argIdx++
+	}
 	}
 	if params.IsFavorite {
-		where = append(where, "is_favorite = 1")
+		where = append(where, "is_favorite = TRUE")
 	}
 
 	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
@@ -1193,23 +1200,25 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	var total int
 
 	if len(params.Categories) > 0 {
-		// Smart folder: find media IDs matching categories/score in media_tags
-		tagArgs := []interface{}{}
+	// Smart folder: find media IDs matching categories/score in media_tags
+		tagArgs := []interface{}{userID} // $1 = user_id
 		catPlaceholders := make([]string, len(params.Categories))
 		for i, cat := range params.Categories {
-			catPlaceholders[i] = "?"
+			catPlaceholders[i] = fmt.Sprintf("$%d", i+2)
 			tagArgs = append(tagArgs, cat)
-		}
+	}
+		minScoreIdx := len(params.Categories) + 2
 		tagArgs = append(tagArgs, params.MinScore)
 
 		matchingIDs, err := tdb.Query(
-			`SELECT DISTINCT media_id FROM media_tags
-			WHERE category IN (`+strings.Join(catPlaceholders, ",")+`) AND score >= ?`,
+			fmt.Sprintf(`SELECT DISTINCT media_id FROM media_tags
+			WHERE user_id = $1 AND category IN (%s) AND score >= $%d`,
+				strings.Join(catPlaceholders, ","), minScoreIdx),
 			tagArgs...,
-		)
+	)
 		if err != nil {
 			return nil, fmt.Errorf("query smart folder: %w", err)
-		}
+	}
 		defer matchingIDs.Close()
 
 		var idList []string
@@ -1218,34 +1227,34 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 			if err := matchingIDs.Scan(&id); err == nil {
 				idList = append(idList, id)
 			}
-		}
+	}
 		if err := matchingIDs.Err(); err != nil {
 			return nil, fmt.Errorf("rows: %w", err)
-		}
+	}
 
 		if len(idList) == 0 {
 			return &DashboardResponse{Items: []MediaItem{}, Total: 0, FolderCounts: map[string]int{}}, nil
-		}
+	}
 
 		idPlaceholders := make([]string, len(idList))
 		for i, id := range idList {
-			idPlaceholders[i] = "?"
+			idPlaceholders[i] = fmt.Sprintf("$%d", argIdx)
 			args = append(args, id)
-		}
+			argIdx++
+	}
 		where = append(where, "id IN ("+strings.Join(idPlaceholders, ",")+")")
 		whereClause := strings.Join(where, " AND ")
 
-		var total int
 		tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
 
 		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC`, selectCols, whereClause)
+	) ORDER BY created_at DESC`, selectCols, whereClause)
 
 		rows, err := tdb.Query(q, args...)
 		if err != nil {
 			return nil, fmt.Errorf("query smart media: %w", err)
-		}
+	}
 		defer rows.Close()
 
 		for rows.Next() {
@@ -1254,21 +1263,20 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 				return nil, fmt.Errorf("scan: %w", err)
 			}
 			items = append(items, *item)
-		}
+	}
 	} else {
 		whereClause := strings.Join(where, " AND ")
 
-		var total int
 		tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
 
 		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC`, selectCols, whereClause)
+	) ORDER BY created_at DESC`, selectCols, whereClause)
 
 		rows, err := tdb.Query(q, args...)
 		if err != nil {
 			return nil, fmt.Errorf("query media: %w", err)
-		}
+	}
 		defer rows.Close()
 
 		for rows.Next() {
@@ -1277,7 +1285,7 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 				return nil, fmt.Errorf("scan: %w", err)
 			}
 			items = append(items, *item)
-		}
+	}
 	}
 
 	if items == nil {
@@ -1285,7 +1293,7 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	}
 
 	// Compute folder counts
-	folderCounts, err := computeFolderCounts(tdb, params)
+	folderCounts, err := computeFolderCounts(tdb, userID)
 	if err != nil {
 		return nil, fmt.Errorf("folder counts: %w", err)
 	}
@@ -1293,13 +1301,15 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	return &DashboardResponse{Items: items, Total: total, FolderCounts: folderCounts}, nil
 }
 
-func computeFolderCounts(tdb *db.TenantDB, params DashboardParams) (map[string]int, error) {
+func computeFolderCounts(tdb *db.TenantDB, userID string) (map[string]int, error) {
 	folderCounts := map[string]int{}
 
 	rows, err := tdb.Query(
-		`SELECT f.id, COUNT(DISTINCT m.id) FROM folders f
-		LEFT JOIN media m ON m.folder_id = f.id AND m.is_trash = 0 AND m.is_vault = 0
+	`SELECT f.id, COUNT(DISTINCT m.id) FROM folders f
+		LEFT JOIN media m ON m.folder_id = f.id AND m.is_trash = FALSE AND m.is_vault = FALSE AND m.user_id = $1
+		WHERE f.user_id = $1
 		GROUP BY f.id`,
+		userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query folder counts: %w", err)
@@ -1311,13 +1321,14 @@ func computeFolderCounts(tdb *db.TenantDB, params DashboardParams) (map[string]i
 		var count int
 		if err := rows.Scan(&folderID, &count); err == nil {
 			folderCounts[folderID] = count
-		}
+	}
 	}
 
 	// Inbox count (media with no folder, excluding smart-tagged items)
 	var inbox int
 	tdb.QueryRow(
-		`SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE is_trash = 0 AND is_vault = 0 AND folder_id IS NULL GROUP BY hash)`,
+	`SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE user_id = $1 AND is_trash = FALSE AND is_vault = FALSE AND folder_id IS NULL GROUP BY hash)`,
+		userID,
 	).Scan(&inbox)
 	folderCounts["__inbox__"] = inbox
 
@@ -1350,9 +1361,9 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 
 	// 1. Exact duplicates
 	rows, err := tdb.Query(fmt.Sprintf(
-		`SELECT %s FROM media WHERE is_trash = 0 AND hash IN (
-			SELECT hash FROM media WHERE is_trash = 0 GROUP BY hash HAVING COUNT(*) > 1
-		) ORDER BY hash ASC, created_at DESC`, selectCols))
+	`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE AND hash IN (
+			SELECT hash FROM media WHERE user_id = $1 AND is_trash = FALSE GROUP BY hash HAVING COUNT(*) > 1
+	) ORDER BY hash ASC, created_at DESC`, selectCols), userID)
 	if err != nil {
 		return nil, fmt.Errorf("query exact dupes: %w", err)
 	}
@@ -1364,10 +1375,10 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 		item, err := scanMediaItem(rows)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-		}
+	}
 		if _, ok := groupMap[item.Hash]; !ok {
 			hashOrder = append(hashOrder, item.Hash)
-		}
+	}
 		groupMap[item.Hash] = append(groupMap[item.Hash], *item)
 	}
 	if err := rows.Err(); err != nil {
@@ -1382,13 +1393,13 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 			Hash:            hash,
 			Items:           groupMap[hash],
 			IsNearDuplicate: false,
-		})
+	})
 		exactHashes[hash] = true
 	}
 
 	// 2. Near-duplicates via cosine similarity on embeddings
 	allRows, err := tdb.Query(fmt.Sprintf(
-		`SELECT %s FROM media WHERE is_trash = 0`, selectCols))
+	`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE`, selectCols), userID)
 	if err != nil {
 		return nil, fmt.Errorf("query all media: %w", err)
 	}
@@ -1396,71 +1407,71 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 
 	type embeddedItem struct {
 		item      MediaItem
-		embedding []float64
+	embedding []float64
 	}
 	var withEmb []embeddedItem
 	for allRows.Next() {
 		item, err := scanMediaItem(allRows)
 		if err != nil {
 			continue
-		}
+	}
 		if item.Metadata == nil {
 			continue
-		}
+	}
 		var meta struct {
 			Embedding []float64 `json:"embedding"`
-		}
+	}
 		if err := json.Unmarshal([]byte(*item.Metadata), &meta); err != nil {
 			continue
-		}
+	}
 		if len(meta.Embedding) > 0 {
 			withEmb = append(withEmb, embeddedItem{item: *item, embedding: meta.Embedding})
-		}
+	}
 	}
 
 	var nearGroups []DuplicateGroup
 	if len(withEmb) >= 2 {
 		if len(withEmb) > maxNearDuplicates {
 			log.Printf("Near-duplicate detection skipped: %d embedded items exceed limit of %d", len(withEmb), maxNearDuplicates)
-		} else {
+	} else {
 			visited := map[string]bool{}
 			for i := 0; i < len(withEmb); i++ {
-			a := withEmb[i]
-			if visited[a.item.ID] {
-				continue
-			}
-			cluster := []MediaItem{a.item}
-			for j := i + 1; j < len(withEmb); j++ {
-				b := withEmb[j]
-				if visited[b.item.ID] {
+				a := withEmb[i]
+				if visited[a.item.ID] {
 					continue
 				}
-				if cosineSim(a.embedding, b.embedding) >= nearDuplicateThreshold {
-					cluster = append(cluster, b.item)
-					visited[b.item.ID] = true
-				}
-			}
-			if len(cluster) > 1 {
-				visited[a.item.ID] = true
-				alreadyExact := false
-				for _, it := range cluster {
-					if exactHashes[it.Hash] {
-						alreadyExact = true
-						break
+				cluster := []MediaItem{a.item}
+				for j := i + 1; j < len(withEmb); j++ {
+					b := withEmb[j]
+					if visited[b.item.ID] {
+						continue
+					}
+					if cosineSim(a.embedding, b.embedding) >= nearDuplicateThreshold {
+						cluster = append(cluster, b.item)
+						visited[b.item.ID] = true
 					}
 				}
-				if !alreadyExact {
-					hash := a.item.Hash
-					nearGroups = append(nearGroups, DuplicateGroup{
-						ID:              fmt.Sprintf("near-%s-%d", hash[:min(8, len(hash))], len(nearGroups)),
-						Hash:            hash,
-						Items:           cluster,
-						IsNearDuplicate: true,
-					})
+				if len(cluster) > 1 {
+					visited[a.item.ID] = true
+					alreadyExact := false
+					for _, it := range cluster {
+						if exactHashes[it.Hash] {
+							alreadyExact = true
+							break
+						}
+					}
+					if !alreadyExact {
+						hash := a.item.Hash
+						nearGroups = append(nearGroups, DuplicateGroup{
+							ID:              fmt.Sprintf("near-%s-%d", hash[:min(8, len(hash))], len(nearGroups)),
+							Hash:            hash,
+							Items:           cluster,
+							IsNearDuplicate: true,
+						})
+					}
 				}
 			}
-		}
-		}
+	}
 	}
 
 	groups := append(exactGroups, nearGroups...)

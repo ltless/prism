@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const testState = vi.hoisted(() => ({ goFetchCalls: [] as { path: string; options: unknown }[] }));
+const testState = vi.hoisted(() => ({ goFetchCalls: [] as { path: string; options: unknown }[], _profile: null as string | null }));
 
 vi.mock('@/lib/api', () => ({
   goFetch: vi.fn((path: string, options?: unknown) => {

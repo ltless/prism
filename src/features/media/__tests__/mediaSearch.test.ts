@@ -28,7 +28,7 @@ function mockDb() {
 vi.mock('@/services/db/multitenant', () => ({
  getUserDb: vi.fn(async () => ({
  db: mockDb(),
- paths: { mediaDir: '/tmp/media', thumbDir: '/tmp/thumbs', dbPath: ':memory:' },
+ paths: { mediaDir: '/tmp/media', thumbDir: '/tmp/thumbs' },
  })),
 }));
 

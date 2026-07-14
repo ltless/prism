@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -40,29 +40,29 @@ type AuthResponse struct {
 }
 
 type userRow struct {
-	ID              string
-	Username        string
-	PasswordHash    string
-	Role            string
-	Image           sql.NullString
-	CoverImage      sql.NullString
-	HasCompletedSetup int
+	ID                string
+	Username          string
+	PasswordHash      string
+	Role              string
+	Image             sql.NullString
+	CoverImage        sql.NullString
+	HasCompletedSetup bool
 }
 
 type Service struct {
-	db           *sql.DB
-	jwt          *JWTManager
-	validate     *validator.Validate
-	inviteCode   string
+	db            *sql.DB
+	jwt           *JWTManager
+	validate      *validator.Validate
+	inviteCode    string
 	requireInvite bool
 }
 
 func NewService(db *sql.DB, jwt *JWTManager, inviteCode string, requireInvite bool) *Service {
 	return &Service{
-		db:           db,
-		jwt:          jwt,
-		validate:     validator.New(),
-		inviteCode:   inviteCode,
+		db:            db,
+		jwt:           jwt,
+	validate:      validator.New(),
+	inviteCode:    inviteCode,
 		requireInvite: requireInvite,
 	}
 }
@@ -74,7 +74,7 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 
 	var user userRow
 	err := s.db.QueryRow(
-		"SELECT id, username, password_hash, role FROM users WHERE username = ?",
+		"SELECT id, username, password_hash, role FROM users WHERE username = $1",
 		req.Username,
 	).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Role)
 
@@ -97,8 +97,8 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 	return &AuthResponse{
 		Token:    token,
 		UserID:   user.ID,
-		Username: user.Username,
-		Role:     user.Role,
+	Username: user.Username,
+	Role:     user.Role,
 	}, nil
 }
 
@@ -113,20 +113,20 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 	if s.requireInvite {
 		if req.InviteCode == "" {
 			return nil, ErrInviteRequired
-		}
+	}
 		if s.inviteCode == "" {
 			// No code configured but invite is required — reject everything.
 			return nil, ErrInviteInvalid
-		}
+	}
 		if subtle.ConstantTimeCompare([]byte(req.InviteCode), []byte(s.inviteCode)) != 1 {
 			return nil, ErrInviteInvalid
-		}
+	}
 	} else if s.inviteCode != "" {
-		// If RequireInvite is false but a code is set, still validate it
-		// when the user provides one (optional gate).
+	// If RequireInvite is false but a code is set, still validate it
+	// when the user provides one (optional gate).
 		if req.InviteCode != "" && subtle.ConstantTimeCompare([]byte(req.InviteCode), []byte(s.inviteCode)) != 1 {
 			return nil, ErrInviteInvalid
-		}
+	}
 	}
 
 	// Insert directly and rely on the UNIQUE constraint to detect duplicates,
@@ -138,14 +138,13 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 
 	id := uuid.New().String()
 	_, err = s.db.Exec(
-		"INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, 'user')",
+	"INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, 'user')",
 		id, req.Username, string(hash),
 	)
 	if err != nil {
-		// modernc.org/sqlite returns a UNIQUE constraint error; treat as taken.
 		if isUniqueConstraintErr(err) {
 			return nil, ErrUsernameTaken
-		}
+	}
 		return nil, fmt.Errorf("insert user: %w", err)
 	}
 
@@ -157,8 +156,8 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 	return &AuthResponse{
 		Token:    token,
 		UserID:   id,
-		Username: req.Username,
-		Role:     "user",
+	Username: req.Username,
+	Role:     "user",
 	}, nil
 }
 
@@ -170,13 +169,13 @@ type MeInfo struct {
 	Role              string
 	Image             sql.NullString
 	CoverImage        sql.NullString
-	HasCompletedSetup int
+	HasCompletedSetup bool
 }
 
 func (s *Service) Me(userID string) (*MeInfo, error) {
 	var user MeInfo
 	err := s.db.QueryRow(
-		"SELECT id, username, role, image, cover_image, has_completed_setup FROM users WHERE id = ?",
+	"SELECT id, username, role, image, cover_image, has_completed_setup FROM users WHERE id = $1",
 		userID,
 	).Scan(&user.ID, &user.Username, &user.Role, &user.Image, &user.CoverImage, &user.HasCompletedSetup)
 	if err == sql.ErrNoRows {
@@ -195,14 +194,14 @@ type ChangePasswordRequest struct {
 
 func (s *Service) ChangePassword(userID, oldPassword, newPassword string) error {
 	if err := s.validate.Struct(&ChangePasswordRequest{
-		OldPassword: oldPassword,
-		NewPassword: newPassword,
+	OldPassword: oldPassword,
+	NewPassword: newPassword,
 	}); err != nil {
 		return fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 
 	var hash string
-	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = ?", userID).Scan(&hash)
+	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = $1", userID).Scan(&hash)
 	if err == sql.ErrNoRows {
 		return ErrInvalidCredentials
 	}
@@ -219,15 +218,14 @@ func (s *Service) ChangePassword(userID, oldPassword, newPassword string) error 
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	_, err = s.db.Exec("UPDATE users SET password_hash = ? WHERE id = ?", string(newHash), userID)
+	_, err = s.db.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", string(newHash), userID)
 	return err
 }
 
 func isUniqueConstraintErr(err error) bool {
-	if err == nil {
-		return false
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505" // unique_violation
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "UNIQUE constraint failed") ||
-		strings.Contains(msg, "constraint failed: UNIQUE")
+	return false
 }

@@ -16,8 +16,8 @@ type FolderItem struct {
 	FolderType  string  `json:"folder_type"`
 	ParentID    *string `json:"parent_id"`
 	FilterQuery *string `json:"filter_query"`
-	CreatedAt   int64  `json:"created_at"`
-	UpdatedAt   int64  `json:"updated_at"`
+	CreatedAt   int64   `json:"created_at"`
+	UpdatedAt   int64   `json:"updated_at"`
 }
 
 type ListResponse struct {
@@ -38,7 +38,7 @@ func (s *Service) List(userID string) (*ListResponse, error) {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	rows, err := tdb.Query("SELECT id, name, color, folder_type, parent_id, filter_query, created_at, updated_at FROM folders ORDER BY name ASC")
+	rows, err := tdb.Query("SELECT id, name, color, folder_type, parent_id, filter_query, created_at, updated_at FROM folders WHERE user_id = $1 ORDER BY name ASC", userID)
 	if err != nil {
 		return nil, fmt.Errorf("query folders: %w", err)
 	}
@@ -88,8 +88,8 @@ func (s *Service) Create(userID, name, color, folderType, filterQuery string) (*
 	}
 
 	_, err = tdb.Exec(
-		"INSERT INTO folders (id, name, color, folder_type, filter_query, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		id, name, color, folderType, fq, now, now,
+		"INSERT INTO folders (id, user_id, name, color, folder_type, filter_query, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		id, userID, name, color, folderType, fq, now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert folder: %w", err)
@@ -113,7 +113,7 @@ func (s *Service) Update(userID, id, name string) error {
 	}
 
 	now := time.Now().Unix()
-	_, err = tdb.Exec("UPDATE folders SET name = ?, updated_at = ? WHERE id = ?", name, now, id)
+	_, err = tdb.Exec("UPDATE folders SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4", name, now, id, userID)
 	return err
 }
 
@@ -130,11 +130,11 @@ func (s *Service) Delete(userID, id string) error {
 	defer tx.Rollback()
 
 	now := time.Now().Unix()
-	if _, err := tx.Exec("UPDATE media SET folder_id = NULL, updated_at = ? WHERE folder_id = ?", now, id); err != nil {
+	if _, err := tx.Exec("UPDATE media SET folder_id = NULL, updated_at = $1 WHERE folder_id = $2 AND user_id = $3", now, id, userID); err != nil {
 		return fmt.Errorf("unlink media: %w", err)
 	}
 
-	if _, err := tx.Exec("DELETE FROM folders WHERE id = ?", id); err != nil {
+	if _, err := tx.Exec("DELETE FROM folders WHERE id = $1 AND user_id = $2", id, userID); err != nil {
 		return fmt.Errorf("delete folder: %w", err)
 	}
 

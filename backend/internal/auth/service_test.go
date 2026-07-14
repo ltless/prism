@@ -3,42 +3,15 @@ package auth
 import (
 	"database/sql"
 	"errors"
-	"os"
 	"testing"
 
-	_ "modernc.org/sqlite"
+	"github.com/ltless/prism/internal/dbtest"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	f := t.TempDir() + "/test.db"
-	db, err := sql.Open("sqlite", f)
-	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	t.Cleanup(func() { db.Close(); os.Remove(f) })
-
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		t.Fatalf("enable WAL: %v", err)
-	}
-	if _, err := db.Exec("PRAGMA foreign_keys=ON"); err != nil {
-		t.Fatalf("enable foreign keys: %v", err)
-	}
-
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS users (
-		id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE,
-		password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user',
-		image TEXT, cover_image TEXT, vault_pin TEXT,
-		storage_limit INTEGER, preferences TEXT,
-		has_completed_setup INTEGER NOT NULL DEFAULT 0,
-		created_at TEXT NOT NULL DEFAULT (datetime('now')),
-		updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-	)`)
-	if err != nil {
-		t.Fatalf("create users table: %v", err)
-	}
-	return db
+	return dbtest.NewDB(t)
 }
 
 func hashPassword(t *testing.T, pw string) string {
@@ -53,8 +26,8 @@ func hashPassword(t *testing.T, pw string) string {
 func TestService_Login_Valid(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
-	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-		"user-1", "testuser", pwh, "admin")
+	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+	"user-1", "testuser", pwh, "admin")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
@@ -79,8 +52,8 @@ func TestService_Login_Valid(t *testing.T) {
 func TestService_Login_WrongPassword(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
-	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-		"user-1", "testuser", pwh, "user")
+	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+	"user-1", "testuser", pwh, "user")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
@@ -131,8 +104,8 @@ func TestService_Register_Valid(t *testing.T) {
 func TestService_Register_DuplicateUsername(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
-	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-		"user-1", "existing", pwh, "user")
+	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+	"user-1", "existing", pwh, "user")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
@@ -151,8 +124,8 @@ func TestService_Register_DuplicateUsername(t *testing.T) {
 func TestService_Me_Valid(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
-	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-		"user-1", "testuser", pwh, "admin")
+	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+	"user-1", "testuser", pwh, "admin")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}

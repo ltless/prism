@@ -11,14 +11,13 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/db"
+	"github.com/ltless/prism/internal/dbtest"
 )
 
 func setupConfigHandler(t *testing.T) (*echo.Echo, *Handler, string) {
 	t.Helper()
-	gdb, err := db.NewGlobalDB(t.TempDir() + "/g.db")
-	if err != nil {
-		t.Fatalf("NewGlobalDB: %v", err)
-	}
+	sqlDB := dbtest.NewDB(t)
+	gdb := &db.GlobalDB{DB: sqlDB}
 	svc := NewService(gdb)
 	h := NewHandler(svc)
 

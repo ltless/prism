@@ -2,10 +2,11 @@ package users
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/ltless/prism/internal/db"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,29 +36,27 @@ func (s *Service) GetProfile(userID string) (*UserProfile, error) {
 	var profile UserProfile
 	var image, coverImage, preferences sql.NullString
 	var storageLimit sql.NullInt64
-	var hasCompleted int
 
 	err := s.global.DB.QueryRow(
-		"SELECT id, username, role, image, cover_image, has_completed_setup, storage_limit, preferences, created_at FROM users WHERE id = ?",
+	"SELECT id, username, role, image, cover_image, has_completed_setup, storage_limit, preferences, created_at FROM users WHERE id = $1",
 		userID,
-	).Scan(&profile.ID, &profile.Username, &profile.Role, &image, &coverImage, &hasCompleted, &storageLimit, &preferences, &profile.CreatedAt)
+	).Scan(&profile.ID, &profile.Username, &profile.Role, &image, &coverImage, &profile.HasCompletedSet, &storageLimit, &preferences, &profile.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("query user: %w", err)
 	}
 
 	if image.Valid {
-		profile.Image = &image.String
+	profile.Image = &image.String
 	}
 	if coverImage.Valid {
-		profile.CoverImage = &coverImage.String
+	profile.CoverImage = &coverImage.String
 	}
 	if storageLimit.Valid {
-		profile.StorageLimit = &storageLimit.Int64
+	profile.StorageLimit = &storageLimit.Int64
 	}
 	if preferences.Valid {
-		profile.Preferences = &preferences.String
+	profile.Preferences = &preferences.String
 	}
-	profile.HasCompletedSet = hasCompleted == 1
 
 	return &profile, nil
 }
@@ -72,30 +71,30 @@ func (s *Service) UpdateProfile(userID string, image, coverImage, preferences *s
 	defer tx.Rollback()
 
 	if image != nil {
-		if _, err := tx.Exec("UPDATE users SET image = ?, updated_at = ? WHERE id = ?", *image, now, userID); err != nil {
+		if _, err := tx.Exec("UPDATE users SET image = $1, updated_at = $2 WHERE id = $3", *image, now, userID); err != nil {
 			return fmt.Errorf("update image: %w", err)
-		}
+	}
 	}
 	if coverImage != nil {
-		if _, err := tx.Exec("UPDATE users SET cover_image = ?, updated_at = ? WHERE id = ?", *coverImage, now, userID); err != nil {
+		if _, err := tx.Exec("UPDATE users SET cover_image = $1, updated_at = $2 WHERE id = $3", *coverImage, now, userID); err != nil {
 			return fmt.Errorf("update cover_image: %w", err)
-		}
+	}
 	}
 	if preferences != nil {
-		if _, err := tx.Exec("UPDATE users SET preferences = ?, updated_at = ? WHERE id = ?", *preferences, now, userID); err != nil {
+		if _, err := tx.Exec("UPDATE users SET preferences = $1, updated_at = $2 WHERE id = $3", *preferences, now, userID); err != nil {
 			return fmt.Errorf("update preferences: %w", err)
-		}
+	}
 	}
 	return tx.Commit()
 }
 
 func (s *Service) UpdateStorageLimit(userID string, limit int64) error {
-	_, err := s.global.DB.Exec("UPDATE users SET storage_limit = ? WHERE id = ?", limit, userID)
+	_, err := s.global.DB.Exec("UPDATE users SET storage_limit = $1 WHERE id = $2", limit, userID)
 	return err
 }
 
 func (s *Service) MarkSetupComplete(userID string) error {
-	_, err := s.global.DB.Exec("UPDATE users SET has_completed_setup = 1 WHERE id = ?", userID)
+	_, err := s.global.DB.Exec("UPDATE users SET has_completed_setup = TRUE WHERE id = $1", userID)
 	return err
 }
 
@@ -104,13 +103,13 @@ func (s *Service) SetVaultPin(userID, pin string) error {
 	if err != nil {
 		return fmt.Errorf("hash pin: %w", err)
 	}
-	_, err = s.global.DB.Exec("UPDATE users SET vault_pin = ? WHERE id = ?", string(hash), userID)
+	_, err = s.global.DB.Exec("UPDATE users SET vault_pin = $1 WHERE id = $2", string(hash), userID)
 	return err
 }
 
 func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
 	var stored string
-	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = ?", userID).Scan(&stored)
+	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = $1", userID).Scan(&stored)
 	if err == sql.ErrNoRows {
 		return false, fmt.Errorf("user not found")
 	}
@@ -127,13 +126,13 @@ func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
 }
 
 func (s *Service) DisableVaultPin(userID string) error {
-	_, err := s.global.DB.Exec("UPDATE users SET vault_pin = NULL WHERE id = ?", userID)
+	_, err := s.global.DB.Exec("UPDATE users SET vault_pin = NULL WHERE id = $1", userID)
 	return err
 }
 
 func (s *Service) GetVaultPinStatus(userID string) (bool, error) {
 	var stored sql.NullString
-	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = ?", userID).Scan(&stored)
+	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = $1", userID).Scan(&stored)
 	if err == sql.ErrNoRows {
 		return false, fmt.Errorf("user not found")
 	}
@@ -147,20 +146,20 @@ func (s *Service) UpdateUsername(userID, newUsername string) error {
 	if len(newUsername) < 3 || len(newUsername) > 50 {
 		return fmt.Errorf("username must be 3-50 characters")
 	}
-	_, err := s.global.DB.Exec("UPDATE users SET username = ? WHERE id = ?", newUsername, userID)
+	_, err := s.global.DB.Exec("UPDATE users SET username = $1 WHERE id = $2", newUsername, userID)
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return fmt.Errorf("username already taken")
-		}
+	}
 		return fmt.Errorf("update username: %w", err)
 	}
 	return nil
 }
 
 type StorageUsageResult struct {
-	Total       int64 `json:"usage_bytes"`
-	ImageBytes  int64 `json:"image_bytes"`
-	VideoBytes  int64 `json:"video_bytes"`
+	Total      int64 `json:"usage_bytes"`
+	ImageBytes int64 `json:"image_bytes"`
+	VideoBytes int64 `json:"video_bytes"`
 }
 
 func (s *Service) GetStorageUsage(userID string) (*StorageUsageResult, error) {
@@ -174,7 +173,7 @@ func (s *Service) GetStorageUsage(userID string) (*StorageUsageResult, error) {
 			COALESCE(SUM(size), 0),
 			COALESCE(SUM(CASE WHEN mime_type LIKE 'image/%' THEN size ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN mime_type LIKE 'video/%' THEN size ELSE 0 END), 0)
-		FROM media`).Scan(&total, &img, &vid)
+		FROM media WHERE user_id = $1`, userID).Scan(&total, &img, &vid)
 	if err != nil {
 		return nil, fmt.Errorf("query storage usage: %w", err)
 	}
@@ -192,10 +191,9 @@ func (s *Service) GetStorageUsage(userID string) (*StorageUsageResult, error) {
 }
 
 func isUniqueConstraintErr(err error) bool {
-	if err == nil {
-		return false
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505" // unique_violation
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "UNIQUE constraint failed") ||
-		strings.Contains(msg, "constraint failed: UNIQUE")
+	return false
 }

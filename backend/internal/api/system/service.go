@@ -13,9 +13,9 @@ import (
 )
 
 type SystemStats struct {
-	CPU       int    `json:"cpu"`
-	RAM       int    `json:"ram"`
-	RAMText   string `json:"ramText"`
+	CPU     int    `json:"cpu"`
+	RAM     int    `json:"ram"`
+	RAMText string `json:"ramText"`
 }
 
 type LogEntry struct {
@@ -98,12 +98,14 @@ func (s *Service) Logs(userID, level string, page, limit int) (*LogResponse, err
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	where := []string{"1=1"}
-	args := []interface{}{}
+	where := []string{"user_id = $1"}
+	args := []interface{}{userID}
+	argIdx := 2
 
 	if level != "" {
-		where = append(where, "level = ?")
+		where = append(where, fmt.Sprintf("level = $%d", argIdx))
 		args = append(args, level)
+		argIdx++
 	}
 
 	whereClause := " WHERE " + strings.Join(where, " AND ")
@@ -123,7 +125,7 @@ func (s *Service) Logs(userID, level string, page, limit int) (*LogResponse, err
 	offset := (page - 1) * limit
 	queryArgs := append(args, limit, offset)
 
-	query := "SELECT id, level, message, meta, source, timestamp FROM error_logs" + whereClause + " ORDER BY id DESC LIMIT ? OFFSET ?"
+	query := fmt.Sprintf("SELECT id, level, message, meta, source, timestamp FROM error_logs%s ORDER BY id DESC LIMIT $%d OFFSET $%d", whereClause, argIdx, argIdx+1)
 	rows, err := tdb.Query(query, queryArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("query logs: %w", err)
@@ -159,8 +161,8 @@ func (s *Service) CreateLogEntry(userID, level, message string, source, meta *st
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 	_, err = tdb.Exec(
-		"INSERT INTO error_logs (level, message, meta, source, timestamp) VALUES (?, ?, ?, ?, ?)",
-		level, message, meta, source, timestamp,
+		"INSERT INTO error_logs (user_id, level, message, meta, source, timestamp) VALUES ($1, $2, $3, $4, $5, $6)",
+		userID, level, message, meta, source, timestamp,
 	)
 	return err
 }

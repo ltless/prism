@@ -1,1 +1,0 @@
-ALTER TABLE `users` ADD `has_completed_setup` integer DEFAULT false;

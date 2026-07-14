@@ -158,8 +158,8 @@ async function overwriteExisting(
       size: buffer.length,
       hash,
       mimeType,
-      metadata: { ...(item.metadata || {}), palette },
-      updatedAt: new Date(),
+      metadata: { ...((item.metadata as Record<string, unknown>) || {}), palette },
+      updatedAt: Date.now(),
     })
     .where(eq(media.id, mediaId));
 
@@ -196,6 +196,7 @@ async function saveAsCopy(
 
   await db.insert(media).values({
     id: newMediaId,
+    userId: item.userId,
     title: `Copy of ${item.title}`,
     filePath: filename,
     mimeType,
@@ -204,12 +205,12 @@ async function saveAsCopy(
     height,
     hash,
     capturedAt: item.capturedAt,
-    metadata: { ...(item.metadata || {}), palette },
+    metadata: { ...((item.metadata as Record<string, unknown>) || {}), palette },
     folderId: item.folderId,
     isVault: item.isVault,
     isTrash: item.isTrash,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   });
 
   return { mediaId: newMediaId, filePath: filename, created: true };

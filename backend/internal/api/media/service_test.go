@@ -3,51 +3,25 @@ package media
 import (
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/db"
-	_ "modernc.org/sqlite"
+	"github.com/ltless/prism/internal/dbtest"
 )
 
 func setupTenantDB(t *testing.T) *db.TenantPool {
 	t.Helper()
-	base := t.TempDir()
-	pool := db.NewTenantPool(base)
+	sqlDB := dbtest.NewDB(t)
 
-	// Manually create tenant DB for test-user
-	tdb, err := pool.Get("test-user")
+	// Insert a user for FK constraints
+	_, err := sqlDB.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+		"test-user", "testuser", "hash", "admin")
 	if err != nil {
-		t.Fatalf("get tenant db: %v", err)
+		t.Fatalf("insert test user: %v", err)
 	}
 
-	// Ensure tables exist (re-run CREATE TABLE for test freshness)
-	_, err = tdb.Exec(`CREATE TABLE IF NOT EXISTS folders (
-		id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT,
-		parent_id TEXT, created_at INTEGER, folder_type TEXT NOT NULL DEFAULT 'manual',
-		filter_query TEXT, FOREIGN KEY (parent_id) REFERENCES folders(id)
-	)`)
-	if err != nil {
-		t.Fatalf("create folders table: %v", err)
-	}
-	_, err = tdb.Exec(`CREATE TABLE IF NOT EXISTS media (
-		id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, file_path TEXT NOT NULL,
-		mime_type TEXT NOT NULL, size INTEGER NOT NULL, width INTEGER, height INTEGER,
-		hash TEXT NOT NULL, captured_at INTEGER, metadata TEXT, folder_id TEXT,
-		is_favorite INTEGER DEFAULT 0, is_trash INTEGER DEFAULT 0,
-		updated_at INTEGER, created_at INTEGER, duration INTEGER,
-		transcode_status TEXT, is_vault INTEGER DEFAULT 0,
-		FOREIGN KEY (folder_id) REFERENCES folders(id)
-	)`)
-	if err != nil {
-		t.Fatalf("create media table: %v", err)
-	}
-
-	t.Cleanup(func() {
-		os.RemoveAll(base)
-	})
-	return pool
+	return db.NewTenantPool(sqlDB)
 }
 
 func intPtr(v int) *int { return &v }
@@ -126,8 +100,8 @@ func TestService_List_WithTrashFilter(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Update to trash
-	err = svc.Update("test-user", item.ID, map[string]interface{}{"is_trash": 1})
+	// Update to trash — PG boolean uses true/false
+	err = svc.Update("test-user", item.ID, map[string]interface{}{"is_trash": true})
 	if err != nil {
 		t.Fatalf("Update to trash: %v", err)
 	}
@@ -235,12 +209,16 @@ func TestService_BulkMove(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, stubActive{true})
 
-	// Create a folder first
+	// Create a folder first — PG needs user_id
 	tdb, err := pool.Get("test-user")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
-	tdb.Exec("INSERT INTO folders (id, name, created_at) VALUES (?, ?, 1000)", "folder-1", "Test Folder")
+	_, err = tdb.Exec("INSERT INTO folders (id, user_id, name, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)",
+		"folder-1", "test-user", "Test Folder", 1000, 1000)
+	if err != nil {
+		t.Fatalf("insert folder: %v", err)
+	}
 
 	a, _, _ := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
 	b, _, _ := svc.Create("test-user", "", "b.jpg", "B", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)

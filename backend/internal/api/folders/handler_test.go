@@ -1,20 +1,19 @@
 package folders
 
 import (
-	"database/sql"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/db"
-	_ "modernc.org/sqlite"
+	"github.com/ltless/prism/internal/dbtest"
 )
 
 func TestFolderHandler_List_Unauthorized(t *testing.T) {
-	pool := db.NewTenantPool(t.TempDir())
+	sqlDB := dbtest.NewDB(t)
+	pool := db.NewTenantPool(sqlDB)
 	svc := NewService(pool)
 	h := NewHandler(svc)
 
@@ -31,7 +30,8 @@ func TestFolderHandler_List_Unauthorized(t *testing.T) {
 }
 
 func TestFolderHandler_Create_Unauthorized(t *testing.T) {
-	pool := db.NewTenantPool(t.TempDir())
+	sqlDB := dbtest.NewDB(t)
+	pool := db.NewTenantPool(sqlDB)
 	svc := NewService(pool)
 	h := NewHandler(svc)
 
@@ -48,21 +48,15 @@ func TestFolderHandler_Create_Unauthorized(t *testing.T) {
 }
 
 func TestFolderHandler_List_WithAuth(t *testing.T) {
-	base := t.TempDir()
-	pool := db.NewTenantPool(base)
+	sqlDB := dbtest.NewDB(t)
+	pool := db.NewTenantPool(sqlDB)
 
-	// Manually create the tenant DB with correct schema
-	os.MkdirAll(base+"/user-1", 0755)
-	raw, err := sql.Open("sqlite", base+"/user-1/prism.db")
+	// Insert user for FK
+	_, err := sqlDB.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+		"user-1", "testuser", "hash", "admin")
 	if err != nil {
-		t.Fatalf("open db: %v", err)
+		t.Fatalf("insert user: %v", err)
 	}
-	raw.Exec(`CREATE TABLE IF NOT EXISTS folders (
-		id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT,
-		parent_id TEXT, created_at INTEGER, updated_at INTEGER,
-		folder_type TEXT NOT NULL DEFAULT 'manual', filter_query TEXT
-	)`)
-	raw.Close()
 
 	svc := NewService(pool)
 	h := NewHandler(svc)

@@ -5,27 +5,23 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/db"
+	"github.com/ltless/prism/internal/dbtest"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func setupUsersHandlerDB(t *testing.T) *db.GlobalDB {
 	t.Helper()
-	p := t.TempDir() + "/global.db"
-	gdb, err := db.NewGlobalDB(p)
-	if err != nil {
-		t.Fatalf("NewGlobalDB: %v", err)
-	}
-	t.Cleanup(func() { gdb.Close(); os.Remove(p) })
+	sqlDB := dbtest.NewDB(t)
+	gdb := &db.GlobalDB{DB: sqlDB}
 	h, _ := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
-	_, err = gdb.Exec("INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-		"user-1", "testuser", string(h), "admin")
+	_, err := gdb.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+	"user-1", "testuser", string(h), "admin")
 	if err != nil {
 		t.Fatalf("insert test user: %v", err)
 	}
@@ -105,7 +101,7 @@ func TestUsersHandler_UpdateProfile_Unauthorized(t *testing.T) {
 func TestUsersHandler_UpdateStorageLimit(t *testing.T) {
 	e, h, token := setupUsersHandler(t)
 	e.PUT("/api/v1/users/me/storage-limit", h.UpdateStorageLimit)
-	rec := usrReq(e, "PUT", "/api/v1/users/me/storage-limit", token, `{"limit":1000000000}`)
+	rec := usrReq(e, "PUT", "/api/v1/users/me/storage-limit", token, `{"limit":1000000}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}

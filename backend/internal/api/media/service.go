@@ -856,7 +856,7 @@ func (s *Service) BatchTag(userID, mediaDir string) (*BatchTagResult, error) {
 		metaBytes, _ := json.Marshal(oldMeta)
 
 		tdb.Exec("UPDATE media SET metadata = $1, updated_at = $2 WHERE user_id = $3 AND id = $4",
-			string(metaBytes), time.Now().Unix(), userID, r.ID)
+			sanitizeMetadata(string(metaBytes)), time.Now().Unix(), userID, r.ID)
 	}
 
 	tagMediaIDs := make([]string, 0, len(resp.Results))
@@ -990,7 +990,7 @@ func (s *Service) BatchScore(userID, mediaDir string) (*BatchScoreResult, error)
 		metaBytes, _ := json.Marshal(oldMeta)
 
 		tdb.Exec("UPDATE media SET metadata = $1, updated_at = $2 WHERE user_id = $3 AND id = $4",
-			string(metaBytes), time.Now().Unix(), userID, r.ID)
+			sanitizeMetadata(string(metaBytes)), time.Now().Unix(), userID, r.ID)
 	}
 
 	var remaining int

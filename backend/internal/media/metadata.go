@@ -353,14 +353,18 @@ func parseGPSIFD(data []byte, bo binary.ByteOrder, offset int, exif map[string]i
 
 		switch tag {
 		case 0x0001:
-			latRef = readEXIFValue(data, bo, typ, valOffset).(string)
+			if v, ok := readEXIFValue(data, bo, typ, valOffset).(string); ok {
+				latRef = v
+			}
 		case 0x0002:
 			if v, ok := readGPSRationals(data, bo, typ, valOffset); ok {
 				latRational = v
 				hasLat = true
 			}
 		case 0x0003:
-			lngRef = readEXIFValue(data, bo, typ, valOffset).(string)
+			if v, ok := readEXIFValue(data, bo, typ, valOffset).(string); ok {
+				lngRef = v
+			}
 		case 0x0004:
 			if v, ok := readGPSRationals(data, bo, typ, valOffset); ok {
 				lngRational = v

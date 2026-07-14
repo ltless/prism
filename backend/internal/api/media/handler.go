@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,17 @@ import (
 	"github.com/ltless/prism/internal/auth"
 	mw "github.com/ltless/prism/internal/media"
 )
+
+// controlCharRe matches all ASCII control characters (0x00-0x1F) and DEL (0x7F).
+// PostgreSQL JSONB rejects these, so we strip them from metadata JSON before insert.
+var controlCharRe = regexp.MustCompile(`[\x00-\x1f\x7f]`)
+
+// sanitizeMetadata strips control characters from a JSON string so it can be
+// safely stored in a PostgreSQL JSONB column. Some phone cameras (notably
+// INFINIX) embed raw binary garbage in EXIF makernote fields.
+func sanitizeMetadata(s string) string {
+	return controlCharRe.ReplaceAllString(s, "")
+}
 
 const maxUploadSize = 200 << 20 // 200MB
 
@@ -159,7 +171,7 @@ func (h *Handler) Upload(c echo.Context) error {
 					meta.ExifData["palette"] = meta.Palette
 				}
 				if b, err := json.Marshal(meta.ExifData); err == nil {
-					s := string(b)
+					s := sanitizeMetadata(string(b))
 					metadataJSON = &s
 				}
 			}
@@ -180,7 +192,7 @@ func (h *Handler) Upload(c echo.Context) error {
 					"height": meta.Height,
 				}
 				if b, err := json.Marshal(md); err == nil {
-					s := string(b)
+					s := sanitizeMetadata(string(b))
 					metadataJSON = &s
 				}
 			}

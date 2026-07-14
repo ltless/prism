@@ -16,6 +16,7 @@ import sqlite3
 import os
 import sys
 import json
+import re
 
 PG_CONN = os.environ.get("DATABASE_URL", "postgresql://prism:prism_dev_2024@localhost:5432/prism")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -148,10 +149,11 @@ def migrate():
             for m in media:
                 if DRY_RUN:
                     continue
-                # Sanitize metadata: remove null bytes that PG JSONB rejects
+                # Sanitize metadata: remove control characters that PG JSONB rejects
                 metadata = m["metadata"]
                 if metadata:
-                    metadata = metadata.replace("\\u0000", "").replace("\x00", "")
+                    metadata = re.sub(r'[\x00-\x1f]', '', metadata)
+                    metadata = metadata.replace('\\u0000', '')
                 cur.execute("""
                     INSERT INTO media (id, user_id, title, file_path, mime_type, size,
                       width, height, hash, captured_at, metadata, folder_id,

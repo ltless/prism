@@ -41,8 +41,16 @@ function toDateValue(v: unknown): Date | null {
 }
 
 export function mapMedia(m: GoMedia): MediaItem {
+  const raw = m as Record<string, unknown>;
+  let metadata: MediaItem['metadata'];
+  if (typeof raw.metadata === 'string') {
+    try { metadata = JSON.parse(raw.metadata); } catch { metadata = undefined; }
+  } else if (raw.metadata && typeof raw.metadata === 'object') {
+    metadata = raw.metadata as MediaItem['metadata'];
+  }
   return {
-    ...(m as unknown as MediaItem),
+    ...(raw as unknown as MediaItem),
+    metadata,
     createdAt: toDateValue(m.createdAt),
     capturedAt: toDateValue(m.capturedAt),
     updatedAt: toDateValue(m.updatedAt),

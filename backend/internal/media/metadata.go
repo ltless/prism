@@ -434,12 +434,22 @@ func readEXIFValue(data []byte, bo binary.ByteOrder, typ uint16, offset int) int
 				if end > len(data) {
 					end = len(data)
 				}
-				s := string(bytes.TrimRight(data[ptr:end], "\x00"))
-				return s
+				// EXIF ASCII strings are null-terminated. Stop at the first
+				// null byte instead of reading the full count — some cameras
+				// (INFINIX, OPPO) set count larger than the actual string,
+				// causing adjacent EXIF fields and binary garbage to leak in.
+				raw := data[ptr:end]
+				if idx := bytes.IndexByte(raw, 0); idx >= 0 {
+					raw = raw[:idx]
+				}
+				return string(raw)
 			}
-			s := string(bytes.TrimRight(data[offset:offset+int(count)], "\x00"))
-			return s
-		}
+			raw := data[offset : offset+int(count)]
+			if idx := bytes.IndexByte(raw, 0); idx >= 0 {
+				raw = raw[:idx]
+			}
+			return string(raw)
+	}
 	case 3:
 		return int(bo.Uint16(data[offset : offset+2]))
 	case 4, 9:

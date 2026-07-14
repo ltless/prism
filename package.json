@@ -22,6 +22,7 @@
     "test:watch": "vitest",
     "setup:ffmpeg": "node scripts/setup-ffmpeg.js",
     "setup:env": "node scripts/setup-env.js",
+    "setup": "node scripts/setup.js",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts"
   },
   "dependencies": {

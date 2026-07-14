@@ -1,0 +1,327 @@
+#!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
+
+/**
+ * prism one-shot setup wizard.
+ *
+ *   pnpm setup
+ *
+ * does everything:
+ *   1. generate JWT secrets -> .env.local + backend/.env
+ *   2. start postgres in docker
+ *   3. push drizzle schema to postgres
+ *   4. create admin user in the database
+ *   5. print "run pnpm dev"
+ *
+ * idempotent: if .env files already have real secrets, keeps them.
+ * if postgres is already running, skips docker. if admin user exists, skips.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { execSync, spawnSync } = require('child_process');
+const readline = require('readline');
+
+const ROOT = path.resolve(__dirname, '..');
+const CY = '\x1b[36m', GR = '\x1b[32m', YL = '\x1b[33m', RD = '\x1b[31m', BOLD = '\x1b[1m', RS = '\x1b[0m';
+
+// ─── helpers ────────────────
+
+function banner() {
+  console.log('');
+  console.log(`${CY}${BOLD}  ██████╗ ██╗██████╗ ███████╗██╗███████╗██╗  ██╗${RS}`);
+  console.log(`${CY}${BOLD}  ██╔══██╗██║██╔══██╗██╔══╝██║██╔══╝██║  ██║${RS}`);
+  console.log(`${CY}${BOLD}  ██████╔╝██║██████╔╝███████╗██║███████╗███████║${RS}`);
+  console.log(`${CY}${BOLD}  ██╔═══╝ ██║██╔══██╗██╔══╝██║╚══██║██╔══██║${RS}`);
+  console.log(`${CY}${BOLD}  ██║     ██║██║  ██║███████╗██║███████║██║  ██║${RS}`);
+  console.log(`${CY}${BOLD} ╚═╝     ╚═╝╚═╝ ╚═╝╚══╝╚═╝╚══╝╚═╝ ╚═╝${RS}`);
+  console.log('');
+  console.log(`${CY}  one-shot setup. answer a few questions, get a working app.${RS}`);
+  console.log('');
+}
+
+function step(n, msg) {
+  console.log(`\n${CY}[${n}]${RS} ${BOLD}${msg}${RS}`);
+}
+
+function ok(msg) { console.log(`  ${GR}✓${RS} ${msg}`); }
+function warn(msg) { console.log(`  ${YL}!${RS} ${msg}`); }
+function err(msg) { console.log(`  ${RD}✗${RS} ${msg}`); }
+
+function genSecret(len = 64) {
+  return crypto.randomBytes(48).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, len);
+}
+
+function isPlaceholder(value) {
+  return /^replace-with/i.test(value.trim());
+}
+
+function fillPlaceholders(content, secretFor) {
+  return content.split('\n').map((line) => {
+    const m = line.match(/^([A-Z_]+)=(.*)$/);
+    if (!m) return line;
+    if (!isPlaceholder(m[2])) return line;
+    const secret = secretFor(m[1]);
+    return secret ? `${m[1]}=${secret}` : line;
+  }).join('\n');
+}
+
+function ensureEnvFile(target, template, secretFor, label) {
+  const tplPath = path.join(ROOT, template);
+  const tgtPath = path.join(ROOT, target);
+  if (!fs.existsSync(tplPath)) {
+    err(`template missing: ${template}`);
+    return;
+  }
+  if (fs.existsSync(tgtPath)) {
+    const existing = fs.readFileSync(tgtPath, 'utf8');
+    const filled = fillPlaceholders(existing, secretFor);
+    if (filled !== existing) {
+      fs.writeFileSync(tgtPath, filled);
+      ok(`updated ${label} (${target})`);
+    } else {
+      ok(`${label} already configured (${target})`);
+    }
+    return;
+  }
+  const content = fs.readFileSync(tplPath, 'utf8');
+  fs.writeFileSync(tgtPath, fillPlaceholders(content, secretFor));
+  ok(`created ${label} (${target})`);
+}
+
+function ensureBackendEnv(jwtSecret) {
+  const envPath = path.join(ROOT, 'backend/.env');
+  const defaultContent = [
+    `JWT_SECRET=${jwtSecret}`,
+    `REQUIRE_INVITE=false`,
+    `SIDECAR_URL=http://127.0.0.1:8081`,
+    ``,
+    `# PostgreSQL (Docker)`,
+    `DATABASE_URL=postgresql://prism:prism_dev_2024@localhost:5432/prism`,
+    ``,
+  ].join('\n');
+
+  if (!fs.existsSync(envPath)) {
+    fs.writeFileSync(envPath, defaultContent);
+    ok('created backend/.env');
+  } else {
+    const existing = fs.readFileSync(envPath, 'utf8');
+    // check if JWT_SECRET is missing or placeholder
+    if (!/^JWT_SECRET=.+/m.test(existing) || isPlaceholder(existing.match(/^JWT_SECRET=(.*)$/m)?.[1] || '')) {
+      const updated = existing.replace(/^JWT_SECRET=.*$/m, `JWT_SECRET=${jwtSecret}`);
+      fs.writeFileSync(envPath, updated);
+      ok('updated backend/.env (JWT_SECRET was missing/placeholder)');
+    } else {
+      ok('backend/.env already configured');
+    }
+    // ensure DATABASE_URL exists
+    if (!/^DATABASE_URL=/m.test(existing)) {
+      fs.appendFileSync(envPath, `\n# PostgreSQL (Docker)\nDATABASE_URL=postgresql://prism:prism_dev_2024@localhost:5432/prism\n`);
+      ok('added DATABASE_URL to backend/.env');
+    }
+  }
+}
+
+function readPipedLines() {
+  return new Promise((resolve) => {
+    const lines = [];
+    let buf = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => { buf += chunk; });
+    process.stdin.on('end', () => {
+      resolve(buf.split('\n').map(l => l.replace(/\r$/, '')));
+    });
+  });
+}
+
+function ask(rl, question, defaultValue) {
+  const hint = defaultValue ? ` ${YL}(${defaultValue})${RS}` : '';
+  return new Promise((resolve) => {
+    rl.question(`  ${question}${hint}: `, (answer) => {
+      resolve(answer.trim() || defaultValue || '');
+    });
+  });
+}
+
+function askPassword(rl) {
+  return new Promise((resolve) => {
+    rl.question('  admin password (min 8 chars): ', (answer) => {
+      resolve(answer.trim());
+    });
+  });
+}
+
+function exec(cmd, opts = {}) {
+  try {
+    return execSync(cmd, { stdio: opts.silent ? 'pipe' : 'inherit', cwd: ROOT, ...opts });
+  } catch {
+    return null;
+  }
+}
+
+function dockerRunning() {
+  const result = spawnSync('docker', ['inspect', 'prism-postgres'], { stdio: 'pipe' });
+  return result.status === 0;
+}
+
+function pgQuery(sql) {
+  const result = spawnSync('docker', [
+    'exec', 'prism-postgres',
+    'psql', '-U', 'prism', '-d', 'prism', '-t', '-A', '-c', sql,
+  ], { stdio: 'pipe', encoding: 'utf8' });
+  return result.stdout?.trim() || '';
+}
+
+function pgExec(sql) {
+  const result = spawnSync('docker', [
+    'exec', 'prism-postgres',
+    'psql', '-U', 'prism', '-d', 'prism', '-c', sql,
+  ], { stdio: 'pipe', encoding: 'utf8' });
+  return result.status === 0;
+}
+
+// ─── main ───────────
+
+async function main() {
+  banner();
+
+  // ─ 1. ask for admin credentials ──────────
+  step('1/5', 'admin user setup');
+
+  let username, password;
+
+  if (!process.stdin.isTTY) {
+    // piped input: read all lines
+    const lines = await readPipedLines();
+    username = (lines[0] || '').trim() || 'admin';
+    password = (lines[1] || '').trim();
+    console.log(`  admin username: ${username}`);
+    console.log(`  admin password: ${'*'.repeat(password.length)}`);
+  } else {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    username = await ask(rl, 'admin username', 'admin');
+    if (username.length < 3) {
+      err('username must be at least 3 characters');
+      process.exit(1);
+    }
+    while (true) {
+      password = await askPassword(rl);
+      if (password.length >= 8) break;
+      err('password must be at least 8 characters. try again.');
+    }
+    rl.close();
+  }
+
+  if (username.length < 3) {
+    err('username must be at least 3 characters');
+    process.exit(1);
+  }
+  if (password.length < 8) {
+    err('password must be at least 8 characters');
+    process.exit(1);
+  }
+
+  // ─ 2. generate env files ─────────
+  step('2/5', 'generating env files (JWT secrets, DATABASE_URL)');
+
+  const authSecret = genSecret(64);
+  const jwtSecret = genSecret(64);
+
+  ensureEnvFile('.env.local', '.env.example', (key) => {
+    if (key === 'AUTH_SECRET') return authSecret;
+    if (key === 'JWT_SECRET') return jwtSecret;
+    return null;
+  }, 'frontend');
+
+  ensureBackendEnv(jwtSecret);
+
+  ok('JWT_SECRET matches across frontend + backend');
+
+  // ─ 3. start postgres ─────────────
+  step('3/5', 'starting postgres (docker compose)');
+
+  if (dockerRunning()) {
+    ok('prism-postgres already running');
+  } else {
+    const result = exec('docker compose up -d');
+    if (result === null) {
+      err('docker compose failed. is docker installed and running?');
+      process.exit(1);
+    }
+    // wait for postgres to be ready
+    process.stdout.write('  waiting for postgres to be ready');
+    let ready = false;
+    for (let i = 0; i < 30; i++) {
+      process.stdout.write('.');
+      const r = spawnSync('docker', ['exec', 'prism-postgres', 'pg_isready', '-U', 'prism', '-d', 'prism'], { stdio: 'pipe' });
+      if (r.status === 0) { ready = true; break; }
+      execSync('sleep 1');
+    }
+    console.log(ready ? ` ${GR}ready${RS}` : ` ${RD}timeout${RS}`);
+    if (!ready) {
+      err('postgres did not become ready in 30 seconds');
+      process.exit(1);
+    }
+  }
+
+  // ─ 4. push schema ────────────────
+  step('4/5', 'pushing database schema (drizzle-kit push)');
+
+  // check if schema already exists (users table)
+  const tableExists = pgQuery("SELECT to_regclass('public.users')");
+  if (tableExists && tableExists !== '') {
+    ok('schema already exists (users table found)');
+  } else {
+    // fresh database — push schema. --force auto-approves since there's no data to lose
+    const schemaResult = exec('npx drizzle-kit push --force');
+    if (schemaResult === null) {
+      err('drizzle-kit push failed. check your DATABASE_URL in .env.local');
+      process.exit(1);
+    }
+    ok('schema pushed');
+  }
+
+  // ─ 5. create admin user ──────────
+  step('5/5', `creating admin user "${username}"`);
+
+  // check if user already exists
+  const existing = pgQuery(`SELECT id FROM users WHERE username = '${username.replace(/'/g, "''")}'`);
+  if (existing) {
+    // promote to admin if exists
+    pgExec(`UPDATE users SET role = 'admin' WHERE username = '${username.replace(/'/g, "''")}'`);
+    ok(`user "${username}" already exists — promoted to admin`);
+  } else {
+    // generate bcrypt hash — use the node bcryptjs that's already a dependency
+    const bcryptjs = require('bcryptjs');
+    const hash = bcryptjs.hashSync(password, 10);
+    const userId = crypto.randomUUID();
+    const escapedHash = hash.replace(/'/g, "''");
+    const sql = `INSERT INTO users (id, username, password_hash, role, has_completed_setup, created_at, updated_at) VALUES ('${userId}', '${username.replace(/'/g, "''")}', '${escapedHash}', 'admin', true, NOW(), NOW())`;
+    if (pgExec(sql)) {
+      ok(`admin user "${username}" created`);
+    } else {
+      err('failed to create admin user. you can do it manually:');
+      console.log(`  docker exec prism-postgres psql -U prism -d prism -c "INSERT INTO users (id, username, password_hash, role, has_completed_setup, created_at, updated_at) VALUES (gen_random_uuid(), '${username}', '<bcrypt-hash>', 'admin', true, NOW(), NOW())"`);
+      process.exit(1);
+    }
+  }
+
+  // ─ done ──────────
+  console.log('');
+  console.log(`${GR}${BOLD}  ✓ setup complete.${RS}`);
+  console.log('');
+  console.log(`  ${CY}admin user:${RS}  ${username}`);
+  console.log(`  ${CY}database:${RS}     postgresql://prism:prism_dev_2024@localhost:5432/prism`);
+  console.log('');
+  console.log(`  ${BOLD}next step:${RS} ${CY}pnpm dev${RS}`);
+  console.log(`  then open http://localhost:3000 and log in.`);
+  console.log('');
+  console.log(`  ${YL}to download AI models:${RS} Settings -> AI -> Download`);
+  console.log('');
+}
+
+main().catch((e) => {
+  err(e.message);
+  process.exit(1);
+});

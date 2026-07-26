@@ -539,6 +539,21 @@ func (h *Handler) Search(c echo.Context) error {
 		params.Tags = strings.Split(tagsParam, ",")
 	}
 
+	if mimeParam := c.QueryParam("mime_type"); mimeParam != "" {
+		params.MimeType = &mimeParam
+	}
+
+	if df := c.QueryParam("date_from"); df != "" {
+		if v, err := strconv.ParseInt(df, 10, 64); err == nil {
+			params.DateFrom = &v
+		}
+	}
+	if dt := c.QueryParam("date_to"); dt != "" {
+		if v, err := strconv.ParseInt(dt, 10, 64); err == nil {
+			params.DateTo = &v
+		}
+	}
+
 	resp, err := h.svc.Search(claims.UserID, params)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")

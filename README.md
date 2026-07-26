@@ -11,13 +11,13 @@ local-first photo library. no cloud. no sync. no venture capital. no adult super
                         │   App Router)    │         │   pgx + EXIF)   │
                         └────────┬─────────┘         └────────┬────────┘
                                  │                            │
-                                 │   Drizzle (PostgreSQL)      │
+                                 │   goFetch (JSON)           │
                                  │                            │
                                  ▼                            ▼
                     storage/users/{id}/ + PostgreSQL :5432
 ```
 
-two processes. one database (shared, like a bathroom at a gas station). we used to have three processes and two AI engines doing the same job in different languages, because at 2am that felt like a good idea. then we deleted all of it. we used to have one sqlite file per user but we grew up and got a real database. well, postgres. close enough.
+two processes. one database (shared, like a bathroom at a gas station). the Next.js frontend is a pure UI layer — all database queries go through the Go backend via `goFetch`. we used to have Drizzle ORM on the Node side but we deleted it because maintaining the same schema in two languages is a special kind of suffering.
 
 ---
 
@@ -90,7 +90,6 @@ cd prism
 pnpm install
 pnpm setup:env                          # generate JWT secrets
 docker compose up -d                    # start postgres
-npx drizzle-kit push                    # push schema
 pnpm dev                                # run the thing
 ```
 
@@ -130,7 +129,6 @@ pnpm test:watch         # watch mode, for the anxious
 pnpm test:e2e           # playwright. because unit tests aren't enough anxiety.
 cd backend && go test -p 1 ./...   # Go tests (serial, because they share a test DB)
 pnpm lint               # eslint. it's clean. i'm as surprised as you are.
-npx drizzle-kit push    # schema sync to postgres. don't ask what happens if you forget.
 docker compose up -d    # start postgres. you need this. i'm not explaining why.
 docker compose down      # stop postgres. gentle.
 pnpm setup:env          # regenerate env (idempotent, like hitting yourself with a hammer is idempotent)
@@ -160,30 +158,24 @@ backend/internal/
 
 src/           Next.js 16 App Router
   app/         /login, /register, /setup, /dashboard, /trash, /vault, /duplicates, /editor
-               /api/media/* (Go-style handlers)
   features/    media, onboarding, profile, settings
-  services/    db (PostgreSQL via node-postgres + drizzle), video (queue + transcode)
-  auth.ts      NextAuth v5 + Go JWT dual verification
-               (two auth systems, one app, no regrets)
+  lib/         api (goFetch → Go backend), auth context
+  auth.ts      Server-side session via cookie → Go /auth/me
 ```
 
 ### database
 
 **PostgreSQL 16** (in a Docker container, port 5432). one database, all users, all data. tables: `users`, `app_settings`, `folders`, `media`, `error_logs`, `transcode_queue`. `user_id` columns on all tenant tables. foreign key constraints enforced. this is what a real database looks like.
 
-Drizzle ORM handles the Node.js side (`drizzle-orm/node-postgres` + `pg.Pool`). Go uses `pgx/v5/stdlib` via `database/sql`. both point at the same `DATABASE_URL`. the schema is defined in `src/services/db/schema.ts` (Drizzle) and `backend/internal/db/migrations/postgres.sql` (Go). they agree on the end state.
+the Go backend owns all database access via `pgx/v5/stdlib` + `database/sql`. the Next.js frontend talks to Go via `goFetch` (JSON over HTTP on localhost). no direct DB connection from Node.js — we learned our lesson about maintaining schemas in two languages.
 
-the test database (`prism_test`) is a separate database on the same postgres instance. Go tests share it and run serially (`-p 1`). frontend integration tests also use it and run with `fileParallelism: false`. this is fine.
+the test database (`prism_test`) is a separate database on the same postgres instance. Go tests share it and run serially (`-p 1`). this is fine.
 
 ### auth
 
-two auth systems. yes, two. no regrets.
-
-**Next.js side (NextAuth v5 beta):** NextAuth manages sessions, CSRF tokens, and the standard cookie dance. it also verifies Go-issued JWTs so the two systems can share an auth state without a shared session store.
-
 **Go side:** Go issues JWTs (HMAC-SHA256, issuer `"prism"`, subject = user ID). JWTs are set as HttpOnly cookies with `SameSite=Lax`. token expiration is 7 days by default. no refresh tokens yet — users just re-login. this is fine for a personal tool.
 
-**why two?** because at some point someone said "i can write a better auth system in Go" and then committed 3 files, and then it was easier to keep both than to remove one. the JWT secret MUST match in `.env.local` (Next.js) and `backend/.env` (Go). `pnpm setup:env` generates one and writes it to both places, so you probably never have to think about this. until you hand-edit one file. then everything breaks subtly for 45 minutes.
+**Next.js side:** `auth.ts` reads the `auth_token` cookie and calls Go's `/auth/me` to validate the session. no separate auth library — just a cookie + an API call. simple. boring. works.
 
 ### file serving
 
@@ -222,7 +214,7 @@ not modeled: a state-level adversary with infinite resources. a compromised serv
 
 ### tenant isolation
 
-all tenant tables (`media`, `folders`) have `user_id` columns with foreign key constraints to `users(id)`. every Go query is scoped with `WHERE user_id = $1`. drizzle queries on the Node side are similarly scoped. a bug in a query could theoretically leak data across users, but the FK constraints prevent orphaned rows and the application layer enforces the boundary. this is less isolated than per-user sqlite files (where a bug literally cannot reach another user's data because it's a different file), but it's what grown-up databases do and we're doing grown-up database things now.
+all tenant tables (`media`, `folders`) have `user_id` columns with foreign key constraints to `users(id)`. every Go query is scoped with `WHERE user_id = $1`. a bug in a query could theoretically leak data across users, but the FK constraints prevent orphaned rows and the application layer enforces the boundary. this is less isolated than per-user sqlite files (where a bug literally cannot reach another user's data because it's a different file), but it's what grown-up databases do and we're doing grown-up database things now.
 
 ### path traversal guards
 
@@ -414,7 +406,6 @@ run this via cron. restore is the reverse (minus the direction). it's a real bac
 
 1. **JWT secret mismatch.** one file was hand-edited. everything fails subtly. always check this first.
 2. **postgres connection refused.** docker compose isn't running. or port 5432 is taken by a native postgres you forgot about.
-3. **"column does not exist" after schema change.** you changed the drizzle schema but didn't `npx drizzle-kit push`. the database doesn't know about your new column.
 
 ---
 
@@ -423,8 +414,6 @@ run this via cron. restore is the reverse (minus the direction). it's a real bac
 **502 errors** — one of the processes died. check which one. `pnpm dev` runs both; if one crashes the other keeps going like nothing happened. check the terminal output.
 
 **postgres connection refused** — did you `docker compose up -d`? no? then there's no database. what did you expect. also check that port 5432 isn't already taken by a native postgres install you forgot about. `lsof -i :5432` is your friend.
-
-**"column does not exist" after schema change** — you changed the drizzle schema but didn't `npx drizzle-kit push`. the database doesn't know about your new column. push the schema. it's like syncing your phone but for databases.
 
 **upload fails with 500 / "unsupported Unicode escape sequence"** — EXIF metadata from your phone camera contains control characters that PostgreSQL JSONB rejects. this should be handled automatically by the sanitizer. if you're seeing this, the sanitizer regex is wrong again and i apologize.
 
@@ -438,10 +427,9 @@ run this via cron. restore is the reverse (minus the direction). it's a real bac
 
 if i were starting over today (i won't), i would:
 
-1. **one auth system, not two.** either NextAuth all the way, or Go all the way.
-2. **one language for the backend.** either Go or Node.js. not both. both is what happens at 2am.
-3. **start with postgres, not sqlite.** sqlite was easy until it wasn't. foreign keys and JSONB exist for a reason.
-4. **a way to delete all test data without deleting all production data.** i have accidentally deleted production data. more than once.
+1. **one language for the backend.** we did this — Go owns all DB access now. Next.js is just a UI layer.
+2. **start with postgres, not sqlite.** sqlite was easy until it wasn't. foreign keys and JSONB exist for a reason.
+3. **a way to delete all test data without deleting all production data.** i have accidentally deleted production data. more than once.
 
 none of these will happen. the codebase is a living document and like most living documents it is mostly fossilized.
 
@@ -449,7 +437,7 @@ none of these will happen. the codebase is a living document and like most livin
 
 <div align="center">
 
-*one database (shared). two processes. zero guarantees.*
+*one database. one query layer (Go). two processes. zero guarantees.*
 
 *everything's on fire but at least the tests pass and the database has foreign keys now.*
 

@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { safeAction } from "@/core/utils/action";
 import { goFetch } from "@/lib/api";
-import { getUserPaths } from "@/services/db/multitenant";
+import { getUserPaths } from "@/core/utils/paths";
 import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";

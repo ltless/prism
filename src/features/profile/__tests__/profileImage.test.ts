@@ -9,7 +9,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/api", () => ({
   goFetch: vi.fn(async () => ({})),
 }));
-vi.mock("@/services/db/multitenant", () => ({
+vi.mock("@/core/utils/paths", () => ({
   getUserPaths: vi.fn(async () => ({ mediaDir: "/tmp/profile-test" })),
 }));
 vi.mock("fs/promises", () => {

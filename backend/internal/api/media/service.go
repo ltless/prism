@@ -512,6 +512,9 @@ type SearchParams struct {
 	Query    string   `json:"query"`
 	FolderID *string  `json:"folder_id"`
 	Tags     []string `json:"tags"`
+	MimeType *string  `json:"mime_type"` // "image" or "video" — filters MIME LIKE 'type/%'
+	DateFrom *int64   `json:"date_from"` // epoch ms
+	DateTo   *int64   `json:"date_to"`   // epoch ms
 	Page     int      `json:"page"`
 	Limit    int      `json:"limit"`
 }
@@ -676,15 +679,19 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
-	where := []string{"user_id = $1", "is_trash = FALSE", "is_vault = FALSE"}
+	where := []string{"user_id = $1", "is_trash = FALSE"}
 	args := []interface{}{userID}
 	argIdx := 2
 
+	// Text search — title OR metadata JSONB LIKE (matches Drizzle behaviour).
 	if params.Query != "" {
-		where = append(where, fmt.Sprintf("title ILIKE $%d ESCAPE '\\'", argIdx))
-	escaped := strings.ReplaceAll(params.Query, "%", "\\%")
-	escaped = strings.ReplaceAll(escaped, "_", "\\_")
-		args = append(args, "%"+escaped+"%")
+		escaped := strings.ReplaceAll(params.Query, "%", "\\%")
+		escaped = strings.ReplaceAll(escaped, "_", "\\_")
+		qLike := "%" + strings.ToLower(escaped) + "%"
+		where = append(where, fmt.Sprintf(
+			"(LOWER(title) ILIKE $%[1]d ESCAPE '\\' OR (metadata IS NOT NULL AND LOWER(metadata::text) LIKE $%[1]d ESCAPE '\\'))",
+			argIdx))
+		args = append(args, qLike)
 		argIdx++
 	}
 
@@ -694,17 +701,80 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		argIdx++
 	}
 
+	// Dedup: only keep one row per hash (the earliest created).
+	// The dedup subquery must carry the same WHERE filters as the outer
+	// query so that groups match, and we pick MIN(id) to get the oldest.
+
 	if len(params.Tags) > 0 {
 		tagPlaceholders := make([]string, len(params.Tags))
 		for i, tag := range params.Tags {
 			tagPlaceholders[i] = fmt.Sprintf("$%d", argIdx)
 			args = append(args, tag)
 			argIdx++
-	}
+		}
 		where = append(where, fmt.Sprintf("id IN (SELECT media_id FROM media_tags WHERE user_id = $1 AND tag IN (%s))", strings.Join(tagPlaceholders, ",")))
 	}
 
+	// Mime type filter: "image" → mime_type LIKE 'image/%', "video" → LIKE 'video/%'.
+	if params.MimeType != nil && *params.MimeType != "" {
+		where = append(where, fmt.Sprintf("mime_type LIKE $%d", argIdx))
+		args = append(args, *params.MimeType+"/%")
+		argIdx++
+	}
+
+	// Date range on COALESCE(captured_at, created_at) — both epoch millis.
+	dateCol := "COALESCE(captured_at, created_at)"
+	if params.DateFrom != nil {
+		where = append(where, fmt.Sprintf("%s >= $%d", dateCol, argIdx))
+		args = append(args, *params.DateFrom)
+		argIdx++
+	}
+	if params.DateTo != nil {
+		where = append(where, fmt.Sprintf("%s <= $%d", dateCol, argIdx))
+		args = append(args, *params.DateTo)
+		argIdx++
+	}
+
 	whereClause := strings.Join(where, " AND ")
+
+	// Dedup subquery: one row per hash, picking the earliest id.
+	// Uses only the structural filters (no text/tags) so dedup is
+	// consistent across different search queries.
+	dedupBase := []string{"user_id = $1", "is_trash = FALSE"}
+	dedupArgs := []interface{}{userID}
+	dedupIdx := 2
+	if params.FolderID != nil && *params.FolderID != "" {
+		dedupBase = append(dedupBase, fmt.Sprintf("folder_id = $%d", dedupIdx))
+		dedupArgs = append(dedupArgs, *params.FolderID)
+		dedupIdx++
+	}
+	if params.MimeType != nil && *params.MimeType != "" {
+		dedupBase = append(dedupBase, fmt.Sprintf("mime_type LIKE $%d", dedupIdx))
+		dedupArgs = append(dedupArgs, *params.MimeType+"/%")
+		dedupIdx++
+	}
+	if params.DateFrom != nil {
+		dedupBase = append(dedupBase, fmt.Sprintf("%s >= $%d", dateCol, dedupIdx))
+		dedupArgs = append(dedupArgs, *params.DateFrom)
+		dedupIdx++
+	}
+	if params.DateTo != nil {
+		dedupBase = append(dedupBase, fmt.Sprintf("%s <= $%d", dateCol, dedupIdx))
+		dedupArgs = append(dedupArgs, *params.DateTo)
+		dedupIdx++
+	}
+	dedupQuery := fmt.Sprintf("SELECT MIN(id) FROM media WHERE %s GROUP BY hash", strings.Join(dedupBase, " AND "))
+	// Merge dedup args after main args — dedup is a subquery, needs its own param range.
+	dedupOffset := len(args)
+	rewrittenDedup := dedupQuery
+	for i := dedupIdx - 2; i >= 1; i-- {
+		old := fmt.Sprintf("$%d", i)
+		new := fmt.Sprintf("$%d", dedupOffset+i)
+		rewrittenDedup = strings.Replace(rewrittenDedup, old, new, 1)
+	}
+	args = append(args, dedupArgs...)
+	where = append(where, fmt.Sprintf("id IN (%s)", rewrittenDedup))
+	whereClause = strings.Join(where, " AND ")
 
 	var total int
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media WHERE %s", whereClause)

@@ -1,64 +1,61 @@
 "use server";
 
-import { media } from "@/services/db/schema";
-import { sql, and, eq, gte, lte, inArray, isNull, or } from "drizzle-orm";
-import { getContext } from "./mediaContext";
+import { goFetch } from "@/lib/api";
 import { safeAction } from "@/core/utils/action";
-import { auth } from "@/auth";
+
+interface GoSearchResponse {
+  items: Array<{
+    id: string;
+    title: string;
+    filePath: string;
+    mimeType: string;
+    size: number;
+    width: number | null;
+    height: number | null;
+    hash: string;
+    folderId: string | null;
+    isFavorite: boolean;
+    isTrash: boolean;
+    isVault: boolean;
+    capturedAt: number | null;
+    updatedAt: number | null;
+    createdAt: number | null;
+    metadata: string | Record<string, unknown> | null;
+    duration: number | null;
+    transcodeStatus: string | null;
+  }>;
+  total: number;
+}
 
 export async function searchMediaAction(
- query: string,
- folderId?: string | null,
- filters?: { mimeType?: string | null; dateFrom?: string | null; dateTo?: string | null }
+  query: string,
+  folderId?: string | null,
+  filters?: { mimeType?: string | null; dateFrom?: string | null; dateTo?: string | null },
 ) {
- return safeAction("searchMedia", async () => {
- const { db } = await getContext();
- const session = await auth();
- const userId = session?.user?.id;
- if (!userId) throw new Error("Unauthorized");
+  return safeAction("searchMedia", async () => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (folderId) params.set("folder_id", folderId);
+    if (filters?.mimeType) params.set("mime_type", filters.mimeType);
+    if (filters?.dateFrom) {
+      params.set("date_from", String(new Date(filters.dateFrom).getTime()));
+    }
+    if (filters?.dateTo) {
+      params.set("date_to", String(new Date(filters.dateTo).getTime()));
+    }
 
- const folderCondition = folderId === undefined
- ? undefined
- : folderId === null
- ? isNull(media.folderId)
- : eq(media.folderId, folderId);
+    const resp = await goFetch<GoSearchResponse>(
+      `/api/v1/media/search?${params.toString()}`,
+    );
 
- const mimeCondition = filters?.mimeType
- ? filters.mimeType === "image"
- ? sql`${media.mimeType} LIKE 'image/%'`
- : sql`${media.mimeType} LIKE 'video/%'`
- : undefined;
+    // Go returns metadata as a raw JSON string; parse it.
+    const items = resp.items.map((item) => ({
+      ...item,
+      metadata: typeof item.metadata === "string"
+        ? (() => { try { return JSON.parse(item.metadata); } catch { return null; } })()
+        : item.metadata,
+    }));
 
- // Drizzle column descriptors are never null in JS, so COALESCE does the heavy lifting
- const dateCol = sql`COALESCE(${media.capturedAt}, ${media.createdAt})`;
- const dateCondition = filters?.dateFrom
- ? gte(dateCol, new Date(filters.dateFrom).getTime())
- : undefined;
- const dateToCondition = filters?.dateTo
- ? lte(dateCol, new Date(filters.dateTo).getTime())
- : undefined;
-
- const dedupSubquery = db.select({ id: sql`MIN(${media.id})` })
- .from(media)
- .where(and(eq(media.isTrash, false), folderCondition, mimeCondition, dateCondition, dateToCondition))
- .groupBy(media.hash);
-
- const qLike = `%${query.toLowerCase()}%`;
- const items = await db.select().from(media).where(
- and(
- eq(media.isTrash, false),
- folderCondition,
- mimeCondition,
- dateCondition,
- dateToCondition,
- inArray(media.id, dedupSubquery),
- or(
- sql`LOWER(${media.title}) LIKE ${qLike}`,
- sql`${media.metadata} IS NOT NULL AND LOWER(${media.metadata}::text) LIKE ${qLike}`
- )
- )
- );
-
- return { items, total: items.length, query, mode: "keyword" as const };
- });
+    return { items, total: resp.total, query, mode: "keyword" as const };
+  });
 }

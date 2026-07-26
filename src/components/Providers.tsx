@@ -5,7 +5,6 @@ import { MotionConfig } from "framer-motion";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider } from "@/lib/auth/AuthContext";
-import { AIPreferencesSaver } from "./AIPreferencesSaver";
 import { ThemeProvider } from "./ThemeProvider";
 import { ThemePreferencesSaver } from "./ThemePreferencesSaver";
 import { ThemeAwareLayoutClient } from "./ThemeAwareLayoutClient";
@@ -32,7 +31,6 @@ export function Providers({
   <MotionConfig reducedMotion="user">
   <AuthProvider>
   <ThemeProvider initialTheme={theme}>
-  <AIPreferencesSaver />
   <ThemePreferencesSaver />
   {children}
   <ThemeAwareLayoutClient />

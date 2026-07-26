@@ -11,12 +11,10 @@ import (
 	"github.com/ltless/prism/internal/db"
 	mediaH "github.com/ltless/prism/internal/api/media"
 	folderH "github.com/ltless/prism/internal/api/folders"
-	aiH "github.com/ltless/prism/internal/api/ai"
 	configH "github.com/ltless/prism/internal/api/config"
 	systemH "github.com/ltless/prism/internal/api/system"
 	userH "github.com/ltless/prism/internal/api/users"
 	mediaS "github.com/ltless/prism/internal/media"
-	"github.com/ltless/prism/internal/sidecar"
 	appmw "github.com/ltless/prism/internal/middleware"
 )
 
@@ -43,6 +41,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 
 	mediaStorage := mediaS.NewStorage(cfg.StoragePath)
 	mediaSvc := mediaH.NewService(tenantPool, configH.NewService(global))
+	mediaSvc.SetGlobalDB(global)
 	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage)
 
 	folderSvc := folderH.NewService(tenantPool)
@@ -50,8 +49,6 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 
 	systemSvc := systemH.NewService(tenantPool)
 	systemHandler := systemH.NewHandler(systemSvc)
-
-	sidecarClient := sidecar.NewClient(cfg.SidecarURL, cfg.SidecarKey)
 
 	api := e.Group("/api/v1")
 
@@ -84,9 +81,6 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	mediaG.POST("/bulk/restore", mediaHandler.BulkRestore)
 	mediaG.POST("/empty-trash", mediaHandler.EmptyTrash)
 	mediaG.POST("/bulk/vault", mediaHandler.BulkVault)
-	mediaG.POST("/batch/ai-tags", mediaHandler.BatchAITags)
-	mediaG.POST("/batch/aesthetic-score", mediaHandler.BatchAestheticScore)
-	mediaG.POST("/batch/ai-status", mediaHandler.BatchAIStatus)
 	mediaG.POST("/batch/transcode-status", mediaHandler.BatchTranscodeStatus)
 	mediaG.POST("/resolve-duplicate", mediaHandler.ResolveDuplicate)
 	mediaG.GET("/dashboard", mediaHandler.Dashboard)
@@ -126,23 +120,6 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	usersG.GET("/me/vault-pin/status", usersHandler.GetVaultPinStatus)
 	usersG.PUT("/me/username", usersHandler.UpdateUsername)
 	usersG.GET("/me/storage-usage", usersHandler.GetStorageUsage)
-
-	aiSvc := aiH.NewService(mediaStorage, sidecarClient, configH.NewService(global))
-	aiSvc.SetSidecarClient(sidecarClient)
-	aiHandler := aiH.NewHandler(aiSvc)
-	aiG := protected.Group("/ai")
-	aiG.POST("/embed-image", aiHandler.EmbedImage)
-	aiG.POST("/embed-text", aiHandler.EmbedText)
-	aiG.POST("/generate-tags", aiHandler.GenerateTags)
-	aiG.POST("/aesthetic-score", aiHandler.AestheticScore)
-	aiG.POST("/load-model", aiHandler.LoadModel, auth.RequireAdmin)
-	aiG.POST("/unload", aiHandler.Unload, auth.RequireAdmin)
-	aiG.GET("/status", aiHandler.Status)
-	aiG.GET("/gpu-status", aiHandler.GPUStatus)
-	aiG.GET("/sidecar-status", aiHandler.SidecarStatus)
-	aiG.GET("/sidecar/gpu-status", aiHandler.SidecarGPUStatus)
-	aiG.GET("/sidecar/model-status", aiHandler.SidecarModelStatus)
-	aiG.POST("/download-model", aiHandler.DownloadModel, auth.RequireAdmin)
 
 	systemG := protected.Group("/system")
 	systemG.GET("/stats", systemHandler.Stats)

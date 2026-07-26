@@ -4,8 +4,6 @@ import { revalidatePath } from "next/cache";
 import { goFetch } from "@/lib/api";
 import { safeAction } from "@/core/utils/action";
 import { FOLDER_COLORS } from "@/core/constants";
-import { SmartFolderFilterSchema } from "../schemas";
-import type { SmartFolderFilter } from "../types";
 
 export async function createFolderAction(name: string, color: string = "zinc") {
   return safeAction("CreateFolderAction", async () => {
@@ -19,37 +17,6 @@ export async function createFolderAction(name: string, color: string = "zinc") {
     await goFetch("/api/v1/folders", {
       method: "POST",
       body: { name: trimmedName, color, folder_type: "regular" },
-    });
-    revalidatePath("/dashboard");
-    return {};
-  });
-}
-
-export async function createSmartFolderAction(
-  name: string,
-  color: string = "violet",
-  filter: SmartFolderFilter
-) {
-  return safeAction("CreateSmartFolderAction", async () => {
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0 || trimmedName.length > 100) {
-      throw new Error("Folder name must be 1-100 characters");
-    }
-    if (!(color in FOLDER_COLORS)) {
-      throw new Error("Invalid folder color");
-    }
-    const parsed = SmartFolderFilterSchema.safeParse(filter);
-    if (!parsed.success) {
-      throw new Error("Invalid smart folder filter");
-    }
-    await goFetch("/api/v1/folders", {
-      method: "POST",
-      body: {
-        name: trimmedName,
-        color,
-        folder_type: "smart",
-        filter_query: JSON.stringify(parsed.data),
-      },
     });
     revalidatePath("/dashboard");
     return {};

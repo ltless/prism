@@ -1,12 +1,4 @@
-import { pgTable, text, integer, boolean, doublePrecision, timestamp, index, serial, json, jsonb } from 'drizzle-orm/pg-core';
-import type { AppAIConfig } from "@/features/ai/types";
-
-export const appConfig = pgTable('app_config', {
-  id: text('id').primaryKey().default('global'),
-  ai: json('ai').$type<AppAIConfig>(),
-  updatedAt: integer('updated_at'),
-  updatedBy: text('updated_by'),
-});
+import { pgTable, text, integer, boolean, timestamp, index, serial, jsonb } from 'drizzle-orm/pg-core';
 
 // Key-value store for Next-managed global app settings (e.g. storage default
 // quota). Kept separate from app_config to avoid the Go/drizzle schema mismatch.
@@ -36,10 +28,6 @@ export const folders = pgTable('folders', {
   name: text('name').notNull(),
   color: text('color'),
   parentId: text('parent_id'),
-  // 'manual' = regular folder (default), 'smart' = auto-populated by tag rules
-  folderType: text('folder_type').notNull().default('manual'),
-  // JSON: { categories: string[], minScore: number } — only used when folderType = 'smart'
-  filterQuery: text('filter_query'),
   createdAt: integer('created_at'),
   updatedAt: integer('updated_at'),
 });
@@ -71,22 +59,6 @@ export const media = pgTable('media', {
   isFavoriteIdx: index('idx_media_favorite').on(table.isFavorite),
   isVaultIdx: index('idx_media_vault').on(table.isVault),
   userIdIdx: index('idx_media_user_id').on(table.userId),
-}));
-
-export const mediaTags = pgTable('media_tags', {
-  id: serial('id').primaryKey(),
-  mediaId: text('media_id').notNull().references(() => media.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  tag: text('tag').notNull(),
-  score: doublePrecision('score').notNull(),
-  category: text('category').notNull(),
-}, (table) => ({
-  mediaIdIdx: index('idx_media_tags_media_id').on(table.mediaId),
-  tagIdx: index('idx_media_tags_tag').on(table.tag),
-  categoryIdx: index('idx_media_tags_category').on(table.category),
-  // composite for smart folder queries: WHERE category IN (...) AND score > ?
-  categoryScoreIdx: index('idx_media_tags_cat_score').on(table.category, table.score),
-  userIdIdx: index('idx_media_tags_user_id').on(table.userId),
 }));
 
 export const errorLogs = pgTable('error_logs', {

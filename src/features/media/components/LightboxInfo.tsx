@@ -5,7 +5,6 @@ import {
   Database,
   Copy,
   Check,
-  Sparkle,
   FilmStrip,
   Heart,
   Lock,
@@ -15,10 +14,8 @@ import {
 import { useState, type ElementType } from "react";
 import { MediaItem, MediaMetadata, Folder } from "../types";
 import { ExifSettings } from "./lightbox/ExifSettings";
-import { AestheticCard } from "./lightbox/AestheticCard";
 import { ColorPalette } from "./lightbox/ColorPalette";
 import { SectionCard, Field } from "@/shared/components/SectionCard";
-import { TAG_TO_CATEGORY } from "@/features/ai/tag-candidates.mts";
 import { formatDuration, formatBytes } from "@/core/utils/format";
 
 interface LightboxInfoProps {
@@ -32,40 +29,6 @@ function StatusBadge({ icon: Icon, label, iconClass }: { icon: ElementType; labe
       <Icon size={11} weight="fill" className={iconClass} />
       {label}
     </span>
-  );
-}
-
-function TagGroup({ tags, scores }: { tags: string[]; scores?: number[] }) {
-  const grouped = new Map<string, { tag: string; score: number }[]>();
-  for (let i = 0; i < tags.length; i++) {
-    const tag = tags[i];
-    const score = scores?.[i] ?? 0;
-    const category = TAG_TO_CATEGORY[tag] ?? "Other";
-    if (!grouped.has(category)) grouped.set(category, []);
-    grouped.get(category)!.push({ tag, score });
-  }
-  const categories = Array.from(grouped.keys()).sort();
-  return (
-    <div className="space-y-3">
-      {categories.map(cat => (
-        <div key={cat}>
-          <p className="text-[11px] font-medium text-muted-text mb-1.5">{cat}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {grouped.get(cat)!.sort((a, b) => b.score - a.score).map(({ tag, score }) => (
-              <span
-                key={tag}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-bg border border-main-border/40 text-[11px] font-medium text-muted-text"
-              >
-                {tag}
-                {score > 0 && (
-                  <span className="text-[10px] text-muted-text/60 font-mono">{(score * 100).toFixed(0)}%</span>
-                )}
-              </span>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -105,8 +68,7 @@ export function LightboxInfo({ item, folders }: LightboxInfoProps) {
     ? folders?.find(f => f.id === item.folderId)?.name ?? "Unknown"
     : "Library";
 
-  const hasStatusBadges = item.isFavorite || item.isVault || item.isTrash || metadata.aiProcessed;
-  const hasTags = metadata.tags && metadata.tags.length > 0;
+  const hasStatusBadges = item.isFavorite || item.isVault || item.isTrash;
 
   return (
     <div className="p-4 space-y-4">
@@ -116,7 +78,6 @@ export function LightboxInfo({ item, folders }: LightboxInfoProps) {
           {item.isFavorite && <StatusBadge icon={Heart} label="Favorite" iconClass="text-rose-500" />}
           {item.isVault && <StatusBadge icon={Lock} label="Vault" iconClass="text-primary" />}
           {item.isTrash && <StatusBadge icon={Trash} label="Trash" />}
-          {metadata.aiProcessed && <StatusBadge icon={Sparkle} label="AI" iconClass="text-primary" />}
         </div>
       )}
 
@@ -188,21 +149,6 @@ export function LightboxInfo({ item, folders }: LightboxInfoProps) {
           </button>
         </div>
       </SectionCard>
-
-      {/* Quality */}
-      <AestheticCard
-        aestheticScore={metadata.aestheticScore}
-        autofavorited={metadata.autofavorited}
-        aestheticModel={metadata.aestheticModel}
-        aestheticScoredAt={metadata.aestheticScoredAt}
-      />
-
-      {/* Tags */}
-      {hasTags && (
-        <SectionCard compact icon={Sparkle} title="Tags">
-          <TagGroup tags={metadata.tags!} scores={metadata.tagScores} />
-        </SectionCard>
-      )}
 
       {/* Colors */}
       <ColorPalette palette={palette} />

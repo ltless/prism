@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MagnifyingGlass, ArrowUp, Sparkle, X, List, Spinner, Sun, Moon } from "@phosphor-icons/react";
+import { MagnifyingGlass, ArrowUp, X, List, Spinner, Sun, Moon } from "@phosphor-icons/react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { SettingsModal } from "@/features/settings/components/SettingsModal";
-import { useAIStore } from "@/features/ai/store";
 import { useSidebar } from "@/components/sidebar-context";
 import { useUploadQueue } from "@/features/media/hooks/useUploadQueue";
-import { useAIInit } from "@/shared/hooks/useAIInit";
 import { useSystemStats } from "@/shared/hooks/useSystemStats";
 import { TopBarStats } from "@/components/topbar/TopBarStats";
 import { UserMenu } from "@/components/topbar/UserMenu";
@@ -25,9 +23,6 @@ export function TopBar() {
   const { session: effectiveSession, isLoading: authLoading } = useEffectiveSession();
  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
- const ai = useAIStore();
-
-  useAIInit();
   const stats = useSystemStats(effectiveSession?.user?.role === "admin" && !authLoading);
 
  const { theme, setTheme } = useTheme();
@@ -95,14 +90,7 @@ export function TopBar() {
 
  {effectiveSession?.user?.role === "admin" && (
  <div className="hidden md:block">
- <TopBarStats
- stats={stats}
- aiStatus={ai.status}
- aiVariant={ai.activeVariant}
- aiEnabled={ai.globalAIEnabled}
- aestheticModel={ai.aestheticModel}
- aestheticEnabled={ai.aestheticEnabled}
- />
+ <TopBarStats stats={stats} />
  </div>
  )}
  </div>
@@ -127,14 +115,10 @@ export function TopBar() {
  spellCheck={false}
  value={searchQuery}
  onChange={(e) => handleSearchChange(e.target.value)}
- placeholder={ai.isEnabled ? "Semantic Search..." : "Search..."}
+ placeholder="Search..."
  className="bg-transparent border-0 rounded-lg py-1.5 pl-8 pr-8 text-[11px] font-medium text-main-text placeholder:text-muted-text/40 focus:outline-none focus:bg-surface-bg transition-all duration-300 ease-out-expo w-36 focus:w-64"
  />
- {ai.isEnabled ? (
- <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-primary">
- <Sparkle size={11} weight="fill" className="animate-pulse" />
- </div>
- ) : searchQuery ? (
+ {searchQuery ? (
  <button
  type="button"
  onClick={() => handleSearchChange('')}
@@ -225,7 +209,7 @@ export function TopBar() {
  spellCheck={false}
  value={searchQuery}
  onChange={(e) => handleSearchChange(e.target.value)}
- placeholder={ai.isEnabled ? "Semantic Search..." : "Search..."}
+ placeholder="Search..."
  className="w-full bg-surface-bg/50 border-0 rounded-lg py-2.5 pl-9 pr-9 text-[11px] font-medium text-main-text placeholder:text-muted-text/40 focus:outline-none focus:bg-surface-bg transition-all"
  />
  {searchQuery && (
@@ -248,7 +232,6 @@ export function TopBar() {
  uploadProgress={uploadProgress}
  uploadResult={uploadResult}
  waitingCount={waitingCount}
- aiProcessing={ai.status === 'processing'}
  onDismiss={() => setUploadResult(null)}
  />
 

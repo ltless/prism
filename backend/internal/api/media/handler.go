@@ -3,7 +3,6 @@ package media
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,9 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
 	"github.com/labstack/echo/v4"
-	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/auth"
 	mw "github.com/ltless/prism/internal/media"
 )
@@ -130,7 +127,6 @@ func (h *Handler) Upload(c echo.Context) error {
 			"filename":        filename,
 			"mediaId":         "",
 			"isVideo":         false,
-			"aiStatus":        "skipped",
 			"transcodeStatus": "skipped",
 		})
 	}
@@ -222,7 +218,6 @@ func (h *Handler) Upload(c echo.Context) error {
 			"filename":        filename,
 			"mediaId":         "",
 			"isVideo":         isVideo,
-			"aiStatus":        "skipped",
 			"transcodeStatus": ts,
 		})
 	}
@@ -237,7 +232,6 @@ func (h *Handler) Upload(c echo.Context) error {
 		"filename":        filename,
 		"mediaId":         item.ID,
 		"isVideo":         isVideo,
-		"aiStatus":        "pending",
 		"transcodeStatus": ts,
 	})
 }
@@ -453,67 +447,6 @@ func (h *Handler) BulkVault(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
-}
-
-func (h *Handler) BatchAITags(c echo.Context) error {
-	claims, err := auth.GetClaimsOrErr(c)
-	if err != nil {
-		return err
-	}
-	mediaDir := h.storage.MediaDir(claims.UserID)
-	result, err := h.svc.BatchTag(claims.UserID, mediaDir)
-	if err != nil {
-		if errors.Is(err, config.ErrAIInactive) {
-			return echo.NewHTTPError(http.StatusForbidden, "AI is not active")
-		}
-		log.Printf("BatchAITags error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
-	}
-	if result.Error != "" {
-		return c.JSON(http.StatusServiceUnavailable, result)
-	}
-	return c.JSON(http.StatusOK, result)
-}
-
-func (h *Handler) BatchAestheticScore(c echo.Context) error {
-	claims, err := auth.GetClaimsOrErr(c)
-	if err != nil {
-		return err
-	}
-	mediaDir := h.storage.MediaDir(claims.UserID)
-	result, err := h.svc.BatchScore(claims.UserID, mediaDir)
-	if err != nil {
-		if errors.Is(err, config.ErrAIInactive) {
-			return echo.NewHTTPError(http.StatusForbidden, "AI is not active")
-		}
-		log.Printf("BatchAestheticScore error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
-	}
-	if result.Error != "" {
-		return c.JSON(http.StatusServiceUnavailable, result)
-	}
-	return c.JSON(http.StatusOK, result)
-}
-
-func (h *Handler) BatchAIStatus(c echo.Context) error {
-	claims, err := auth.GetClaimsOrErr(c)
-	if err != nil {
-		return err
-	}
-	var body struct {
-		IDs []string `json:"ids"`
-	}
-	if err := c.Bind(&body); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
-	}
-	statuses, err := h.svc.BatchAIStatus(claims.UserID, body.IDs)
-	if err != nil {
-		log.Printf("BatchAIStatus error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
-	}
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"statuses": statuses,
-	})
 }
 
 func (h *Handler) BatchTranscodeStatus(c echo.Context) error {

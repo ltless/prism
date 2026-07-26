@@ -7,47 +7,40 @@ local-first photo library. no cloud. no sync. no venture capital. no adult super
 ```
 ┌─────────────┐         ┌──────────────────┐         ┌─────────────────┐
 │   Browser   │ ──3000──▶    Next.js       │──api/v1─▶     Go          │
-└─────────────┘         │  (React 19 +     │         │  (Echo + ONNX   │
-                        │   App Router)    │         │   Runtime CLIP) │
+└─────────────┘         │  (React 19 +     │         │  (Echo +        │
+                        │   App Router)    │         │   pgx + EXIF)   │
                         └────────┬─────────┘         └────────┬────────┘
                                  │                            │
                                  │   Drizzle (PostgreSQL)      │
                                  │                            │
-                                 │         ┌──────────────────┴──────────┐
-                                 └──8081──▶│   Python Sidecar            │
-                                           │   (FastAPI + PyTorch CLIP   │
-                                           │    + aesthetic predictor)   │
-                                           └─────────────────────────────┘
-                                 │
-                                 ▼
+                                 ▼                            ▼
                     storage/users/{id}/ + PostgreSQL :5432
 ```
 
-three processes. one database (shared, like a bathroom at a gas station). two AI engines doing the same job in different languages, because at 2am that felt like a good idea. we used to have one sqlite file per user but we grew up and got a real database. well, postgres. close enough.
+two processes. one database (shared, like a bathroom at a gas station). we used to have three processes and two AI engines doing the same job in different languages, because at 2am that felt like a good idea. then we deleted all of it. we used to have one sqlite file per user but we grew up and got a real database. well, postgres. close enough.
 
 ---
 
 ## the pitch (short version)
 
-google photos kept telling me "remember this day" and i genuinely did not want to. i wanted my photo library judged *locally*, where google can't see me ugly-cry at a LAION aesthetic score of 0.02.
+google photos kept telling me "remember this day" and i genuinely did not want to. so i built a photo library that runs entirely on my machine, where nobody can see my terrible photos or judge my organizational habits.
 
-so i wrote one. it has three processes, two AI engines, a BPE tokenizer hand-written in Go (because why not), and a shared PostgreSQL database with `user_id` columns like a civilized application. it works most of the time.
+it's a Next.js frontend talking to a Go backend backed by PostgreSQL. upload photos, browse them, tag them, organize into folders, crop them in a built-in editor, and occasionally delete everything in a fit of existential dread. it works most of the time.
 
 ---
 
 ## what it actually does
 
 - **photos on your disk, not someone's training set.** your cat's bad angles remain exclusively yours.
-- **two AI engines** — Go runs ONNX CLIP for fast embed/tag; Python PyTorch does aesthetic scoring. i wrote the same thing twice in different languages. no i won't explain why. yes they both need to be downloaded. yes in different formats. yes this is a known footgun.
 - **PostgreSQL.** one database. all users. `user_id` columns. row-level isolation via queries. we used to have one sqlite db per user like a gremlin hoarding shiny rocks, but then i discovered foreign keys and never looked back.
-- **folders + smart folders** that auto-populate from AI tags like a creepy butler who knows your organizational preferences before you do.
+- **folders.** regular folders. they hold photos. that's it. no magic, no self-populating folders, no AI butler judging your organizational preferences.
 - **trash + PIN-protected vault.** bcrypt-hashed PIN. i learned. don't ask.
 - **image editor** with crop, curves, split toning, filters, and undo/redo. it's basically Lightroom for people who couldn't afford Lightroom and also didn't want one.
-- **duplicate detection** via SHA-256 for exact and CLIP cosine >= 0.95 for near-duplicates. we judge cryptographically, the only honest kind of judgment.
+- **duplicate detection** via SHA-256. we judge cryptographically, the only honest kind of judgment.
 - **video transcoding** via ffmpeg. optional, like wearing pants, like respecting personal boundaries.
-- **EXIF parsing, dominant color extraction, auto-favorite by aesthetic score.** your AI has opinions about your photography and they are not kind.
+- **EXIF parsing + dominant color extraction.** your phone camera writes weird metadata. we read it anyway.
 - **lasso selection + shift-click range + bulk ops.** select 400 photos and do something regrettable to all of them at once.
-- **378 frontend tests + 113 Go tests + 67 Python tests = 558 tests** that mostly pass and definitely prove something, maybe. the test count went down from 657 because we deleted a bunch of tests that were testing sqlite-specific behavior and honestly good riddance.
+- **31 vitest test files + Go tests.** they pass. mostly. the count is lower than before because we deleted a bunch of tests that were testing AI-specific behavior and honestly good riddance.
 
 ---
 
@@ -56,24 +49,21 @@ so i wrote one. it has three processes, two AI engines, a BPE tokenizer hand-wri
 | thing | minimum | recommended | why |
 |-------|---------|-------------|-----|
 | OS | linux | linux | i tried this on windows once. it crashed. macos might work but i won't support it because i respect you enough to be honest |
-| CPU | any x64 | 4+ cores | two AI engines fighting for the same CPU like divorced parents at a school play |
-| RAM | 4GB | 8GB+ | Node + Go + Python + ONNX + PyTorch + PostgreSQL, all at once. your RAM is a group project and nobody's pulling their weight |
-| Disk | 2GB free | 10GB+ | ~5GB for AI model weights alone. the rest is your photos, presumably |
-| GPU | not needed | lol no | CPU-only inference. deliberately. GPU support is planned the way i plan to go to the gym — eventually, maybe, don't hold your breath |
+| CPU | any x64 | 2+ cores | Node + Go + PostgreSQL, all at once. your CPU is a group project and nobody's pulling their weight |
+| RAM | 2GB | 4GB+ | Node + Go + PostgreSQL, no longer fighting over resources like divorced parents |
+| Disk | 1GB free | 5GB+ | your photos, presumably. no AI model weights anymore |
+| GPU | not needed | lol no | CPU-only everything. GPU support is planned the way i plan to go to the gym — eventually, maybe, don't hold your breath |
 | Node.js | v22 | v26+ | older versions work but i judge you silently |
-| Go | 1.25+ | 1.26+ | someone decided to rewrite half the backend in Go at 2am and honestly? that person had a point |
+| Go | 1.25+ | 1.26+ | someone decided to rewrite the backend in Go at 2am and honestly? that person had a point |
 | TypeScript | 5.9 (exact) | not 7.0. typescript-eslint doesn't support 7.0 yet. we tried. we failed. we downgraded. we have peace now |
-| Python | 3.12 | 3.12 (exact) | HuggingFace transformers requires exactly this version or it throws errors that would make a theologian weep |
-| uv | 0.5+ | latest | faster than pip and less emotionally volatile |
 | Docker | yes | yes | postgres runs in a container because installing postgres natively is a personality test i failed |
 | ffmpeg | optional | please | video transcoding silently skips itself if missing. like a guest who texts "i'm outside" and then you never see them again |
-| `libonnxruntime.so` | required | required | Go backend refuses to start without it. download from [Microsoft's ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases) |
 
 ---
 
 ## install this garbage
 
-takes ~4 minutes. i timed it. then i cried. then i realized the timer included the crying.
+takes ~2 minutes. i timed it. then i realized i was timing it because i have nothing better to do.
 
 **the easy way (recommended):**
 
@@ -82,14 +72,13 @@ takes ~4 minutes. i timed it. then i cried. then i realized the timer included t
 git clone https://github.com/ltless/prism.git
 cd prism
 pnpm install
-cd python-sidecar && uv sync && cd ..
 
 # 2. one-shot setup (env secrets + postgres + schema + admin user)
 pnpm setup
 #   asks for admin username + password, does everything else automatically.
 #   if you're scripting: echo -e "admin\nmypassword" | pnpm setup
 
-# 3. run all 3 processes (like managing a tiny dysfunctional circus)
+# 3. run both processes (like managing a tiny dysfunctional couple)
 pnpm dev
 ```
 
@@ -99,7 +88,6 @@ pnpm dev
 git clone https://github.com/ltless/prism.git
 cd prism
 pnpm install
-cd python-sidecar && uv sync && cd ..
 pnpm setup:env                          # generate JWT secrets
 docker compose up -d                    # start postgres
 npx drizzle-kit push                    # push schema
@@ -112,7 +100,7 @@ then promote yourself to admin:
 docker exec prism-postgres psql -U prism -d prism -c "UPDATE users SET role = 'admin' WHERE username = 'your_username';"
 ```
 
-log out, log back in. go to Settings -> AI to download models. all three processes must run simultaneously or you get 502 errors. this is not a bug, it's a *trust exercise*.
+log out, log back in. both processes must run simultaneously or you get 502 errors. this is not a bug, it's a *trust exercise*.
 
 ---
 
@@ -129,49 +117,18 @@ your old `.db` files get backed up to `backup/sqlite/`. the script is idempotent
 
 ---
 
-## AI engines
-
-two engines. same job. different implementations. i'm not proud of this but i'm also not fixing it.
-
-### Go engine — ONNX Runtime
-
-runs inside the Go backend. no Python dependency, no separate process, no IPC hop. loads quantized CLIP models via `onnxruntime_go`. has its own BPE tokenizer written in Go by hand, which i mention because it took longer than it should have and i'm still processing.
-
-- CLIP image/text embeddings — 3 variants (standard / sharp / high)
-- zero-shot tag generation (top-k tags with confidence scores)
-- aesthetic scoring *delegates* to the sidecar because i didn't feel like writing a third thing
-
-needs `ONNX_LIB_PATH` in `backend/.env` pointing to `libonnxruntime.so`. wrong path = instant exit on startup, no fallback, no helpful message, just vibes. match the version in `go.mod`.
-
-### Python sidecar — "not your neighbor car, if its gone, i stole it"
-
-FastAPI on `:8081`. auto-starts with `pnpm dev`. CPU-only PyTorch because GPUs are expensive and i'm cheap.
-
-- **CLIP** (3 variants) — embeddings + zero-shot tagging. standard (~600MB), sharp (~600MB), high (~1.7GB). all 512-dim, except high which is 768. because consistency is for people with fewer models.
-- **aesthetic scoring** (~1.2GB) — ViT-L/14 + MLP on AVA dataset. score 0-1. lazy-loaded, falls back to CLIP prompt-pair scoring if unavailable. the fallback exists because the real model broke once and i panicked.
-
-**turn it on:** Settings -> AI -> Global AI Processing -> pick variant -> Download -> Activate. models download via `huggingface_hub` with per-file progress. after that, uploads get auto-tagged + scored, search becomes semantic, smart folders populate themselves like magic. it's not magic, it's cosine similarity.
-
-auto-favorite threshold defaults to 0.75. adjust if your taste differs from whatever AVA decided was good.
-
-CPU inference on a Ryzen 3600: ~0.2s/image for CLIP, ~0.3s for aesthetic scoring. your mileage will vary. so will your patience.
-
----
-
 ## commands
 
 ```bash
 pnpm setup              # one-shot wizard: env + postgres + schema + admin user. start here.
-pnpm dev                # 3 processes, hot reload, maximum chaos
-pnpm prod               # build + run all 3, less chaos, more guilt
+pnpm dev                # 2 processes, hot reload, maximum chaos
+pnpm prod               # build + run all 2, less chaos, more guilt
 pnpm dev:fe             # frontend only. you will get 502s. that's on you.
 pnpm dev:be             # backend only.
-pnpm dev:ai             # sidecar only.
-pnpm test               # 378 vitest tests. they pass. mostly.
+pnpm test               # vitest tests. they pass. mostly.
 pnpm test:watch         # watch mode, for the anxious
 pnpm test:e2e           # playwright. because unit tests aren't enough anxiety.
-cd backend && go test -p 1 ./...   # 113 Go tests (serial, because they share a test DB)
-cd python-sidecar && uv run pytest   # 67 pytest tests
+cd backend && go test -p 1 ./...   # Go tests (serial, because they share a test DB)
 pnpm lint               # eslint. it's clean. i'm as surprised as you are.
 npx drizzle-kit push    # schema sync to postgres. don't ask what happens if you forget.
 docker compose up -d    # start postgres. you need this. i'm not explaining why.
@@ -188,15 +145,12 @@ the Go tests run with `-p 1` (serial package execution) because all test package
 
 ```
 backend/internal/
-  ai/          ONNX Runtime CLIP engine + preprocessing + BPE tokenizer
-               (hand-written in Go, unfortunately)
   api/         Echo handlers split by domain:
                  auth/    login, register, logout, me
                  media/   CRUD, upload, bulk, file serving (path guards everywhere)
-                 folders/ CRUD, smart folders, transactional delete
+                 folders/ CRUD, transactional delete
                  config/  app config (admin-only writes)
                  users/   profile, storage quota, setup
-                 ai/      embed, tags, aesthetic, load-model, status
   auth/        JWT (issuer/subject), middleware, constant-time invite code
   config/      env loading (32-byte JWT minimum, enforced)
   db/          GlobalDB + TenantPool (shared PostgreSQL, user_id-scoped queries)
@@ -206,20 +160,16 @@ backend/internal/
 
 src/           Next.js 16 App Router
   app/         /login, /register, /setup, /dashboard, /trash, /vault, /duplicates, /editor
-               /api/ai/* (sidecar proxy), /api/media/* (Go-style handlers)
-  features/    media, ai, onboarding, profile, settings
-  services/    db (PostgreSQL via node-postgres + drizzle), ai (sidecar client), video (queue + transcode)
+               /api/media/* (Go-style handlers)
+  features/    media, onboarding, profile, settings
+  services/    db (PostgreSQL via node-postgres + drizzle), video (queue + transcode)
   auth.ts      NextAuth v5 + Go JWT dual verification
                (two auth systems, one app, no regrets)
-
-python-sidecar/
-  app/         FastAPI: /health, embed, tags, aesthetic, load-model, model-status
-  ai/          CLIP (3 variants), aesthetic scoring
 ```
 
 ### database
 
-**PostgreSQL 16** (in a Docker container, port 5432). one database, all users, all data. tables: `users`, `app_config`, `app_settings`, `folders`, `media`, `media_tags`, `error_logs`, `transcode_queue`. `user_id` columns on all tenant tables. foreign key constraints enforced. this is what a real database looks like.
+**PostgreSQL 16** (in a Docker container, port 5432). one database, all users, all data. tables: `users`, `app_settings`, `folders`, `media`, `error_logs`, `transcode_queue`. `user_id` columns on all tenant tables. foreign key constraints enforced. this is what a real database looks like.
 
 Drizzle ORM handles the Node.js side (`drizzle-orm/node-postgres` + `pg.Pool`). Go uses `pgx/v5/stdlib` via `database/sql`. both point at the same `DATABASE_URL`. the schema is defined in `src/services/db/schema.ts` (Drizzle) and `backend/internal/db/migrations/postgres.sql` (Go). they agree on the end state.
 
@@ -264,16 +214,15 @@ i thought about this. probably more than i should have.
 
 prism is a personal media library. threat model is:
 
-- **an unauthenticated attacker** trying to reach your photos, your AI features, or anything else.
-- **an authenticated non-admin user** trying to do admin things (invite others, delete all media, change AI config).
-- **a compromised sidecar** trying to read media or models it shouldn't.
+- **an unauthenticated attacker** trying to reach your photos or anything else.
+- **an authenticated non-admin user** trying to do admin things (invite others, delete all media, change config).
 - **yourself, at 3am**, about to delete everything.
 
 not modeled: a state-level adversary with infinite resources. a compromised server. a rogue admin. if your admin account is compromised, the library is compromised. this is true of every system.
 
 ### tenant isolation
 
-all tenant tables (`media`, `folders`, `media_tags`) have `user_id` columns with foreign key constraints to `users(id)`. every Go query is scoped with `WHERE user_id = $1`. drizzle queries on the Node side are similarly scoped. a bug in a query could theoretically leak data across users, but the FK constraints prevent orphaned rows and the application layer enforces the boundary. this is less isolated than per-user sqlite files (where a bug literally cannot reach another user's data because it's a different file), but it's what grown-up databases do and we're doing grown-up database things now.
+all tenant tables (`media`, `folders`) have `user_id` columns with foreign key constraints to `users(id)`. every Go query is scoped with `WHERE user_id = $1`. drizzle queries on the Node side are similarly scoped. a bug in a query could theoretically leak data across users, but the FK constraints prevent orphaned rows and the application layer enforces the boundary. this is less isolated than per-user sqlite files (where a bug literally cannot reach another user's data because it's a different file), but it's what grown-up databases do and we're doing grown-up database things now.
 
 ### path traversal guards
 
@@ -283,10 +232,7 @@ every file access in Go goes through 4 layers: canonical path guard, absolute pa
 
 - **client <-> Next.js** — HTTPS (via reverse proxy)
 - **Next.js <-> Go** — HTTP over `127.0.0.1` (localhost)
-- **Next.js <-> Sidecar** — HTTP over `127.0.0.1` (localhost only)
-- **any of these <-> the internet** — only via the reverse proxy. don't expose ports 8080, 8081, or 5432.
-
-in production, use `SIDECAR_KEY` to authenticate sidecar requests. sidecar checks `X-Sidecar-Key` header on all requests except `/health`. unset = dev mode (no auth, open to localhost). set = enforced.
+- **any of these <-> the internet** — only via the reverse proxy. don't expose ports 8080 or 5432.
 
 ### data at rest
 
@@ -295,11 +241,10 @@ in production, use `SIDECAR_KEY` to authenticate sidecar requests. sidecar check
 - **media files:** stored on disk. no per-file encryption.
 - **database:** PostgreSQL with foreign key constraints. `user_id` on all tenant tables. WAL mode enabled.
 - **vault PIN:** bcrypt-hashed. never logged in plaintext. not reversible.
-- **AI models:** `storage/models/`. anyone with filesystem access can read them. they're public models from HuggingFace.
 
 ### rate limiting
 
-in-memory sliding window. per-key rate limits: global 100/min per IP, auth 10/min per user ID, AI 10-30/min per user ID (varies by endpoint). resets on process restart. this is intentional.
+in-memory sliding window. per-key rate limits: global 100/min per IP, auth 10/min per user ID. resets on process restart. this is intentional.
 
 ### library wipe
 
@@ -353,7 +298,7 @@ in production: change the password. don't use `prism_dev_2024`. i shouldn't have
 
 ### systemd services
 
-prism runs three processes. systemd manages them as three services, because trying to run them as one unit is a debugging nightmare.
+prism runs two processes. systemd manages them as two services, because trying to run them as one unit is a debugging nightmare.
 
 ```ini
 # prism-fe.service (Next.js frontend)
@@ -388,27 +333,11 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-```ini
-# prism-ai.service (Python sidecar)
-[Unit]
-Description=Prism AI Sidecar (Python)
-After=network.target
-[Service]
-Type=simple
-User=prism
-WorkingDirectory=/opt/prism/python-sidecar
-ExecStart=/opt/prism/python-sidecar/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8081
-Restart=on-failure
-RestartSec=5
-[Install]
-WantedBy=multi-user.target
-```
-
-build frontend: `pnpm build`. build backend: `pnpm build:be`. sidecar: `uv sync` sets up the venv. don't try to bind to `0.0.0.0`.
+build frontend: `pnpm build`. build backend: `pnpm build:be`. don't try to bind to `0.0.0.0`.
 
 ### reverse proxy
 
-Next.js serves the UI and rewrites `/api/v1/*` to the Go backend (`localhost:8080`). the sidecar (`:8081`) does NOT need to be exposed — don't.
+Next.js serves the UI and rewrites `/api/v1/*` to the Go backend (`localhost:8080`). no sidecar, no extra ports, no extra processes.
 
 **caddy example:**
 ```caddyfile
@@ -449,23 +378,19 @@ server {
 |-----|-------|-------|
 | `AUTH_SECRET` | `.env.local` | `openssl rand -base64 48 \| tr -d '\n/=+' \| head -c 64` |
 | `JWT_SECRET` | `.env.local` + `backend/.env` | same as AUTH_SECRET. must match. |
-| `DATABASE_URL` | `.env.local` + `backend/.env` | `postgresql://prism:password@localhost:5432/prism` |
-| `SIDECAR_URL` | `backend/.env` | `http://127.0.0.1:8081` (default) |
-| `SIDECAR_KEY` | `.env.local` + sidecar | shared secret. required in prod. |
-| `ONNX_LIB_PATH` | `backend/.env` | absolute path to `libonnxruntime.so` |
+| `DATABASE_URL` | `.env.local` + `backend/.env` | `postgresql://prism:***@localhost:5432/prism` |
 | `REQUIRE_INVITE` | `backend/.env` | `true` (default) or `false` |
 | `REGISTRATION_INVITE_CODE` | `.env.local` | set this. don't let random people sign up. |
 | `NUKE_CONFIRMATION_TOKEN` | `.env.local` | required for library wipe. `openssl rand -hex 32`. |
 | `NEXT_ALLOWED_ORIGINS` | `.env.local` | your domain, e.g. `https://media.yourdomain.com` |
 | `AUTH_TRUST_HOST` | `.env.local` | `true` behind a trusted reverse proxy |
 | `STORAGE_PATH` | `backend/.env` | `../storage/users` (optional, defaults to `storage/users`) |
-| `MODELS_PATH` | `backend/.env` | `../storage/models` (optional) |
 
 the JWT secret minimum is 32 bytes. `pnpm setup:env` generates something long enough. if you write your own, make it long enough. `"my-super-secret-jwt-key-2024"` is not long enough. it was never long enough.
 
 ### storage
 
-all user uploads live in `storage/users/{id}/`. thumbnails in `storage/users/{id}/media/thumbnails/`. AI models in `storage/models/`. the postgres data lives in the Docker volume `pgdata`.
+all user uploads live in `storage/users/{id}/`. thumbnails in `storage/users/{id}/media/thumbnails/`. the postgres data lives in the Docker volume `pgdata`.
 
 in production: put `storage/` somewhere with adequate disk space. backups: the entire `storage/` directory + a postgres dump is everything. lose those and you lose everything.
 
@@ -483,34 +408,19 @@ docker exec prism-postgres pg_dump -U prism prism > "$DEST/prism.sql"
 rsync -av /opt/prism/storage/users/ "$DEST/users/"
 ```
 
-run this via cron. restore is the reverse (minus the direction). AI models can be re-downloaded from Hugging Face. it's a real backup, not a backup where you pray and hope.
+run this via cron. restore is the reverse (minus the direction). it's a real backup, not a backup where you pray and hope.
 
 ### what breaks first
 
 1. **JWT secret mismatch.** one file was hand-edited. everything fails subtly. always check this first.
-2. **ONNX Runtime path.** wrong version, wrong file, wrong permissions. Go exits with a useless error.
-3. **sidecar unreachable.** it wasn't started. it crashed. port 8081 is taken by something else.
-4. **postgres connection refused.** docker compose isn't running. or port 5432 is taken by a native postgres you forgot about.
-5. **"column does not exist" after schema change.** you changed the drizzle schema but didn't `npx drizzle-kit push`. the database doesn't know about your new column.
-6. **slow first load.** AI models were still downloading or hadn't been downloaded at all.
+2. **postgres connection refused.** docker compose isn't running. or port 5432 is taken by a native postgres you forgot about.
+3. **"column does not exist" after schema change.** you changed the drizzle schema but didn't `npx drizzle-kit push`. the database doesn't know about your new column.
 
 ---
 
 ## troubleshooting (the parts i know about, and the parts i refuse to fix)
 
-**502 / "sidecar unreachable"** — you forgot to start the sidecar. `pnpm dev` auto-starts it. you ran `pnpm dev:fe` only, didn't you? yeah. don't lie to me. start it with `pnpm dev:ai`, or check `http://localhost:8081/health`. the sidecar is not your ex — it won't ghost you for no reason (it will, but only if you didn't start it).
-
-**"model not loaded"** — Settings -> AI -> Download -> Activate. it's a 4-click fix. you've clicked harder things for less reward. the sidecar lazy-loads on first request if you're impatient, but cold start is 2-5 seconds. you've waited longer for a microwave meal.
-
-**ONNX Runtime won't init** — wrong `ONNX_LIB_PATH` = exit on startup. download `libonnxruntime.so`, set path in `backend/.env`, match version from `go.mod`. the error message is unhelpful on purpose. probably.
-
-**aesthetic scoring not working** — download the model first. Settings -> AI -> Aesthetic -> Download. sidecar lazy-loads on first request, falls back to CLIP prompt-pair if unavailable. the fallback is worse but it's something.
-
-**port 8081 already in use** — a leftover sidecar is still running somewhere. it's like finding a forgotten houseguest. `pkill -f uvicorn` evicts it. happens when you kill `pnpm dev` with SIGKILL instead of SIGINT. you monster.
-
-**"CPU Fallback Mode"** — that's not a bug, that's a feature description. the sidecar runs `torch+cpu`. GPU support is future work, like world peace and folding my laundry.
-
-**dev eats all your RAM** — dev toolchain tax: HMR + PyTorch + Go + ONNX + PostgreSQL + file watchers. `pnpm prod` idles near zero because it has respect for system resources. be more like prod.
+**502 errors** — one of the processes died. check which one. `pnpm dev` runs both; if one crashes the other keeps going like nothing happened. check the terminal output.
 
 **postgres connection refused** — did you `docker compose up -d`? no? then there's no database. what did you expect. also check that port 5432 isn't already taken by a native postgres install you forgot about. `lsof -i :5432` is your friend.
 
@@ -520,7 +430,7 @@ run this via cron. restore is the reverse (minus the direction). AI models can b
 
 **EXIF data looks like garbage** — some phone cameras (INFINIX, OPPO) set EXIF string lengths larger than the actual string, causing the parser to read past the null terminator into adjacent binary data. this is fixed now but old data in the database may still be dirty. re-upload the files or wait for a re-extract script that doesn't exist yet.
 
-**two engines, neither loads** — need ONNX models (Go engine) AND PyTorch models (sidecar). different formats for the same model. ONNX gets `.onnx`, PyTorch gets `.bin`/`.safetensors`. yes this is annoying. no i won't merge them.
+**dev eats all your RAM** — dev toolchain tax: HMR + Go + PostgreSQL + file watchers. `pnpm prod` idles near zero because it has respect for system resources. be more like prod.
 
 ---
 
@@ -528,11 +438,10 @@ run this via cron. restore is the reverse (minus the direction). AI models can b
 
 if i were starting over today (i won't), i would:
 
-1. **one AI engine, not two.** ONNX or PyTorch, pick one. maintain one codebase.
-2. **one auth system, not two.** either NextAuth all the way, or Go all the way.
-3. **one language for the backend.** either Go or Node.js. not both. both is what happens at 2am.
-4. **start with postgres, not sqlite.** sqlite was easy until it wasn't. foreign keys and JSONB exist for a reason.
-5. **a way to delete all test data without deleting all production data.** i have accidentally deleted production data. more than once.
+1. **one auth system, not two.** either NextAuth all the way, or Go all the way.
+2. **one language for the backend.** either Go or Node.js. not both. both is what happens at 2am.
+3. **start with postgres, not sqlite.** sqlite was easy until it wasn't. foreign keys and JSONB exist for a reason.
+4. **a way to delete all test data without deleting all production data.** i have accidentally deleted production data. more than once.
 
 none of these will happen. the codebase is a living document and like most living documents it is mostly fossilized.
 
@@ -540,7 +449,7 @@ none of these will happen. the codebase is a living document and like most livin
 
 <div align="center">
 
-*one database (shared). two AI engines that do the same thing. three processes. zero guarantees.*
+*one database (shared). two processes. zero guarantees.*
 
 *everything's on fire but at least the tests pass and the database has foreign keys now.*
 

@@ -13,3 +13,4 @@ AGENTS.md
 /docs/
 
 test-results/
+__pycache__/

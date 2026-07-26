@@ -2,7 +2,7 @@
 
 import { useState, memo, useEffect } from "react";
 import Image from "next/image";
-import { Folder, Trash, Heart, FolderSimple, Download, Hash, Star, Sparkle, Pencil, Play, Spinner, Warning, Lock, LockOpen } from "@phosphor-icons/react";
+import { Folder, Trash, Heart, FolderSimple, Download, Hash, Star, Pencil, Play, Spinner, Warning, Lock, LockOpen } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ContextMenu } from "./ContextMenu";
 import { cn } from "@/core/utils/cn";
@@ -41,7 +41,6 @@ export const MediaCard = memo(function MediaCard({
   const [imgLoaded, setImgLoaded] = useState(false);
   const imageUrl = `/api/v1/media/files/${item.filePath}?thumb=1`;
   const metadata = item.metadata || {};
-  const aestheticScore = metadata.aestheticScore as number | undefined;
   const isVideo = item.mimeType?.startsWith("video/");
   const formattedDuration = item.duration ? formatDuration(item.duration) : null;
 
@@ -231,21 +230,6 @@ export const MediaCard = memo(function MediaCard({
  </div>
  )}
 
- {/* Aesthetic Score Badge - visible without hover */}
- {aestheticScore !== undefined && aestheticScore >= 0.6 && (
- <div
- className={cn(
- "absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded-full text-[11px] shadow-lg border flex items-center gap-0.5",
- aestheticScore >= 0.8
- ? "bg-amber-500/90 text-white border-amber-400/50"
- : "bg-amber-500/60 text-white border-amber-400/30"
- )}
- >
- <Sparkle size={8} weight="fill" />
- {(aestheticScore * 100).toFixed(0)}
- </div>
- )}
-
  {/* Hover overlay */}
  <AnimatePresence>
  {(isHovered || isTapped) && (
@@ -265,12 +249,6 @@ export const MediaCard = memo(function MediaCard({
  {item.width}x{item.height}
  </span>
  <div className="flex items-center gap-1">
- {aestheticScore !== undefined && (
- <span className="text-[11px] text-amber-400 flex items-center gap-0.5 mr-1" title={`Aesthetic Score: ${(aestheticScore * 100).toFixed(0)}%`}>
- <Sparkle size={10} weight="fill" />
- {(aestheticScore * 100).toFixed(0)}
- </span>
- )}
  <button
  onClick={(e) => { e.stopPropagation(); handleDelete(e); }}
  disabled={isDeleting}

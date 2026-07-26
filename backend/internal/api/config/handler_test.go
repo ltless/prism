@@ -1,8 +1,6 @@
 package config
 
 import (
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -30,9 +28,11 @@ func setupConfigHandler(t *testing.T) (*echo.Echo, *Handler, string) {
 }
 
 func cfgReq(e *echo.Echo, method, path, token, body string) *httptest.ResponseRecorder {
-	var reader io.Reader
+	var reader *strings.Reader
 	if body != "" {
 		reader = strings.NewReader(body)
+	} else {
+		reader = strings.NewReader("")
 	}
 	req := httptest.NewRequest(method, path, reader)
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -64,19 +64,11 @@ func TestConfigHandler_Get_Unauthorized(t *testing.T) {
 
 func TestConfigHandler_Update(t *testing.T) {
 	e, h, token := setupConfigHandler(t)
-	e.GET("/api/v1/config", h.Get)
 	e.PUT("/api/v1/config", h.Update)
 
-	rec := cfgReq(e, "PUT", "/api/v1/config", token, `{"ai":{"variant":"standard","enabled":true}}`)
+	rec := cfgReq(e, "PUT", "/api/v1/config", token, `{}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	rec2 := cfgReq(e, "GET", "/api/v1/config", token, "")
-	var resp map[string]interface{}
-	json.Unmarshal(rec2.Body.Bytes(), &resp)
-	if resp["ai"] == nil {
-		t.Fatal("expected ai config after update")
 	}
 }
 
@@ -86,14 +78,5 @@ func TestConfigHandler_Update_Unauthorized(t *testing.T) {
 	rec := cfgReq(e, "PUT", "/api/v1/config", "", `{}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
-	}
-}
-
-func TestConfigHandler_Update_RejectsNonObjectAI(t *testing.T) {
-	e, h, token := setupConfigHandler(t)
-	e.PUT("/api/v1/config", h.Update)
-	rec := cfgReq(e, "PUT", "/api/v1/config", token, `{"ai":"not-an-object"}`)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
 	}
 }

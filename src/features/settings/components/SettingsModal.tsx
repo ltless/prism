@@ -8,13 +8,10 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { updateProfileImageAction } from "@/features/profile/services/profileActions";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
 import { toast } from "sonner";
-import { useAIStore } from "@/features/ai/store";
-import { useAIConfigSync } from "@/shared/hooks/useAIConfigSync";
 import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
 import { useReducedMotion } from "@/shared/hooks/useReducedMotion";
 import { GeneralTab } from "./GeneralTab";
-import { AITab } from "./AITab";
 import { StorageTab } from "./StorageTab";
 import { SecurityTab } from "./SecurityTab";
 import { AboutTab } from "./AboutTab";
@@ -26,7 +23,7 @@ interface SettingsModalProps {
  onClose: () => void;
 }
 
-type Tab = "general" | "ai" | "security" | "storage" | "about";
+type Tab = "general" | "security" | "storage" | "about";
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { refreshProfile } = useAuth();
@@ -34,13 +31,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>("general");
   const [isUploading, setIsUploading] = useState<"image" | "coverImage" | null>(null);
   const [localImageOverride, setLocalImageOverride] = useState<{ image?: string; coverImage?: string }>({});
- 
- const ai = useAIStore();
-  const isAdmin = effectiveSession?.user?.role === "admin";
- const [tagStats, setTagStats] = useState<{ total: number; tagged: number } | null>(null);
- const [scoreStats, setScoreStats] = useState<{ total: number; scored: number } | null>(null);
-
- useAIConfigSync({ activeTab, isAdmin, setTagStats, setScoreStats });
  
  const [cropModal, setCropModal] = useState<{
  isOpen: boolean;
@@ -110,7 +100,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
  const tabs = [
  { id: "general" as Tab, label: "General", icon: "User" as const },
- { id: "ai" as Tab, label: "AI", icon: "Sparkle" as const },
  { id: "security" as Tab, label: "Security", icon: "Shield" as const },
  { id: "storage" as Tab, label: "Storage", icon: "HardDrive" as const },
  { id: "about" as Tab, label: "About", icon: "Info" as const },
@@ -168,16 +157,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   profileInputRef={profileInputRef}
   />
  )}
- {activeTab === "ai" && (
- <AITab
- ai={ai}
- tagStats={tagStats}
- scoreStats={scoreStats}
- onSetTagStats={setTagStats}
- onSetScoreStats={setScoreStats}
- />
- )}
-
  {activeTab === "storage" && <StorageTab />}
 
  {activeTab === "security" && <SecurityTab />}

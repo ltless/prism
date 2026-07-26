@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"log"
 	"net/http"
 
@@ -83,9 +82,6 @@ func (h *Handler) Update(c echo.Context) error {
 	}
 
 	if err := h.svc.Update(body); err != nil {
-		if errors.Is(err, ErrInvalidAIConfig) {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid ai config")
-		}
 		log.Printf("UpdateConfig error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

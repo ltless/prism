@@ -15,11 +15,10 @@ interface UploadStatusToastProps {
  errorCount?: number;
  } | null;
  waitingCount: number;
- aiProcessing: boolean;
  onDismiss: () => void;
 }
 
-export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, waitingCount, aiProcessing, onDismiss }: UploadStatusToastProps) {
+export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, waitingCount, onDismiss }: UploadStatusToastProps) {
  const show = isUploading || uploadResult || waitingCount > 0;
  if (!show) return null;
  if (typeof window === "undefined") return null;
@@ -43,7 +42,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
  : "bg-rose-500/10 text-rose-500";
 
  const headerText = isUploading
- ? (aiProcessing ? "Uploading & Adding Tags" : "Processing Batch")
+ ? "Processing Batch"
  : uploadResult?.success
  ? "All Done"
  : isPartial

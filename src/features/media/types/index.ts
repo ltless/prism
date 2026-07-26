@@ -1,17 +1,4 @@
 export interface MediaMetadata {
-  // AI tagging
-  embedding?: number[];
-  tags?: string[];
-  tagScores?: number[];
-  aiProcessed?: boolean;
-
-  // AI aesthetic scoring
-  aestheticScore?: number;
-  aestheticScored?: boolean;
-  aestheticScoredAt?: string;
-  aestheticModel?: string;
-  autofavorited?: boolean;
-
   // Visual
   palette?: string[];
   faceCount?: number;
@@ -63,17 +50,10 @@ export interface MediaItem {
   transcodeStatus?: string | null;
 }
 
-export interface SmartFolderFilter {
- categories: string[]; // e.g. ["Nature", "Water"]
- minScore: number; // 0–1, e.g. 0.25
-}
-
 export interface Folder {
  id: string;
  name: string;
  color?: string | null;
  parentId?: string | null;
- folderType?: string | null; // 'manual' | 'smart'
- filterQuery?: string | null; // JSON-serialized SmartFolderFilter
   createdAt?: Date | null;
 }

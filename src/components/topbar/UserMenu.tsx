@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { GearSix, SignOut } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { EffectiveSession } from "@/lib/auth/useEffectiveSession";

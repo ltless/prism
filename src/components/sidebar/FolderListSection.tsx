@@ -10,7 +10,7 @@ import type { Folder as FolderType } from "@/features/media/types";
 import { moveMediaToFolderAction, deleteFolderAction, renameFolderAction } from "@/features/media/services/mediaFolderActions";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 
 const containerVariants = {
   hidden: { height: 0, opacity: 0 },

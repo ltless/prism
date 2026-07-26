@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import Cropper, { Area } from "react-easy-crop";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { X, Check, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { getCroppedImg } from "../utils/cropImage";
 import { toast } from "sonner";

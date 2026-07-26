@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MotionConfig } from "framer-motion";
+import { MotionConfig } from "motion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider } from "@/lib/auth/AuthContext";

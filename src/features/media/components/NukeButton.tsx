@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Lightning, Spinner, Warning, X } from "@phosphor-icons/react";
 import { nukeLibraryAction } from "../services/mediaCrud";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { SECURITY } from "@/core/constants";
 import { toast } from "sonner";
 

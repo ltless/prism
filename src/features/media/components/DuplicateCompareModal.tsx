@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, CaretLeft, CaretRight, MagnifyingGlassPlus, MagnifyingGlassMinus, Check, Spinner, Sparkle, Info } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import { formatBytes } from "@/core/utils/format";

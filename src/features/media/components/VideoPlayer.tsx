@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Play, Pause, SpeakerSimpleHigh, SpeakerSimpleX, ArrowsOut, ArrowsIn, Spinner } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface VideoPlayerProps {

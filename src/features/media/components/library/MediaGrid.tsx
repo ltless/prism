@@ -2,7 +2,7 @@
 
 import { useMemo, memo } from "react";
 import { Check } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { MediaCard } from "../MediaCard";
 import { MediaItem, Folder } from "../../types";
 import { cn } from "@/core/utils/cn";

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Lock, WarningCircle, Gear } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { PinInput } from "@/features/settings/components/PinInput";
 import { verifyVaultPinAction } from "@/features/profile/services/profileActions";
 import MediaLibraryClient from "./MediaLibraryClient";

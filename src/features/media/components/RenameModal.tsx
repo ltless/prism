@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, Check } from "@phosphor-icons/react";
 import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";

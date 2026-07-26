@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, CaretLeft, CaretRight, Info } from "@phosphor-icons/react";
+import { motion, AnimatePresence } from "motion/react";
+import { X, Download, CaretLeft, CaretRight, Info, ImageBroken } from "@phosphor-icons/react";
 import { LightboxInfo } from "./LightboxInfo";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/core/utils/cn";
@@ -234,12 +234,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     ) : imgError ? (
     <div className="flex items-center justify-center w-full h-full">
     <div className="flex flex-col items-center gap-3">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/20">
-    <rect x="2" y="2" width="20" height="20" rx="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="8.5" cy="8.5" r="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M21 15L16 10L5 21" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M15 21L19 17" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    <ImageBroken size={48} weight="light" className="text-white/20" />
     <p className="text-xs text-white/30 font-medium">Failed to load image</p>
     </div>
     </div>

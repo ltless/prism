@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { MEDIA_GRID_CLASS } from "./MediaGrid";
 
 export function MediaGridSkeleton() {

@@ -1,5 +1,5 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { useReducedMotion } from "@/shared/hooks/useReducedMotion";
 
 interface EmptyLibraryProps {
@@ -86,7 +86,7 @@ export function EmptyLibrary({ isFolder }: EmptyLibraryProps) {
   initial={{ scale: 0.8, opacity: 0 }}
   animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.3, 0.6, 0.3] }}
   transition={{ duration: 4, repeat: inf, ease: "easeInOut" }}
-  className="absolute inset-0 bg-indigo-500/15 blur-[40px] rounded-full"
+  className="absolute inset-0 bg-primary/15 blur-[40px] rounded-full"
   />
   
   <motion.div 

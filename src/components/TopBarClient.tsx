@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MagnifyingGlass, ArrowUp, X, List, Spinner, Sun, Moon } from "@phosphor-icons/react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { SettingsModal } from "@/features/settings/components/SettingsModal";
 import { useSidebar } from "@/components/sidebar-context";
 import { useUploadQueue } from "@/features/media/hooks/useUploadQueue";

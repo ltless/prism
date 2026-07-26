@@ -3,7 +3,7 @@
 import { List, Sun, Moon, Check, Spinner } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useSidebar } from "@/components/sidebar-context";
 import { useTheme } from "@/components/ThemeProvider";
 import { UserMenu } from "@/components/topbar/UserMenu";

@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useState, useRef, useCallback } from "react";import { useSearchParams, useRouter } from "next/navigation";
 import { Spinner, MagnifyingGlass as SearchIcon } from "@phosphor-icons/react";
-import { LayoutGroup } from "framer-motion";
+import { LayoutGroup } from "motion/react";
 import { Lightbox } from "./Lightbox";
 import { UploadZone } from "./UploadZone";
 import { MediaItem, Folder as FolderType } from "../types";

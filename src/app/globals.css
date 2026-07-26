@@ -90,6 +90,12 @@
     @apply border-main-border;
   }
 
+  button, [role="button"], a[role="button"] {
+    &:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+  }
+
   html {
     transition: color 400ms var(--ease-out-expo), background-color 400ms var(--ease-out-expo);
   }
@@ -249,8 +255,6 @@ input[type="range"]::-moz-range-thumb:active {
 [data-sonner-toast] [data-title] {
   font-size: var(--font-size-sm) !important;
   font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.1em !important;
   color: var(--text-main) !important;
 }
 

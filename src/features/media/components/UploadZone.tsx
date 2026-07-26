@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { ArrowUp } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface UploadZoneProps {

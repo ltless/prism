@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Shield, ShieldSlash, Spinner, Check, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { PinInput } from "./PinInput";

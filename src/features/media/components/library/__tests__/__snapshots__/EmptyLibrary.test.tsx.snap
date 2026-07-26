@@ -12,7 +12,7 @@ exports[`EmptyLibrary > renders empty state for folder 1`] = `
         class="relative mx-auto w-32 h-32 flex items-center justify-center"
       >
         <div
-          class="absolute inset-0 bg-indigo-500/15 blur-[40px] rounded-full"
+          class="absolute inset-0 bg-primary/15 blur-[40px] rounded-full"
         />
         <div
           class="absolute inset-4 bg-surface-bg/50 rounded-full border border-main-border/10"
@@ -93,7 +93,7 @@ exports[`EmptyLibrary > renders empty state for non-folder 1`] = `
         class="relative mx-auto w-32 h-32 flex items-center justify-center"
       >
         <div
-          class="absolute inset-0 bg-indigo-500/15 blur-[40px] rounded-full"
+          class="absolute inset-0 bg-primary/15 blur-[40px] rounded-full"
         />
         <div
           class="absolute inset-4 bg-surface-bg/50 rounded-full border border-main-border/10"

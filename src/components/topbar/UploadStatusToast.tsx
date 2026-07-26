@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 import { Spinner, CheckCircle, Warning, X } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";

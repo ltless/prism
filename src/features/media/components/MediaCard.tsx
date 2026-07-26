@@ -2,8 +2,8 @@
 
 import { useState, memo, useEffect } from "react";
 import Image from "next/image";
-import { Folder, Trash, Heart, FolderSimple, Download, Hash, Star, Pencil, Play, Spinner, Warning, Lock, LockOpen } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Folder, Trash, Heart, FolderSimple, Download, Hash, Star, Pencil, Play, Spinner, Warning, Lock, LockOpen, Image as ImageIcon, FileVideo } from "@phosphor-icons/react";
+import { motion, AnimatePresence } from "motion/react";
 import { ContextMenu } from "./ContextMenu";
 import { cn } from "@/core/utils/cn";
 import { MediaItem, Folder as FolderType } from "../types";
@@ -150,7 +150,7 @@ export const MediaCard = memo(function MediaCard({
  className="h-full w-full"
  >
   <motion.div
-  whileHover={reduced ? {} : { y: -4 }}
+  whileHover={reduced ? {} : { y: -4 }} whileTap={reduced ? {} : { scale: 0.97 }}
   transition={{ type: "spring", stiffness: 400, damping: 17 }}
   className={cn(
   "aspect-square bg-surface-bg rounded-xl overflow-hidden group relative cursor-pointer border shadow-sm",
@@ -163,12 +163,7 @@ export const MediaCard = memo(function MediaCard({
   {imgError ? (
   <div className="absolute inset-0 flex items-center justify-center bg-surface-bg">
   <div className="flex flex-col items-center gap-1.5">
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-text/30">
-  <rect x="2" y="2" width="20" height="20" rx="2" strokeLinecap="round" strokeLinejoin="round"/>
-  <circle cx="8.5" cy="8.5" r="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-  <path d="M21 15L16 10L5 21" strokeLinecap="round" strokeLinejoin="round"/>
-  <path d="M15 21L19 17" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
+  {isVideo ? <FileVideo size={28} weight="light" className="text-muted-text/30" /> : <ImageIcon size={28} weight="light" className="text-muted-text/30" />}
   <span className="text-[11px] text-muted-text/40 font-bold uppercase tracking-wider">
   {isVideo ? "Video" : "Image"}
   </span>

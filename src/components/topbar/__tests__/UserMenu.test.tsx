@@ -8,7 +8,7 @@ const MotionTag = ({ children, ...props }: Record<string, unknown>) => {
   return <div {...rest}>{children as ReactNode}</div>;
 };
 
-vi.mock('framer-motion', () => ({
+vi.mock('motion/react', () => ({
   motion: new Proxy({}, { get: () => MotionTag }),
   AnimatePresence: ({ children }: Record<string, unknown>) => <>{children}</>,
 }));

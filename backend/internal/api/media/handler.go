@@ -1,6 +1,7 @@
 package media
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -101,20 +102,40 @@ func (h *Handler) Upload(c echo.Context) error {
 	}
 	defer file.Close()
 
-	data, err := io.ReadAll(io.LimitReader(file, maxUploadSize+1))
-	if err != nil {
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+
+	// Stream to temp file while hashing; only the first 512 bytes are kept
+	// in memory for magic-byte validation.
+	headBuf := make([]byte, 512)
+	n, err := io.ReadFull(file, headBuf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		return echo.NewHTTPError(http.StatusInternalServerError, "read file failed")
 	}
-	if len(data) > maxUploadSize {
-		return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 200MB)")
-	}
+	head := headBuf[:n]
 
-	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if err := h.storage.ValidateUpload(data, ext); err != nil {
+	if err := h.storage.ValidateUpload(head, ext); err != nil {
 		return echo.NewHTTPError(http.StatusUnsupportedMediaType, err.Error())
 	}
 
-	hash := fmt.Sprintf("%x", sha256.Sum256(data))
+	tmp, err := os.CreateTemp("", "prism-upload-*")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+
+	hasher := sha256.New()
+	size, err := io.Copy(tmp, io.TeeReader(io.MultiReader(bytes.NewReader(head), io.LimitReader(file, maxUploadSize+1-int64(n))), hasher))
+	if err != nil {
+		tmp.Close()
+		return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
+	}
+	tmp.Close()
+	if size > maxUploadSize {
+		return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 200MB)")
+	}
+
+	hash := fmt.Sprintf("%x", hasher.Sum(nil))
 	filename := hash + ext
 
 	// Skip the write entirely if the hash is already in the DB. The UNIQUE
@@ -131,7 +152,13 @@ func (h *Handler) Upload(c echo.Context) error {
 		})
 	}
 
-	_, _, _, err = h.storage.SaveFileFromBytes(claims.UserID, data, filename)
+	tmpFile, err := os.Open(tmpPath)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
+	}
+	defer tmpFile.Close()
+
+	_, mediaPath, _, err := h.storage.SaveFileFromReader(claims.UserID, tmpFile, filename)
 	if err != nil {
 		log.Printf("SaveFile error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -156,28 +183,32 @@ func (h *Handler) Upload(c echo.Context) error {
 	var transcodeStatus *string
 
 	if !isVideo {
-		meta, err := mw.ExtractImageMetadata(data)
+		// Read back from disk for metadata extraction (images only; bounded by
+		// AllowedExtensions so max ~200MB but realistically <50MB).
+		data, err := os.ReadFile(mediaPath)
 		if err == nil {
-			width = &meta.Width
-			height = &meta.Height
-			capturedAt = meta.CapturedAt
-			if len(meta.ExifData) > 0 || len(meta.Palette) > 0 {
-				if len(meta.Palette) > 0 {
-					if meta.ExifData == nil {
-						meta.ExifData = make(map[string]interface{})
+			meta, err := mw.ExtractImageMetadata(data)
+			if err == nil {
+				width = &meta.Width
+				height = &meta.Height
+				capturedAt = meta.CapturedAt
+				if len(meta.ExifData) > 0 || len(meta.Palette) > 0 {
+					if len(meta.Palette) > 0 {
+						if meta.ExifData == nil {
+							meta.ExifData = make(map[string]interface{})
+						}
+						meta.ExifData["palette"] = meta.Palette
 					}
-					meta.ExifData["palette"] = meta.Palette
+					if b, err := json.Marshal(meta.ExifData); err == nil {
+						s := sanitizeMetadata(string(b))
+						metadataJSON = &s
+					}
 				}
-				if b, err := json.Marshal(meta.ExifData); err == nil {
-					s := sanitizeMetadata(string(b))
-					metadataJSON = &s
-				}
+			} else {
+				log.Printf("Metadata extraction failed: %v", err)
 			}
-		} else {
-			log.Printf("Metadata extraction failed: %v", err)
 		}
 	} else {
-		mediaPath := h.storage.MediaDir(claims.UserID) + "/" + filename
 		meta, err := mw.ExtractVideoMetadata(mediaPath)
 		if err == nil {
 			width = &meta.Width
@@ -201,7 +232,7 @@ func (h *Handler) Upload(c echo.Context) error {
 		transcodeStatus = &pending
 	}
 
-	item, isDup, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, int64(len(data)), width, height, capturedAt, metadataJSON, duration, transcodeStatus)
+	item, isDup, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, size, width, height, capturedAt, metadataJSON, duration, transcodeStatus)
 	if err != nil {
 		log.Printf("MediaCreate error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")

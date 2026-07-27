@@ -137,11 +137,12 @@ export default function MediaLibrary({ initialItems, folders = [] }: MediaLibrar
  <div className="mb-4">
  <SearchFilters />
  </div>
- <MediaGrid 
+ <MediaGrid
  items={displayedItems} selectedIds={selectedIds} clipboardIds={clipboard?.ids || new Set()}
- isCut={!!clipboard?.isCut} folders={folders} 
+ isCut={!!clipboard?.isCut} folders={folders}
  onItemSelect={toggleSelect}
  onDelete={removeItem}
+ scrollRef={scrollContainerRef}
  onItemClick={(item, e) => {
  if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); toggleSelect(item.id, e.shiftKey, e.ctrlKey || e.metaKey); }
  else setSelectedId(item.id);
@@ -150,11 +151,12 @@ export default function MediaLibrary({ initialItems, folders = [] }: MediaLibrar
  </>
  ) : displayedItems.length === 0 ? <EmptyLibrary isFolder={!!activeFolderId} /> : (
  <>
- <MediaGrid 
+ <MediaGrid
  items={displayedItems} selectedIds={selectedIds} clipboardIds={clipboard?.ids || new Set()}
- isCut={!!clipboard?.isCut} folders={folders} 
+ isCut={!!clipboard?.isCut} folders={folders}
  onItemSelect={toggleSelect}
  onDelete={removeItem}
+ scrollRef={scrollContainerRef}
  onItemClick={(item, e) => {
  if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); toggleSelect(item.id, e.shiftKey, e.ctrlKey || e.metaKey); }
  else setSelectedId(item.id);

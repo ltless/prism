@@ -34,6 +34,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 
 	rl := appmw.NewRateLimiter(100, time.Minute)
 	rl.SkipPath("/api/v1/media")
+	rl.SkipPath("/api/v1/media/files/*")
 	e.Use(rl.Middleware())
 
 	authSvc := auth.NewService(global.DB, jwt, cfg.InviteCode, cfg.RequireInvite)

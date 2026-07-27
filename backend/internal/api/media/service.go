@@ -88,6 +88,14 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 
 	whereClause := strings.Join(where, " AND ")
 
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
 	var total int
 	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
@@ -100,7 +108,7 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 	}
 		query := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC`, selectCols, whereClause)
+	) ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, whereClause, limit, offset)
 
 		rows, err := tdb.Query(query, args...)
 		if err != nil {
@@ -130,7 +138,7 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 		return nil, fmt.Errorf("count media: %w", err)
 	}
 
-	query := fmt.Sprintf(`SELECT %s FROM media WHERE %s ORDER BY created_at DESC`, selectCols, whereClause)
+	query := fmt.Sprintf(`SELECT %s FROM media WHERE %s ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, whereClause, limit, offset)
 
 	rows, err := tdb.Query(query, args...)
 	if err != nil {

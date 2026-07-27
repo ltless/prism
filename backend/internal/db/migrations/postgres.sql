@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS media (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_media_user_hash ON media (user_id, hash);
+CREATE INDEX IF NOT EXISTS idx_media_user_created ON media (user_id, created_at DESC);
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_media_title_trgm ON media USING GIN (title gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_media_trash ON media (is_trash);
 CREATE INDEX IF NOT EXISTS idx_media_folder ON media (folder_id);
 CREATE INDEX IF NOT EXISTS idx_media_favorite ON media (is_favorite);

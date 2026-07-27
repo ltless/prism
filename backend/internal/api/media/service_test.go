@@ -283,16 +283,34 @@ func TestService_List_Pagination(t *testing.T) {
 		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), title, "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
 	}
 
-	// pagination removed — List now returns all items
+	// page 1 with limit 3 → first 3 items
 	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 3)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if len(resp.Items) != 10 {
-		t.Fatalf("expected 10 items (all), got %d", len(resp.Items))
+	if len(resp.Items) != 3 {
+		t.Fatalf("expected 3 items, got %d", len(resp.Items))
 	}
 	if resp.Total != 10 {
 		t.Fatalf("expected total 10, got %d", resp.Total)
+	}
+
+	// page 4 with limit 3 → last item
+	resp, err = svc.List("test-user", nil, false, false, false, false, "", 4, 3)
+	if err != nil {
+		t.Fatalf("List page 4: %v", err)
+	}
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 item on page 4, got %d", len(resp.Items))
+	}
+
+	// page 0 / limit 0 → defaults (page 1, limit 100) → all 10
+	resp, err = svc.List("test-user", nil, false, false, false, false, "", 0, 0)
+	if err != nil {
+		t.Fatalf("List defaults: %v", err)
+	}
+	if len(resp.Items) != 10 {
+		t.Fatalf("expected 10 items with defaults, got %d", len(resp.Items))
 	}
 }
 

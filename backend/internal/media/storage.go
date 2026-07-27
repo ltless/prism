@@ -60,15 +60,30 @@ func sanitizePath(p string) string {
 }
 
 func (s *Storage) SaveFileFromBytes(userID string, data []byte, filename string) (string, string, string, error) {
+	return s.SaveFileFromReader(userID, bytes.NewReader(data), filename)
+}
+
+// SaveFileFromReader streams src to disk without loading the whole file into
+// memory. Returns (filename, mediaPath, thumbPath, error).
+func (s *Storage) SaveFileFromReader(userID string, src io.Reader, filename string) (string, string, string, error) {
 	mediaDir := s.mediaDir(userID)
 	if err := os.MkdirAll(mediaDir, 0755); err != nil {
 		return "", "", "", fmt.Errorf("create media dir: %w", err)
 	}
 
 	tmpPath := filepath.Join(mediaDir, "."+uuid.New().String()+".tmp")
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("create tmp file: %w", err)
+	}
+	if _, err := io.Copy(f, src); err != nil {
+		f.Close()
 		os.Remove(tmpPath)
 		return "", "", "", fmt.Errorf("write file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmpPath)
+		return "", "", "", fmt.Errorf("close file: %w", err)
 	}
 
 	mediaPath := filepath.Join(mediaDir, filename)
@@ -87,7 +102,7 @@ func (s *Storage) SaveFileFromBytes(userID string, data []byte, filename string)
 
 	if imageExts[ext] {
 		if err := os.MkdirAll(filepath.Dir(tp), 0755); err == nil {
-			if err := generateThumbnail(data, tp); err == nil {
+			if err := generateThumbnailFromFile(mediaPath, tp); err == nil {
 				thumbPath = tp
 			}
 		}
@@ -102,8 +117,13 @@ func (s *Storage) SaveFileFromBytes(userID string, data []byte, filename string)
 	return filename, mediaPath, thumbPath, nil
 }
 
-func generateThumbnail(data []byte, outputPath string) error {
-	src, _, err := image.Decode(bytes.NewReader(data))
+func generateThumbnailFromFile(path, outputPath string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open image: %w", err)
+	}
+	defer f.Close()
+	src, _, err := image.Decode(f)
 	if err != nil {
 		return fmt.Errorf("decode image: %w", err)
 	}
@@ -123,13 +143,13 @@ func generateThumbnail(data []byte, outputPath string) error {
 	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
 	draw.ApproxBiLinear.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
 
-	f, err := os.Create(outputPath)
+	out, err := os.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("create thumbnail: %w", err)
 	}
-	defer f.Close()
+	defer out.Close()
 
-	return jpeg.Encode(f, dst, &jpeg.Options{Quality: 80})
+	return jpeg.Encode(out, dst, &jpeg.Options{Quality: 80})
 }
 
 func (s *Storage) DeleteFile(userID, filename string) error {

@@ -1,15 +1,15 @@
 import { MediaGridSkeleton } from "@/features/media/components/library/MediaGridSkeleton";
 
 export default function DashboardLoading() {
- return (
- <div className="flex-1 flex flex-col p-6">
- <div className="h-8 w-48 bg-main-border/30 rounded-xl animate-pulse mb-6" />
- <div className="flex gap-2 mb-6">
- {Array.from({ length: 4 }).map((_, i) => (
- <div key={i} className="h-8 w-24 bg-main-border/20 rounded-full animate-pulse" />
- ))}
- </div>
- <MediaGridSkeleton />
- </div>
- );
+  return (
+    <div className="flex-1 flex flex-col p-4 md:p-6">
+      <div className="h-6 w-40 bg-surface-bg rounded animate-pulse mb-5" />
+      <div className="flex gap-1.5 mb-5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-6 w-20 bg-surface-bg/60 rounded animate-pulse" />
+        ))}
+      </div>
+      <MediaGridSkeleton />
+    </div>
+  );
 }

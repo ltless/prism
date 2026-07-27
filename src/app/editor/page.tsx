@@ -13,17 +13,17 @@ export default function EditorPage() {
   if (!item) {
     return (
       <div className="flex flex-col w-full h-screen bg-app-bg">
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 text-muted-text">
-          <ImageSquare size={48} weight="light" className="opacity-30" />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-text">
+          <ImageSquare size={32} weight="light" className="opacity-20" />
           <div className="text-center">
-            <p className="text-sm font-medium">No photo selected</p>
-            <p className="text-xs mt-1">
+            <p className="text-[12px] font-medium">No photo selected</p>
+            <p className="text-[11px] mt-0.5">
               Select a photo from the library to start editing
             </p>
           </div>
           <button
             onClick={() => setIsLibraryOpen(true)}
-            className="mt-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium cursor-pointer"
+            className="mt-1 px-3.5 py-1.5 rounded bg-primary text-primary-foreground text-[11px] font-medium cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
           >
             Open Library
           </button>

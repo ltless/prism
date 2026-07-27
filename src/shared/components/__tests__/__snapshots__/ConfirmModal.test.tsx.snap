@@ -11,25 +11,25 @@ exports[`ConfirmModal > renders when open 1`] = `
     role="dialog"
   >
     <div
-      class="absolute inset-0 bg-black/60"
+      class="absolute inset-0 bg-black/50"
     />
     <div
-      class="relative w-full max-w-sm bg-panel-bg rounded-2xl border border-main-border shadow-xl overflow-hidden flex flex-col p-6 z-10"
+      class="relative w-full max-w-sm bg-panel-bg rounded border border-main-border/50 shadow-modal overflow-hidden flex flex-col p-5 z-10"
     >
       <div
-        class="flex items-center justify-between border-b border-main-border/50 pb-4 mb-4"
+        class="flex items-center justify-between mb-3"
       >
         <div
-          class="flex items-center gap-3"
+          class="flex items-center gap-2"
         >
           <div
-            class="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500"
+            class="w-7 h-7 rounded bg-rose-500/8 flex items-center justify-center text-rose-500"
           >
             <svg
               fill="currentColor"
-              height="16"
+              height="14"
               viewBox="0 0 256 256"
-              width="16"
+              width="14"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
@@ -38,21 +38,21 @@ exports[`ConfirmModal > renders when open 1`] = `
             </svg>
           </div>
           <h3
-            class="text-xs text-main-text"
+            class="text-[12px] font-medium text-main-text"
             id="confirm-modal-title"
           >
             Delete item
           </h3>
         </div>
         <button
-          class="p-1 hover:bg-surface-bg rounded-xl text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer "
+          class="p-1 hover:bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"
           type="button"
         >
           <svg
             fill="currentColor"
-            height="16"
+            height="12"
             viewBox="0 0 256 256"
-            width="16"
+            width="12"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
@@ -62,21 +62,21 @@ exports[`ConfirmModal > renders when open 1`] = `
         </button>
       </div>
       <p
-        class="text-xs font-medium text-muted-text leading-relaxed mb-6 whitespace-normal"
+        class="text-[11px] text-muted-text leading-relaxed mb-5 whitespace-normal"
       >
         Are you sure?
       </p>
       <div
-        class="flex gap-3"
+        class="flex gap-2"
       >
         <button
-          class="flex-1 py-2.5 rounded-xl bg-surface-bg border border-main-border text-main-text text-[11px] hover:border-muted-text/30 transition-all ease-out-expo cursor-pointer "
+          class="flex-1 py-2 rounded bg-surface-bg border border-main-border/50 text-main-text text-[11px] font-medium hover:border-muted-text/20 transition-colors cursor-pointer"
           type="button"
         >
           Cancel
         </button>
         <button
-          class="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-[11px] hover:bg-rose-600 transition-all ease-out-expo flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/20 "
+          class="flex-1 py-2 rounded bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-all cursor-pointer"
           type="button"
         >
           Confirm

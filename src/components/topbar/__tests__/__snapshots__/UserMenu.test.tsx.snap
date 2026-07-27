@@ -9,30 +9,30 @@ exports[`UserMenu > opens dropdown on click 1`] = `
       aria-expanded="true"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-8 h-8 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/20 transition-all duration-300 ease-out-expo cursor-pointer overflow-hidden"
+      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
     >
       <div
-        class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[11px] font-semibold text-primary-foreground overflow-hidden"
+        class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden"
       >
         A
       </div>
     </button>
     <div
       aria-label="User menu"
-      class="absolute top-10 right-0 w-48 bg-panel-bg border border-main-border/50 shadow-xl rounded-xl overflow-hidden z-[200]"
+      class="absolute top-9 right-0 w-44 bg-panel-bg border border-main-border/50 shadow-elevated rounded overflow-hidden z-[200]"
       role="menu"
     >
       <div
-        class="px-3 py-2.5 border-b border-main-border/50"
+        class="px-3 py-2 border-b border-main-border/30"
       >
         <div
-          class="flex items-center gap-2.5"
+          class="flex items-center gap-2"
         >
           <div
-            class="w-8 h-8 rounded-full shrink-0 relative overflow-hidden"
+            class="w-7 h-7 rounded-full shrink-0 relative overflow-hidden"
           >
             <div
-              class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[11px] font-semibold text-primary-foreground"
+              class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground"
             >
               A
             </div>
@@ -41,12 +41,12 @@ exports[`UserMenu > opens dropdown on click 1`] = `
             class="min-w-0"
           >
             <p
-              class="text-[11px] font-semibold text-main-text truncate"
+              class="text-[11px] font-medium text-main-text truncate"
             >
               Alice
             </p>
             <p
-              class="text-[11px] text-muted-text truncate"
+              class="text-[10px] text-muted-text truncate"
             >
               admin
             </p>
@@ -54,18 +54,18 @@ exports[`UserMenu > opens dropdown on click 1`] = `
         </div>
       </div>
       <div
-        class="p-1"
+        class="p-0.5"
       >
         <button
-          class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-all duration-200 text-left group cursor-pointer hover:bg-surface-bg"
+          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-surface-bg"
           role="menuitem"
         >
           <svg
             class="text-muted-text group-hover:text-main-text transition-colors"
             fill="currentColor"
-            height="14"
+            height="13"
             viewBox="0 0 256 256"
-            width="14"
+            width="13"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
@@ -79,15 +79,15 @@ exports[`UserMenu > opens dropdown on click 1`] = `
           </span>
         </button>
         <button
-          class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-all duration-200 text-left group cursor-pointer hover:bg-rose-500/5"
+          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
           role="menuitem"
         >
           <svg
             class="text-muted-text group-hover:text-rose-500 transition-colors"
             fill="currentColor"
-            height="14"
+            height="13"
             viewBox="0 0 256 256"
-            width="14"
+            width="13"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
@@ -115,10 +115,10 @@ exports[`UserMenu > renders avatar with initial letter when no image 1`] = `
       aria-expanded="false"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-8 h-8 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/20 transition-all duration-300 ease-out-expo cursor-pointer overflow-hidden"
+      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
     >
       <div
-        class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[11px] font-semibold text-primary-foreground overflow-hidden"
+        class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden"
       >
         A
       </div>
@@ -136,7 +136,7 @@ exports[`UserMenu > renders avatar with user image when available 1`] = `
       aria-expanded="false"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-8 h-8 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/20 transition-all duration-300 ease-out-expo cursor-pointer overflow-hidden"
+      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
     >
       <img
         alt="User avatar"

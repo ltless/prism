@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import ErrorDisplay from "@/shared/components/ErrorDisplay";
-
 export default function NotFound() {
   return (
     <ErrorDisplay
@@ -11,7 +10,7 @@ export default function NotFound() {
       action={
         <Link
           href="/dashboard"
-          className="inline-block px-6 py-3 bg-primary/10 text-primary rounded-2xl text-xs hover:bg-primary/20 transition-all duration-300 ease-out-expo"
+          className="inline-block px-4 py-2 bg-primary/8 text-primary rounded text-[11px] font-medium hover:bg-primary/15 active:scale-[0.98] transition-all"
         >
           Back to Dashboard
         </Link>

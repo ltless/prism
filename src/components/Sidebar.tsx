@@ -21,7 +21,7 @@ import { useSidebar } from "@/components/sidebar-context";
 import { SidebarLogo } from "@/components/sidebar/SidebarLogo";
 import { SidebarMenuSections } from "@/components/sidebar/SidebarMenuSections";
 
-const SIDEBAR_WIDTH = 260;
+const SIDEBAR_WIDTH = 240;
 
 const menuSections = [
   {
@@ -53,11 +53,9 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
   const [foldersExpanded, setFoldersExpanded] = useState(true);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const [colBtnHovered, setColBtnHovered] = useState(false);
 
   const { isMobileOpen, setMobileOpen, isCollapsed, setIsCollapsed } = useSidebar();
 
-  // Close mobile sidebar on Escape
   useEffect(() => {
     if (!isMobileOpen) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -88,9 +86,9 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+            transition={{ duration: 0.2 }}
             onClick={() => setMobileOpen(false)}
-            className="fixed inset-0 bg-black/60 z-sidebar md:hidden"
+            className="fixed inset-0 bg-black/50 z-sidebar md:hidden"
           />
         )}
       </AnimatePresence>
@@ -100,27 +98,23 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
         className={cn(
           "hidden md:flex flex-col z-sidebar relative",
           "fixed top-0 bottom-0 left-0",
-          "bg-app-bg border-r border-main-border/30 shadow-xl",
-          "transition-[width] duration-300 ease-out-expo"
+          "bg-app-bg border-r border-main-border/30",
+          "transition-[width] duration-200 ease-out-expo"
         )}
-        style={{ width: isCollapsed ? 64 : SIDEBAR_WIDTH }}
+        style={{ width: isCollapsed ? 56 : SIDEBAR_WIDTH }}
       >
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          onMouseEnter={() => setColBtnHovered(true)}
-          onMouseLeave={() => setColBtnHovered(false)}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute inset-y-0 my-auto right-0 translate-x-[55%] z-40 flex items-center justify-center w-5 h-10 rounded-full bg-panel-bg text-main-text hover:bg-surface-bg transition-all duration-300 cursor-pointer shadow-md"
+          className="absolute inset-y-0 my-auto right-0 translate-x-1/2 z-40 flex items-center justify-center w-4 h-8 rounded-full bg-panel-bg text-muted-text hover:text-main-text hover:bg-surface-bg transition-all duration-200 cursor-pointer border border-main-border/50"
         >
-          {isCollapsed ? <CaretRight size={12} weight="bold" /> : <CaretLeft size={12} weight="bold" />}
+          {isCollapsed ? <CaretRight size={10} weight="bold" /> : <CaretLeft size={10} weight="bold" />}
         </button>
-
-        <div className={cn("absolute right-0 top-1/2 -translate-y-1/2 w-[2px] h-1/2 bg-gradient-to-b from-transparent via-primary/40 to-transparent pointer-events-none transition-opacity duration-300 z-30", colBtnHovered ? "opacity-100" : "opacity-0")} />
 
         <div className="relative flex flex-col h-full">
           <SidebarLogo isExpanded={!isCollapsed} />
 
-          <div className={cn("flex-1 overflow-y-auto custom-scroll py-2", isCollapsed ? "px-1" : "px-2")}>
+          <div className={cn("flex-1 overflow-y-auto custom-scroll py-1", isCollapsed ? "px-1" : "px-2")}>
             <SidebarMenuSections {...sharedProps} isExpanded={!isCollapsed} />
           </div>
         </div>
@@ -133,20 +127,20 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-y-0 left-0 w-72 flex flex-col bg-app-bg z-mobile-sidebar md:hidden shadow-2xl"
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-y-0 left-0 w-64 flex flex-col bg-app-bg z-mobile-sidebar md:hidden shadow-xl"
           >
             <button
               onClick={() => setMobileOpen(false)}
               aria-label="Close sidebar"
-              className="absolute top-6 right-6 z-10 p-2 bg-main-border/30 rounded-full text-muted-text hover:text-main-text transition-colors cursor-pointer"
+              className="absolute top-5 right-5 z-10 p-1.5 bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"
             >
-              <X size={16} weight="light" />
+              <X size={14} weight="light" />
             </button>
 
             <SidebarLogo isExpanded={true} />
 
-            <div className="flex-1 overflow-y-auto px-4 space-y-6 custom-scroll">
+            <div className="flex-1 overflow-y-auto px-3 space-y-5 custom-scroll">
               <SidebarMenuSections {...sharedProps} isExpanded={true} />
             </div>
           </motion.aside>

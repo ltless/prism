@@ -6,17 +6,17 @@ exports[`ErrorDisplay > renders title and message 1`] = `
     class="flex items-center justify-center min-h-screen bg-app-bg p-6"
   >
     <div
-      class="text-center max-w-md"
+      class="text-center max-w-sm"
     >
       <div
-        class="w-16 h-16 bg-rose-500/10 rounded-xl flex items-center justify-center mx-auto mb-6"
+        class="w-10 h-10 bg-rose-500/8 rounded flex items-center justify-center mx-auto mb-4"
       >
         <svg
           class="text-rose-500"
           fill="currentColor"
-          height="32"
+          height="20"
           viewBox="0 0 256 256"
-          width="32"
+          width="20"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
@@ -25,12 +25,12 @@ exports[`ErrorDisplay > renders title and message 1`] = `
         </svg>
       </div>
       <h1
-        class="text-lg text-main-text mb-2"
+        class="text-sm font-medium text-main-text mb-1.5"
       >
         Something went wrong
       </h1>
       <p
-        class="text-xs font-bold text-muted-text mb-6"
+        class="text-[11px] text-muted-text mb-5"
       >
         Please try again
       </p>
@@ -45,17 +45,17 @@ exports[`ErrorDisplay > renders with action element 1`] = `
     class="flex items-center justify-center min-h-screen bg-app-bg p-6"
   >
     <div
-      class="text-center max-w-md"
+      class="text-center max-w-sm"
     >
       <div
-        class="w-16 h-16 bg-rose-500/10 rounded-xl flex items-center justify-center mx-auto mb-6"
+        class="w-10 h-10 bg-rose-500/8 rounded flex items-center justify-center mx-auto mb-4"
       >
         <svg
           class="text-rose-500"
           fill="currentColor"
-          height="32"
+          height="20"
           viewBox="0 0 256 256"
-          width="32"
+          width="20"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
@@ -64,7 +64,7 @@ exports[`ErrorDisplay > renders with action element 1`] = `
         </svg>
       </div>
       <h1
-        class="text-lg text-main-text mb-2"
+        class="text-sm font-medium text-main-text mb-1.5"
       >
         Error
       </h1>
@@ -82,17 +82,17 @@ exports[`ErrorDisplay > renders without message 1`] = `
     class="flex items-center justify-center min-h-screen bg-app-bg p-6"
   >
     <div
-      class="text-center max-w-md"
+      class="text-center max-w-sm"
     >
       <div
-        class="w-16 h-16 bg-rose-500/10 rounded-xl flex items-center justify-center mx-auto mb-6"
+        class="w-10 h-10 bg-rose-500/8 rounded flex items-center justify-center mx-auto mb-4"
       >
         <svg
           class="text-rose-500"
           fill="currentColor"
-          height="32"
+          height="20"
           viewBox="0 0 256 256"
-          width="32"
+          width="20"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
@@ -101,7 +101,7 @@ exports[`ErrorDisplay > renders without message 1`] = `
         </svg>
       </div>
       <h1
-        class="text-lg text-main-text mb-2"
+        class="text-sm font-medium text-main-text mb-1.5"
       >
         Not found
       </h1>

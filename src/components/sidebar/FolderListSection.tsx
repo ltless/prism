@@ -19,16 +19,16 @@ const containerVariants = {
     opacity: 1,
     transition: {
       staggerChildren: 0.03,
-      height: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-      opacity: { duration: 0.25 }
+      height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+      opacity: { duration: 0.2 }
     }
   },
   exit: {
     height: 0,
     opacity: 0,
     transition: {
-      height: { duration: 0.25, ease: [0.32, 0.72, 0, 1] },
-      opacity: { duration: 0.15 },
+      height: { duration: 0.2, ease: [0.32, 0.72, 0, 1] },
+      opacity: { duration: 0.1 },
       staggerChildren: 0.02,
       staggerDirection: -1
     }
@@ -36,16 +36,16 @@ const containerVariants = {
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 4 },
+  hidden: { opacity: 0, y: 3 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }
+    transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const }
   },
   exit: {
     opacity: 0,
-    y: -4,
-    transition: { duration: 0.15, ease: [0.4, 0, 1, 1] as const }
+    y: -3,
+    transition: { duration: 0.1, ease: [0.4, 0, 1, 1] as const }
   }
 };
 
@@ -80,7 +80,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
         if (!result.success) {
           toast.error(result.error || "Failed to move items");
         } else {
-          toast.success(`${ids.length} items moved successfully`);
+          toast.success(`${ids.length} items moved`);
           router.refresh();
         }
       }
@@ -92,7 +92,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
     e.stopPropagation();
     const ok = await confirm({
       title: "Delete folder",
-      message: "Delete this folder? Items inside move back to Library — nothing is deleted.",
+      message: "Delete this folder? Items inside move back to Library.",
       confirmLabel: "Delete",
     });
     if (!ok) return;
@@ -141,7 +141,6 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
     router.refresh();
   };
 
-  // Collapsed mode: show colored dots
   if (!isExpanded) {
     return (
       <div className="flex flex-col items-center gap-1.5 py-1">
@@ -158,8 +157,8 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
               onDrop={(e) => handleDrop(e, folder.id)}
               title={folder.name}
               className={cn(
-                "w-2 h-2 rounded-full transition-all duration-300 ease-out-expo",
-                (isSelected || isOver) && "scale-125"
+                "w-1.5 h-1.5 rounded-full transition-all duration-200",
+                (isSelected || isOver) && "scale-150"
               )}
               style={{ backgroundColor: color }}
             />
@@ -169,7 +168,6 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
     );
   }
 
-  // Expanded mode: full list
   return (
     <>
       <AnimatePresence initial={false}>
@@ -179,10 +177,10 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
             initial="hidden"
             animate="show"
             exit="exit"
-            className="pb-2 overflow-hidden space-y-0.5"
+            className="pb-1 overflow-hidden space-y-px"
           >
             {folders.length === 0 ? (
-              <motion.p variants={itemVariants} className="text-[11px] text-muted-text/60 px-2 italic font-medium py-3 text-center">No folders yet</motion.p>
+              <motion.p variants={itemVariants} className="text-[10px] text-muted-text/50 px-2 italic py-2 text-center">No folders yet</motion.p>
             ) : (
               folders.map(folder => {
                 const color = FOLDER_COLORS[folder.color || 'zinc'];
@@ -194,11 +192,11 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                   return (
                     <motion.div key={folder.id} variants={itemVariants}>
                       <div
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl"
-                        style={{ backgroundColor: `${color}0D`, color }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded"
+                        style={{ backgroundColor: `${color}08`, color }}
                       >
-                        <div className="w-6 h-6 flex items-center justify-center shrink-0" style={{ color }}>
-                          <Folder size={14} weight="fill" />
+                        <div className="w-5 h-5 flex items-center justify-center shrink-0" style={{ color }}>
+                          <Folder size={12} weight="fill" />
                         </div>
                         <input
                           autoFocus
@@ -211,7 +209,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                           }}
                           onBlur={commitRename}
                           placeholder="Folder name"
-                          className="flex-1 bg-surface-bg/40 border border-main-border/60 rounded-md px-2 py-0.5 text-xs text-main-text outline-none focus:border-primary/50 transition-colors"
+                          className="flex-1 bg-transparent border border-main-border/40 rounded px-1.5 py-0.5 text-[11px] text-main-text outline-none focus:border-primary/50 transition-colors"
                         />
                       </div>
                     </motion.div>
@@ -226,42 +224,42 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                       onDragLeave={() => onDragOver(null)}
                       onDrop={(e) => handleDrop(e, folder.id)}
                       className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer min-w-0",
+                        "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded transition-colors duration-150 cursor-pointer min-w-0",
                         (isSelected || isOver)
-                          ? "shadow-sm"
-                          : "bg-transparent text-muted-text hover:bg-surface-bg/50"
+                          ? ""
+                          : "text-muted-text hover:bg-surface-bg"
                       )}
                       style={(isSelected || isOver) ? {
-                        backgroundColor: `${color}0D`,
+                        backgroundColor: `${color}08`,
                         color: color
                       } : {}}
                     >
                       <div
-                        className="w-6 h-6 flex items-center justify-center transition-all duration-300 shrink-0"
+                        className="w-5 h-5 flex items-center justify-center transition-colors duration-150 shrink-0"
                         style={{ color }}
                       >
-                        <Folder size={14} weight={(isSelected || isOver) ? "fill" : "light"} />
+                        <Folder size={12} weight={(isSelected || isOver) ? "fill" : "light"} />
                       </div>
-                      <span className="text-xs font-semibold truncate flex-1">
+                      <span className="text-[11px] font-medium truncate flex-1">
                         {folder.name}
                       </span>
                     </Link>
-                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                    <div className="absolute right-0.5 top-1/2 -translate-y-1/2 flex items-center gap-px opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-100">
                       <button
                         type="button"
                         aria-label={`Rename ${folder.name}`}
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(folder); }}
-                        className="p-1 rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg/80 cursor-pointer"
+                        className="p-0.5 rounded text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer"
                       >
-                        <Pencil size={12} weight="light" />
+                        <Pencil size={10} weight="light" />
                       </button>
                       <button
                         type="button"
                         aria-label={`Delete ${folder.name}`}
                         onClick={(e) => handleDelete(folder.id, e)}
-                        className="p-1 rounded-md text-muted-text hover:text-rose-400 hover:bg-surface-bg/80 cursor-pointer"
+                        className="p-0.5 rounded text-muted-text hover:text-rose-500 hover:bg-surface-bg cursor-pointer"
                       >
-                        <Trash size={12} weight="light" />
+                        <Trash size={10} weight="light" />
                       </button>
                     </div>
                   </motion.div>

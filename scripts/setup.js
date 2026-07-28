@@ -266,17 +266,22 @@ async function main() {
   }
 
   // ─ 4. push schema ────────────────
-  step('4/5', 'pushing database schema (drizzle-kit push)');
+  step('4/5', 'pushing database schema (postgres.sql)');
 
   // check if schema already exists (users table)
   const tableExists = pgQuery("SELECT to_regclass('public.users')");
   if (tableExists && tableExists !== '') {
     ok('schema already exists (users table found)');
   } else {
-    // fresh database — push schema. --force auto-approves since there's no data to lose
-    const schemaResult = exec('npx drizzle-kit push --force');
-    if (schemaResult === null) {
-      err('drizzle-kit push failed. check your DATABASE_URL in .env.local');
+    // fresh database — apply embedded SQL migration via psql
+    const migrationPath = path.join(ROOT, 'backend/internal/db/migrations/postgres.sql');
+    const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+    const schemaResult = spawnSync('docker', [
+      'exec', '-i', 'prism-postgres',
+      'psql', '-U', 'prism', '-d', 'prism',
+    ], { input: migrationSql, stdio: ['pipe', 'inherit', 'inherit'] });
+    if (schemaResult.status !== 0) {
+      err('schema push failed. check docker container is running.');
       process.exit(1);
     }
     ok('schema pushed');

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { ArrowUp } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/core/utils/cn";
@@ -12,27 +12,26 @@ interface UploadZoneProps {
 
 export function UploadZone({ children, className }: UploadZoneProps) {
  const [isDragging, setIsDragging] = useState(false);
- const [, setDragCounter] = useState(0);
+ const dragCounter = useRef(0);
 
  const handleDragEnter = useCallback((e: React.DragEvent) => {
  e.preventDefault();
  // Only show upload UI if dragging files from outside
  if (!e.dataTransfer.types.includes("Files")) return;
  
- setDragCounter(c => c + 1);
- setIsDragging(true);
+ dragCounter.current += 1;
+ if (dragCounter.current === 1) {
+   setIsDragging(true);
+ }
  }, []);
 
  const handleDragLeave = useCallback((e: React.DragEvent) => {
  e.preventDefault();
- setDragCounter(c => {
- const next = c - 1;
- if (next <= 0) {
- setIsDragging(false);
- return 0;
+ dragCounter.current -= 1;
+ if (dragCounter.current <= 0) {
+   dragCounter.current = 0;
+   setIsDragging(false);
  }
- return next;
- });
  }, []);
 
  const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -42,7 +41,7 @@ export function UploadZone({ children, className }: UploadZoneProps) {
  const handleDrop = useCallback((e: React.DragEvent) => {
  e.preventDefault();
  setIsDragging(false);
- setDragCounter(0);
+ dragCounter.current = 0;
  
  const files = Array.from(e.dataTransfer.files);
  if (files.length > 0) {

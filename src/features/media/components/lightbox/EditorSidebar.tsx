@@ -280,16 +280,18 @@ export function EditorSidebar({
 
   const [panelOrder, setPanelOrder] = useState<PanelId[]>(() => {
     try {
-      const stored = localStorage.getItem(ORDER_KEY);
-      if (stored) {
-        const parsed: string[] = JSON.parse(stored);
-        return parsed.filter((id): id is PanelId => panelItemMap.has(id as PanelId));
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem(ORDER_KEY);
+        if (stored) {
+          const parsed: string[] = JSON.parse(stored);
+          return parsed.filter((id): id is PanelId => panelItemMap.has(id as PanelId));
+        }
       }
     } catch { /* ignore corrupt storage */ }
     return panelItems.map((item) => item.id);
   });
 
-  const [isLocked, setIsLocked] = useState(() => localStorage.getItem(LOCK_KEY) === "true");
+  const [isLocked, setIsLocked] = useState(() => typeof window !== "undefined" && localStorage.getItem(LOCK_KEY) === "true");
 
   useEffect(() => {
     localStorage.setItem(ORDER_KEY, JSON.stringify(panelOrder));

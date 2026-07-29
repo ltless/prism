@@ -21,11 +21,15 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
     function handleClickOutside(event: MouseEvent) {
       if (ref.current && !ref.current.contains(event.target as Node)) setIsOpen(false);
     }
+    const handleScroll = () => setIsOpen(false);
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      window.addEventListener("scroll", () => setIsOpen(false), { capture: true, once: true });
+      window.addEventListener("scroll", handleScroll, { capture: true, once: true });
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+    };
   }, [isOpen]);
 
   return (

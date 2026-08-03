@@ -37,7 +37,7 @@ export function SearchFilters() {
  <button
  type="button"
  onClick={() => updateParam("type", "image")}
- className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-muted-text hover:text-main-text hover:border-primary/30 transition-all ease-out-expo cursor-pointer"
+ className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-muted-text hover:text-main-text hover:border-primary/30 transition-colors ease-out-expo cursor-pointer"
  >
  <ImageIcon size={12} weight="light" />
  Images
@@ -45,7 +45,7 @@ export function SearchFilters() {
  <button
  type="button"
  onClick={() => updateParam("type", "video")}
- className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-muted-text hover:text-main-text hover:border-primary/30 transition-all ease-out-expo cursor-pointer"
+ className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-muted-text hover:text-main-text hover:border-primary/30 transition-colors ease-out-expo cursor-pointer"
  >
  <Video size={12} weight="light" />
  Videos
@@ -66,7 +66,7 @@ export function SearchFilters() {
  value={dateFrom ?? ""}
  onChange={(e) => updateParam("from", e.target.value || null)}
  placeholder="From"
- className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all [color-scheme:light] dark:[color-scheme:dark]"
+ className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-[border-color,box-shadow] [color-scheme:light] dark:[color-scheme:dark]"
  />
  </div>
  <span className="text-xs text-muted-text">-</span>
@@ -77,7 +77,7 @@ export function SearchFilters() {
  value={dateTo ?? ""}
  onChange={(e) => updateParam("to", e.target.value || null)}
  placeholder="To"
- className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all [color-scheme:light] dark:[color-scheme:dark]"
+ className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-[border-color,box-shadow] [color-scheme:light] dark:[color-scheme:dark]"
  />
  </div>
  </div>

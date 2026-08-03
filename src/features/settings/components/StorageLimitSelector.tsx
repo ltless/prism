@@ -40,7 +40,7 @@ export function StorageLimitSelector({ value, onChange, options = defaultOptions
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "h-14 flex flex-col items-center justify-center rounded-lg border transition-all cursor-pointer",
+              "h-14 flex flex-col items-center justify-center rounded-lg border transition-[color,background-color,border-color,box-shadow] cursor-pointer",
               value === opt.value
                 ? "bg-primary border-primary text-primary-foreground shadow-sm"
                 : "bg-surface-bg border-main-border/40 text-muted-text hover:border-primary/30"

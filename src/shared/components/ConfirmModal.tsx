@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { Warning, X } from "@phosphor-icons/react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useScrollLock } from "../hooks/useScrollLock";
@@ -35,7 +35,7 @@ export function ConfirmModal({
     <AnimatePresence>
       {isOpen && (
         <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" className="fixed inset-0 z-modal flex items-center justify-center p-4">
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -44,7 +44,7 @@ export function ConfirmModal({
             className="absolute inset-0 bg-black/50"
           />
 
-          <motion.div
+          <m.div
             initial={{ scale: reduced ? 1 : 0.97, opacity: 0, y: reduced ? 0 : 6 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: reduced ? 1 : 0.97, opacity: 0, y: reduced ? 0 : 6 }}
@@ -84,12 +84,12 @@ export function ConfirmModal({
               <button
                 type="button"
                 onClick={onConfirm}
-                className="flex-1 py-2 rounded bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-all cursor-pointer"
+                className="flex-1 py-2 rounded bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-[background-color,transform] cursor-pointer"
               >
                 {confirmLabel}
               </button>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       )}
     </AnimatePresence>

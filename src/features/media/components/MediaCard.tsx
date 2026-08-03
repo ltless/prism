@@ -3,7 +3,7 @@
 import { useState, memo, useEffect } from "react";
 import Image from "next/image";
 import { Folder, Trash, Heart, FolderSimple, Download, Hash, Star, Pencil, Play, Spinner, Warning, Lock, LockOpen, Image as ImageIcon, FileVideo } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { ContextMenu } from "./ContextMenu";
 import { cn } from "@/core/utils/cn";
 import { MediaItem, Folder as FolderType } from "../types";
@@ -149,7 +149,7 @@ export const MediaCard = memo(function MediaCard({
  onDragEnd={handleDragEnd}
  className="h-full w-full"
  >
-  <motion.div
+  <m.div
   whileHover={reduced ? {} : { y: -4 }} whileTap={reduced ? {} : { scale: 0.97 }}
   transition={{ type: "spring", stiffness: 400, damping: 17 }}
   className={cn(
@@ -180,7 +180,7 @@ export const MediaCard = memo(function MediaCard({
   onError={() => setImgError(true)}
   onLoad={() => setImgLoaded(true)}
   className={cn(
-  "object-cover select-none pointer-events-none transition-all duration-500 ease-out-expo",
+  "object-cover select-none pointer-events-none transition-[opacity,filter,transform] duration-500 ease-out-expo",
   "group-hover:scale-105",
   imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-sm",
   isDeleting ? "opacity-50 grayscale blur-sm" : isSelected ? "opacity-80" : "",
@@ -228,7 +228,7 @@ export const MediaCard = memo(function MediaCard({
  {/* Hover overlay */}
  <AnimatePresence>
  {(isHovered || isTapped) && (
- <motion.div
+ <m.div
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
@@ -267,10 +267,10 @@ export const MediaCard = memo(function MediaCard({
  </div>
  </div>
  </div>
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>
-  </motion.div>
+  </m.div>
   </div>
   </ContextMenu>
  <RenameModal

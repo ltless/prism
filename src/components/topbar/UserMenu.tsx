@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { GearSix, SignOut } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { EffectiveSession } from "@/lib/auth/useEffectiveSession";
@@ -40,7 +40,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
         aria-label="Open user menu"
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        className="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
+        className="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
       >
         {session?.user?.image ? (
           <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill sizes="28px" className="rounded-full object-cover" unoptimized priority />
@@ -53,7 +53,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <m.div
             role="menu"
             aria-label="User menu"
             initial={{ opacity: 0, y: -4 }}
@@ -100,7 +100,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
                 <span className="text-[11px] font-medium text-muted-text group-hover:text-rose-500">Sign out</span>
               </button>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { X, Download, CaretLeft, CaretRight, Info, ImageBroken } from "@phosphor-icons/react";
 import { LightboxInfo } from "./LightboxInfo";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -109,31 +109,31 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
   }, [onClose, onNext, onPrev, isVideo, isZoomed, isInfoOpen]);
 
   // Swipe + double-tap
-  const [swipeState, setSwipeState] = useState<{ startX: number; startY: number } | null>(null);
+  const swipeState = useRef<{ startX: number; startY: number } | null>(null);
   const SWIPE_THRESHOLD = 30;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     showControls();
     if (isVideo) return;
     const touch = e.touches[0];
-    setSwipeState({ startX: touch.clientX, startY: touch.clientY });
+    swipeState.current = { startX: touch.clientX, startY: touch.clientY };
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!swipeState || isVideo || isZoomed) return;
+    if (!swipeState.current || isVideo || isZoomed) return;
     const touch = e.touches[0];
-    const diffX = touch.clientX - swipeState.startX;
-    const diffY = Math.abs(touch.clientY - swipeState.startY);
-    if (diffY > Math.abs(diffX)) { setSwipeState(null); return; }
+    const diffX = touch.clientX - swipeState.current.startX;
+    const diffY = Math.abs(touch.clientY - swipeState.current.startY);
+    if (diffY > Math.abs(diffX)) { swipeState.current = null; return; }
     if (Math.abs(diffX) > SWIPE_THRESHOLD) {
       if (diffX > 0 && onPrev) onPrev();
       else if (diffX < 0 && onNext) onNext();
-      setSwipeState(null);
+      swipeState.current = null;
     }
   };
 
   const handleTouchEnd = () => {
-    if (swipeState) {
+    if (swipeState.current) {
       const now = Date.now();
       if (now - lastTap.current < 300 && !isVideo) {
         setIsZoomed(z => !z);
@@ -141,7 +141,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
       }
       lastTap.current = now;
     }
-    setSwipeState(null);
+    swipeState.current = null;
   };
 
   // Zoom + pan (desktop)
@@ -189,7 +189,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
 
   return (
     <AnimatePresence>
-    <motion.div
+    <m.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
@@ -209,7 +209,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     {/* Image viewport — flex-1, shrinks when info panel opens */}
     <div
     ref={containerRef}
-    className="flex-1 relative flex items-center justify-center p-2 md:p-8 min-w-0 transition-all duration-300 ease-out-expo"
+    className="flex-1 relative flex items-center justify-center p-2 md:p-8 min-w-0 transition-[flex-grow,flex-shrink] duration-300 ease-out-expo"
     onDoubleClick={handleDoubleClick}
     onMouseDown={handleMouseDown}
     onMouseMove={handleMouseMove}
@@ -221,7 +221,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     >
     <AnimatePresence mode="wait">
     {isVideo ? (
-    <motion.div
+    <m.div
     key={item.id}
     initial={{ opacity: 0, x: 20, scale: 0.95 }}
     animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -230,7 +230,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     className="max-w-full max-h-full"
     >
     <VideoPlayer src={mediaUrl} autoPlay className="max-w-full max-h-full rounded-xl" />
-    </motion.div>
+    </m.div>
     ) : imgError ? (
     <div className="flex items-center justify-center w-full h-full">
     <div className="flex flex-col items-center gap-3">
@@ -245,7 +245,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     <div className="w-8 h-8 border-2 border-white/10 border-t-white/30 rounded-full animate-spin" />
     </div>
     )}
-    <motion.img
+    <m.img
     key={item.id}
     src={mediaUrl}
     alt={item.title}
@@ -269,7 +269,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     {controlsVisible && !isZoomed && (
     <>
     {onPrev && (
-    <motion.button
+    <m.button
     key="prev"
     initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
     transition={{ duration: 0.2 }}
@@ -277,10 +277,10 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 p-2.5 md:p-3.5 hover:bg-white/25 rounded-full text-white z-20 bg-black/50 backdrop-blur-sm border border-white/20 transition-colors cursor-pointer"
     >
     <CaretLeft size={24} weight="light" />
-    </motion.button>
+    </m.button>
     )}
     {onNext && (
-    <motion.button
+    <m.button
     key="next"
     initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
     transition={{ duration: 0.2 }}
@@ -288,7 +288,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 p-2.5 md:p-3.5 hover:bg-white/25 rounded-full text-white z-20 bg-black/50 backdrop-blur-sm border border-white/20 transition-colors cursor-pointer"
     >
     <CaretRight size={24} weight="light" />
-    </motion.button>
+    </m.button>
     )}
     </>
     )}
@@ -297,20 +297,20 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     {/* Zoom hint — inside image viewport so it centers on image */}
     <AnimatePresence>
     {imgLoaded && !isZoomed && !isVideo && controlsVisible && (
-    <motion.div
+    <m.div
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     transition={{ delay: 0.5, duration: 0.3 }}
     className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-white/40 z-20 pointer-events-none"
     >
     Double-click to zoom
-    </motion.div>
+    </m.div>
     )}
     </AnimatePresence>
 
     {/* Floating top bar — inside image viewport so it doesn't cover info panel */}
     <AnimatePresence>
     {controlsVisible && (
-    <motion.div
+    <m.div
     initial={{ opacity: 0, y: -10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
@@ -347,7 +347,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     <Info size={18} weight="light" />
     </button>
     </div>
-    </motion.div>
+    </m.div>
     )}
     </AnimatePresence>
     </div>
@@ -356,7 +356,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     <AnimatePresence>
     {isInfoOpen && (
       isMobile ? (
-    <motion.div
+    <m.div
     key="info-mobile"
     initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
     transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -371,9 +371,9 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     <div className="flex-1 overflow-y-auto custom-scroll">
     <LightboxInfo item={{ ...item, transcodeStatus }} folders={folders} />
     </div>
-    </motion.div>
+    </m.div>
       ) : (
-    <motion.div
+    <m.div
     key="info-desktop"
     initial={{ opacity: 0, x: 20 }}
     animate={{ opacity: 1, x: 0 }}
@@ -392,13 +392,13 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     <LightboxInfo item={{ ...item, transcodeStatus }} folders={folders} />
     </div>
     </div>
-    </motion.div>
+    </m.div>
       )
     )}
     </AnimatePresence>
     </>
     )}
-    </motion.div>
+    </m.div>
     </AnimatePresence>
   );
 }

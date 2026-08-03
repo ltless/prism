@@ -10,6 +10,7 @@ const MotionTag = ({ children, ...props }: Record<string, unknown>) => {
 
 vi.mock('motion/react', () => ({
   motion: new Proxy({}, { get: () => MotionTag }),
+  m: new Proxy({}, { get: () => MotionTag }),
   AnimatePresence: ({ children }: Record<string, unknown>) => <>{children}</>,
 }));
 

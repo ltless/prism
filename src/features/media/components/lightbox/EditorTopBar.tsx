@@ -3,7 +3,7 @@
 import { List, Sun, Moon, Check, Spinner } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { useSidebar } from "@/components/sidebar-context";
 import { useTheme } from "@/components/ThemeProvider";
 import { UserMenu } from "@/components/topbar/UserMenu";
@@ -161,8 +161,8 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
 
           <Link href="/dashboard" className="flex items-center gap-2 mr-3 group/logo" title="Back to Dashboard">
             <div className="relative flex items-center justify-center shrink-0">
-              <div className="border border-main-text/80 rotate-45 w-4 h-4 flex items-center justify-center transition-all duration-500 group-hover/logo:border-primary group-hover/logo:rotate-[135deg]">
-                <div className="bg-main-text/80 w-1 h-1 transition-all duration-500 group-hover/logo:bg-primary" />
+              <div className="border border-main-text/80 rotate-45 w-4 h-4 flex items-center justify-center transition-[border-color,transform] duration-500 group-hover/logo:border-primary group-hover/logo:rotate-[135deg]">
+                <div className="bg-main-text/80 w-1 h-1 transition-colors duration-500 group-hover/logo:bg-primary" />
               </div>
             </div>
             <span className="text-main-text font-semibold tracking-[0.25em] text-xs uppercase transition-colors duration-200 group-hover/logo:text-primary">
@@ -205,13 +205,13 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
           >
             <AnimatePresence mode="wait">
               {theme === "dark" ? (
-                <motion.div key="sun" initial={{ rotate: -90, opacity: 0, scale: 0.5 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 90, opacity: 0, scale: 0.5 }} transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}>
+                <m.div key="sun" initial={{ rotate: -90, opacity: 0, scale: 0.5 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 90, opacity: 0, scale: 0.5 }} transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}>
                   <Sun size={14} weight="light" />
-                </motion.div>
+                </m.div>
               ) : (
-                <motion.div key="moon" initial={{ rotate: 90, opacity: 0, scale: 0.5 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: -90, opacity: 0, scale: 0.5 }} transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}>
+                <m.div key="moon" initial={{ rotate: 90, opacity: 0, scale: 0.5 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: -90, opacity: 0, scale: 0.5 }} transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}>
                   <Moon size={14} weight="light" />
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </button>

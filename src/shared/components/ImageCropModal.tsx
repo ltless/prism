@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import Cropper, { Area } from "react-easy-crop";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { X, Check, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { getCroppedImg } from "../utils/cropImage";
 import { toast } from "sonner";
@@ -28,7 +28,7 @@ export function ImageCropModal({
 }: ImageCropModalProps) {
  const [crop, setCrop] = useState({ x: 0, y: 0 });
  const [zoom, setZoom] = useState(1);
- const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+ const croppedAreaPixelsRef = useRef<Area | null>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, true);
@@ -44,13 +44,13 @@ export function ImageCropModal({
  }, []);
 
  const onCropCompleteInternal = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
- setCroppedAreaPixels(croppedAreaPixels);
+ croppedAreaPixelsRef.current = croppedAreaPixels;
  }, []);
 
  const handleSave = async () => {
- if (croppedAreaPixels) {
+ if (croppedAreaPixelsRef.current) {
  try {
- const croppedBlob = await getCroppedImg(image, croppedAreaPixels);
+ const croppedBlob = await getCroppedImg(image, croppedAreaPixelsRef.current);
  if (croppedBlob) {
  onCropComplete(croppedBlob);
  onClose();
@@ -64,7 +64,7 @@ export function ImageCropModal({
  return (
   <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="image-crop-modal-title" className="fixed inset-0 z-modal flex items-center justify-center p-4">
   {/* Backdrop */}
-  <motion.div
+  <m.div
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
   exit={{ opacity: 0 }}
@@ -74,7 +74,7 @@ export function ImageCropModal({
   />
 
   {/* Modal */}
-  <motion.div
+  <m.div
   initial={{ scale: reduced ? 1 : 0.9, opacity: 0 }}
   animate={{ scale: 1, opacity: 1 }}
   exit={{ scale: reduced ? 1 : 0.9, opacity: 0 }}
@@ -138,7 +138,7 @@ export function ImageCropModal({
  setZoom(1);
  setCrop({ x: 0, y: 0 });
  }}
- className="flex-1 py-4 rounded-full bg-surface-bg border border-main-border text-main-text text-xs hover:bg-panel-bg hover:border-muted-text/30 transition-all ease-out-expo flex items-center justify-center gap-2 cursor-pointer shadow-sm "
+ className="flex-1 py-4 rounded-full bg-surface-bg border border-main-border text-main-text text-xs hover:bg-panel-bg hover:border-muted-text/30 transition-colors ease-out-expo flex items-center justify-center gap-2 cursor-pointer shadow-sm "
  >
  <ArrowCounterClockwise size={14} weight="light" />
  Reset
@@ -146,14 +146,14 @@ export function ImageCropModal({
  <button
  type="button"
  onClick={handleSave}
- className="flex-[2] py-4 rounded-full bg-primary text-primary-foreground text-xs hover:shadow-lg hover:shadow-primary/20 transition-all ease-out-expo flex items-center justify-center gap-2 cursor-pointer shadow-md "
+ className="flex-[2] py-4 rounded-full bg-primary text-primary-foreground text-xs hover:shadow-lg hover:shadow-primary/20 transition-shadow ease-out-expo flex items-center justify-center gap-2 cursor-pointer shadow-md "
  >
  <Check size={14} weight="bold" />
  Confirm Selection
  </button>
  </div>
  </div>
- </motion.div>
+ </m.div>
  </div>
  );
 }

@@ -76,7 +76,7 @@ exports[`ConfirmModal > renders when open 1`] = `
           Cancel
         </button>
         <button
-          class="flex-1 py-2 rounded bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-all cursor-pointer"
+          class="flex-1 py-2 rounded bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-[background-color,transform] cursor-pointer"
           type="button"
         >
           Confirm

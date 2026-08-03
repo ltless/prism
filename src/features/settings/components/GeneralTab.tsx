@@ -53,7 +53,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
           <div className="relative">
             {/* Cover Image */}
             <div
-              className="relative h-32 w-full rounded-xl overflow-hidden bg-surface-bg border border-main-border/40 group cursor-pointer shadow-inner transition-all hover:border-primary/40"
+              className="relative h-32 w-full rounded-xl overflow-hidden bg-surface-bg border border-main-border/40 group cursor-pointer shadow-inner transition-colors hover:border-primary/40"
               onClick={() => coverInputRef.current?.click()}
             >
               {coverSrc ? (
@@ -75,7 +75,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
             {/* Profile Avatar Overlay */}
             <div className="flex items-end gap-4 -mt-10 px-4 relative z-10">
               <div
-                className="relative w-20 h-20 rounded-full overflow-hidden bg-app-bg border-4 border-panel-bg group cursor-pointer shadow-md transition-all hover:scale-105 shrink-0"
+                className="relative w-20 h-20 rounded-full overflow-hidden bg-app-bg border-4 border-panel-bg group cursor-pointer shadow-md transition-transform hover:scale-105 shrink-0"
                 onClick={() => profileInputRef.current?.click()}
               >
                 {profileSrc ? (
@@ -120,14 +120,14 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
               <input
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                className="flex-1 px-3 py-2 bg-app-bg border border-main-border/50 rounded-lg text-[12px] text-main-text placeholder:text-muted-text/50 focus:border-primary focus:bg-panel-bg outline-none transition-all duration-200"
+                className="flex-1 px-3 py-2 bg-app-bg border border-main-border/50 rounded-lg text-[12px] text-main-text placeholder:text-muted-text/50 focus:border-primary focus:bg-panel-bg outline-none transition-colors duration-200"
                 placeholder="Enter username..."
               />
               <button
                 type="button"
                 onClick={handleSaveUsername}
                 disabled={isSavingUsername || !username.trim() || username === session?.user?.name}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-all duration-200 cursor-pointer shrink-0 shadow-sm"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-opacity duration-200 cursor-pointer shrink-0 shadow-sm"
               >
                 {isSavingUsername ? <Spinner size={12} className="animate-spin" weight="light" /> : <FloppyDisk size={12} weight="light" />}
                 Save
@@ -148,7 +148,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
               onClick={() => setTheme("dark")}
               aria-pressed={theme === "dark"}
               className={cn(
-                "p-3 rounded-xl border relative overflow-hidden group cursor-pointer transition-all duration-300 text-left",
+                "p-3 rounded-xl border relative overflow-hidden group cursor-pointer transition-[border-color,background-color,transform] duration-300 text-left",
                 theme === "dark" 
                   ? "border-primary bg-primary/[0.02] shadow-sm scale-[1.01]" 
                   : "border-main-border/50 bg-app-bg/30 hover:border-main-border/80 hover:bg-app-bg/50"
@@ -190,7 +190,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
               onClick={() => setTheme("light")}
               aria-pressed={theme === "light"}
               className={cn(
-                "p-3 rounded-xl border relative overflow-hidden group cursor-pointer transition-all duration-300 text-left",
+                "p-3 rounded-xl border relative overflow-hidden group cursor-pointer transition-[border-color,background-color,transform] duration-300 text-left",
                 theme === "light" 
                   ? "border-primary bg-primary/[0.01] shadow-sm scale-[1.01]" 
                   : "border-main-border/50 bg-app-bg/30 hover:border-main-border/80 hover:bg-app-bg/50"

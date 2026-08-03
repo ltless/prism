@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MotionConfig } from "motion/react";
+import { LazyMotion, domAnimation } from "motion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider } from "@/lib/auth/AuthContext";
@@ -28,7 +28,7 @@ export function Providers({
 
   return (
   <QueryClientProvider client={queryClient}>
-  <MotionConfig reducedMotion="user">
+  <LazyMotion features={domAnimation} strict>
   <AuthProvider>
   <ThemeProvider initialTheme={theme}>
   <ThemePreferencesSaver />
@@ -36,7 +36,7 @@ export function Providers({
   <ThemeAwareLayoutClient />
   </ThemeProvider>
   </AuthProvider>
-  </MotionConfig>
+  </LazyMotion>
   <ReactQueryDevtools initialIsOpen={false} />
   </QueryClientProvider>
   );

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Lightning, Spinner, Warning, X } from "@phosphor-icons/react";
 import { nukeLibraryAction } from "../services/mediaCrud";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { SECURITY } from "@/core/constants";
 import { toast } from "sonner";
 
@@ -36,7 +36,7 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  type="button"
  onClick={() => setIsConfirming(true)}
  disabled={disabled || isConfirming || isNuking}
- className="group w-full flex items-center justify-center gap-2 px-4 py-3 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl text-xs transition-all duration-300 ease-out-expo disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+ className="group w-full flex items-center justify-center gap-2 px-4 py-3 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl text-xs transition-colors duration-300 ease-out-expo disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
  >
  <Lightning size={14} weight="light" className="group-hover:animate-pulse" />
  Nuke Entire Library
@@ -45,7 +45,7 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  {/* Confirmation Popover */}
  <AnimatePresence>
  {isConfirming && (
- <motion.div
+ <m.div
  initial={{ opacity: 0, y: 10, scale: 0.95 }}
  animate={{ opacity: 1, y: 0, scale: 1 }}
  exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -66,7 +66,7 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  type="button"
  onClick={handleNuke}
  disabled={isNuking}
- className="flex-1 bg-rose-500 text-white text-[11px] py-2 rounded-xl hover:bg-rose-600 transition-all ease-out-expo flex items-center justify-center gap-2 cursor-pointer"
+ className="flex-1 bg-rose-500 text-white text-[11px] py-2 rounded-xl hover:bg-rose-600 transition-colors ease-out-expo flex items-center justify-center gap-2 cursor-pointer"
  >
  {isNuking ? <Spinner size={12} weight="light" className="animate-spin" /> : "Confirm Nuke"}
  </button>
@@ -74,14 +74,14 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  type="button"
  onClick={() => setIsConfirming(false)}
  disabled={isNuking}
- className="p-2 bg-surface-bg text-muted-text rounded-xl hover:bg-main-border hover:text-main-text transition-all ease-out-expo cursor-pointer"
+ className="p-2 bg-surface-bg text-muted-text rounded-xl hover:bg-main-border hover:text-main-text transition-colors ease-out-expo cursor-pointer"
  >
  <X size={14} weight="light" />
  </button>
  </div>
  </div>
  </div>
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>
  </div>

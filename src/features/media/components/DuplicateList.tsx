@@ -27,7 +27,7 @@ export function DuplicateList({ groups, folderMap = EMPTY_FOLDER_MAP }: { groups
 
  const handleKeep = async (keepItem: MediaItem, allItems: MediaItem[]) => {
  setResolvingId(keepItem.id);
- const trashIds = allItems.filter(i => i.id !== keepItem.id).map(i => i.id);
+ const trashIds = allItems.reduce<string[]>((acc, i) => { if (i.id !== keepItem.id) acc.push(i.id); return acc; }, []);
 
  try {
  const res = await resolveDuplicateAction(keepItem.id, trashIds);

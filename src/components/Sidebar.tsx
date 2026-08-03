@@ -16,7 +16,7 @@ import {
 import { cn } from "@/core/utils/cn";
 import type { Folder as FolderType } from "@/features/media/types";
 import { FolderModal } from "@/features/media/components/FolderModal";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { useSidebar } from "@/components/sidebar-context";
 import { SidebarLogo } from "@/components/sidebar/SidebarLogo";
 import { SidebarMenuSections } from "@/components/sidebar/SidebarMenuSections";
@@ -82,7 +82,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
       {/* Mobile backdrop */}
       <AnimatePresence>
         {isMobileOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -107,7 +107,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute inset-y-0 my-auto right-0 translate-x-1/2 z-40 flex items-center justify-center w-4 h-8 rounded-full bg-panel-bg text-muted-text hover:text-main-text hover:bg-surface-bg transition-all duration-200 cursor-pointer border border-main-border/50"
+          className="absolute inset-y-0 my-auto right-0 translate-x-1/2 z-40 flex items-center justify-center w-4 h-8 rounded-full bg-panel-bg text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors duration-200 cursor-pointer border border-main-border/50"
         >
           {isCollapsed ? <CaretRight size={10} weight="bold" /> : <CaretLeft size={10} weight="bold" />}
         </button>
@@ -124,7 +124,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
       {/* Mobile sidebar */}
       <AnimatePresence>
         {isMobileOpen && (
-          <motion.aside
+          <m.aside
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
@@ -145,7 +145,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
             <div className="flex-1 overflow-y-auto px-3 space-y-5 custom-scroll">
               <SidebarMenuSections {...sharedProps} isExpanded={true} />
             </div>
-          </motion.aside>
+          </m.aside>
         )}
       </AnimatePresence>
 

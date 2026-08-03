@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { ArrowUp } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface UploadZoneProps {
@@ -64,7 +64,7 @@ export function UploadZone({ children, className }: UploadZoneProps) {
 
  <AnimatePresence>
  {isDragging && (
- <motion.div
+ <m.div
  key="overlay"
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
@@ -72,7 +72,7 @@ export function UploadZone({ children, className }: UploadZoneProps) {
  transition={{ duration: 0.2 }}
  className="absolute inset-0 z-[100] bg-panel-bg/85 rounded-xl border-2 border-dashed border-primary/20 flex items-center justify-center pointer-events-none"
  >
- <motion.div
+ <m.div
  initial={{ scale: 0.9, y: 10 }}
  animate={{ scale: 1, y: 0 }}
  className="px-8 py-6 bg-panel-bg border border-main-border/30 rounded-xl shadow-sm flex flex-col items-center gap-3"
@@ -84,8 +84,8 @@ export function UploadZone({ children, className }: UploadZoneProps) {
  <h3 className="text-xs text-main-text">Drop to Upload</h3>
  <p className="text-[11px] font-bold text-muted-text mt-1 opacity-50">Release to add items</p>
  </div>
- </motion.div>
- </motion.div>
+ </m.div>
+ </m.div>
  )}
  </AnimatePresence>
  </div>

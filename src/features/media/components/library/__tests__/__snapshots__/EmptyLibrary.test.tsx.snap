@@ -29,7 +29,7 @@ exports[`EmptyLibrary > renders empty state for folder 1`] = `
             xmlns="http://www.w3.org/2000/svg"
           >
             <div
-              d="M12 28V20C12 17.7909 13.7909 16 16 16H28.5L32.5 22H64C66.2091 22 68 23.7909 68 26V28H12Z"
+              d="M12 28V20C12 17.79 13.79 16 16 16H28.5L32.5 22H64C66.21 22 68 23.79 68 26V28H12Z"
               fill="none"
               stroke="currentColor"
               stroke-linecap="round"
@@ -37,7 +37,7 @@ exports[`EmptyLibrary > renders empty state for folder 1`] = `
               stroke-width="2.5"
             />
             <div
-              d="M12 28V58C12 60.2091 13.7909 62 16 62H64C66.2091 62 68 60.2091 68 58V28H12Z"
+              d="M12 28V58C12 60.21 13.79 62 16 62H64C66.21 62 68 60.21 68 58V28H12Z"
               fill="none"
               stroke="currentColor"
               stroke-linecap="round"

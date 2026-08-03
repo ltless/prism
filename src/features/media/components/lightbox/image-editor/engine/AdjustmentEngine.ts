@@ -777,11 +777,15 @@ function buildCurveLut(points: CurvePoint[]): Uint8Array {
 
   // Sort by x and deduplicate x values (keep last y)
   const sorted = points
-    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
-    .map((p) => ({
-      x: Math.max(0, Math.min(255, Math.round(p.x))),
-      y: Math.max(0, Math.min(255, Math.round(p.y))),
-    }))
+    .reduce<{ x: number; y: number }[]>((acc, p) => {
+      if (Number.isFinite(p.x) && Number.isFinite(p.y)) {
+        acc.push({
+          x: Math.max(0, Math.min(255, Math.round(p.x))),
+          y: Math.max(0, Math.min(255, Math.round(p.y))),
+        });
+      }
+      return acc;
+    }, [])
     .sort((a, b) => a.x - b.x)
     .filter((p, i, arr) => i === 0 || p.x !== arr[i - 1].x);
 

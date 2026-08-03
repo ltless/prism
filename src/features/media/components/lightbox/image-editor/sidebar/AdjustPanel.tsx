@@ -586,7 +586,7 @@ export function AdjustPanel({
                     endDragSession();
                   }}
                   className={
-                    "px-1.5 py-1.5 text-xs font-medium rounded border transition-all cursor-pointer " +
+                    "px-1.5 py-1.5 text-xs font-medium rounded border transition-colors cursor-pointer " +
                     (isActive
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-main-border/60 bg-surface-bg/40 text-muted-text hover:text-main-text hover:bg-surface-bg hover:border-main-border")
@@ -616,7 +616,7 @@ export function AdjustPanel({
             <button
               type="button"
               onClick={() => onInvertChange(!adjustments.invert)}
-              className={`px-3 py-1 text-xs font-semibold rounded border transition-all cursor-pointer ${
+              className={`px-3 py-1 text-xs font-semibold rounded border transition-colors cursor-pointer ${
                 adjustments.invert
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-main-border/60 bg-surface-bg/40 text-muted-text hover:text-main-text"

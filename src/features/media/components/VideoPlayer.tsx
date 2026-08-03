@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Play, Pause, SpeakerSimpleHigh, SpeakerSimpleX, ArrowsOut, ArrowsIn, Spinner } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface VideoPlayerProps {
@@ -254,7 +254,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  {/* Center Overlay Flash Animations */}
  <AnimatePresence>
  {flashAction && (
- <motion.div
+ <m.div
  initial={{ scale: 0.6, opacity: 0 }}
  animate={{ scale: 1, opacity: 0.8 }}
  exit={{ scale: 1.4, opacity: 0 }}
@@ -266,14 +266,14 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  ) : (
  <Pause size={24} weight="fill" />
  )}
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>
 
  {/* Controls Overlay Panel */}
  <AnimatePresence>
  {(showControls || isDraggingProgress) && (
- <motion.div
+ <m.div
  initial={{ opacity: 0, y: 15 }}
  animate={{ opacity: 1, y: 0 }}
  exit={{ opacity: 0, y: 15 }}
@@ -288,10 +288,10 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  className="h-3 py-1 cursor-pointer group/progress relative w-full flex items-center"
  >
  {/* Timeline Track */}
- <div className="h-1 w-full rounded-full bg-surface-bg group-hover/progress:h-1.5 transition-all relative overflow-hidden">
+ <div className="h-1 w-full rounded-full bg-surface-bg group-hover/progress:h-1.5 transition-[height] relative overflow-hidden">
  {/* Buffered track */}
  <div
- className="h-full bg-zinc-700/50 absolute left-0 top-0 transition-all duration-300"
+ className="h-full bg-zinc-700/50 absolute left-0 top-0 transition-[width] duration-300"
  style={{ width: `${bufferedPercent}%` }}
  />
  {/* Elapsed time progress */}
@@ -303,7 +303,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  {/* Playback Scrub Knob */}
  <div
  className={cn(
- "w-3 h-3 rounded-full bg-main-text absolute transition-all shadow border border-panel-bg",
+ "w-3 h-3 rounded-full bg-main-text absolute transition-[opacity,transform] shadow border border-panel-bg",
  isDraggingProgress ? "opacity-100 scale-110" : "opacity-0 group-hover/progress:opacity-100"
  )}
  style={{
@@ -320,7 +320,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  <button
  type="button"
  onClick={togglePlay}
- className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-all ease-out-expo cursor-pointer"
+ className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-colors ease-out-expo cursor-pointer"
  >
  {isPlaying ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" className="ml-0.5" />}
  </button>
@@ -330,7 +330,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  <button
  type="button"
  onClick={toggleMute}
- className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-all ease-out-expo cursor-pointer"
+ className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-colors ease-out-expo cursor-pointer"
  >
  {isMuted || volume === 0 ? <SpeakerSimpleX size={16} weight="light" /> : <SpeakerSimpleHigh size={16} weight="light" />}
  </button>
@@ -341,7 +341,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  step="0.05"
  value={isMuted ? 0 : volume}
  onChange={handleVolumeChange}
- className="w-0 opacity-0 pointer-events-none group-hover/volume:w-16 group-hover/volume:opacity-100 group-hover/volume:pointer-events-auto h-1 bg-surface-bg accent-main-text rounded-lg appearance-none cursor-pointer transition-all duration-200 outline-none"
+ className="w-0 opacity-0 pointer-events-none group-hover/volume:w-16 group-hover/volume:opacity-100 group-hover/volume:pointer-events-auto h-1 bg-surface-bg accent-main-text rounded-lg appearance-none cursor-pointer transition-[width,opacity] duration-200 outline-none"
  />
  </div>
 
@@ -355,12 +355,12 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  <button
  type="button"
  onClick={toggleFullscreen}
- className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-all ease-out-expo cursor-pointer"
+ className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-colors ease-out-expo cursor-pointer"
  >
  {isFullscreen ? <ArrowsIn size={16} weight="light" /> : <ArrowsOut size={16} weight="light" />}
  </button>
  </div>
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>
  </div>

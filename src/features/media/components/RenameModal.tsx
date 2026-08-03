@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { X, Check } from "@phosphor-icons/react";
 import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
@@ -64,7 +64,7 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
  <AnimatePresence>
   {isOpen && (
   <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="rename-modal-title" className="fixed inset-0 z-modal flex items-center justify-center p-4">
-  <motion.div
+  <m.div
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
   exit={{ opacity: 0 }}
@@ -73,7 +73,7 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
   className="absolute inset-0 bg-black/60"
   />
 
-  <motion.div
+  <m.div
   initial={{ scale: reduced ? 1 : 0.95, opacity: 0, y: reduced ? 0 : 10 }}
   animate={{ scale: 1, opacity: 1, y: 0 }}
   exit={{ scale: reduced ? 1 : 0.95, opacity: 0, y: reduced ? 0 : 10 }}
@@ -87,7 +87,7 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
  <button
  type="button"
  onClick={onClose}
- className="p-1 hover:bg-surface-bg rounded-lg text-muted-text hover:text-main-text transition-all ease-out-expo cursor-pointer"
+ className="p-1 hover:bg-surface-bg rounded-lg text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer"
  >
  <X size={16} weight="light" />
  </button>
@@ -104,7 +104,7 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
  type="text"
  value={title}
  onChange={(e) => setTitle(e.target.value)}
-  className="w-full bg-surface-bg border border-main-border focus:border-primary rounded px-3 py-2 text-xs text-main-text outline-none transition-all font-medium"
+  className="w-full bg-surface-bg border border-main-border focus:border-primary rounded px-3 py-2 text-xs text-main-text outline-none transition-colors font-medium"
  />
  </div>
 
@@ -112,14 +112,14 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
  <button
  type="button"
  onClick={onClose}
- className="flex-1 py-2.5 rounded-xl bg-surface-bg border border-main-border text-main-text text-[11px] hover:border-muted-text/30 transition-all ease-out-expo cursor-pointer"
+ className="flex-1 py-2.5 rounded-xl bg-surface-bg border border-main-border text-main-text text-[11px] hover:border-muted-text/30 transition-colors ease-out-expo cursor-pointer"
  >
  Cancel
  </button>
  <button
  type="submit"
  disabled={loading || !title.trim() || title.trim() === initialTitle}
- className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] hover:opacity-90 transition-all ease-out-expo flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+ className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] hover:opacity-90 transition-opacity ease-out-expo flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
  >
  {loading ? "Saving..." : <>
  <Check size={12} weight="fill" />
@@ -128,7 +128,7 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
  </button>
  </div>
  </form>
- </motion.div>
+ </m.div>
  </div>
  )}
  </AnimatePresence>

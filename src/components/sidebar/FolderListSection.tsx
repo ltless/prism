@@ -10,7 +10,7 @@ import type { Folder as FolderType } from "@/features/media/types";
 import { moveMediaToFolderAction, deleteFolderAction, renameFolderAction } from "@/features/media/services/mediaFolderActions";
 import { useConfirm } from "@/shared/hooks/useConfirm";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 
 const containerVariants = {
   hidden: { height: 0, opacity: 0 },
@@ -157,7 +157,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
               onDrop={(e) => handleDrop(e, folder.id)}
               title={folder.name}
               className={cn(
-                "w-1.5 h-1.5 rounded-full transition-all duration-200",
+                "w-1.5 h-1.5 rounded-full transition-transform duration-200",
                 (isSelected || isOver) && "scale-150"
               )}
               style={{ backgroundColor: color }}
@@ -172,7 +172,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
     <>
       <AnimatePresence initial={false}>
         {foldersExpanded && (
-          <motion.div
+          <m.div
             variants={containerVariants}
             initial="hidden"
             animate="show"
@@ -180,7 +180,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
             className="pb-1 overflow-hidden space-y-px"
           >
             {folders.length === 0 ? (
-              <motion.p variants={itemVariants} className="text-[10px] text-muted-text/50 px-2 italic py-2 text-center">No folders yet</motion.p>
+              <m.p variants={itemVariants} className="text-[10px] text-muted-text/50 px-2 italic py-2 text-center">No folders yet</m.p>
             ) : (
               folders.map(folder => {
                 const color = FOLDER_COLORS[folder.color || 'zinc'];
@@ -190,7 +190,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
 
                 if (isEditing) {
                   return (
-                    <motion.div key={folder.id} variants={itemVariants}>
+                    <m.div key={folder.id} variants={itemVariants}>
                       <div
                         className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded"
                         style={{ backgroundColor: `${color}08`, color }}
@@ -212,12 +212,12 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                           className="flex-1 bg-transparent border border-main-border/40 rounded px-1.5 py-0.5 text-[11px] text-main-text outline-none focus:border-primary/50 transition-colors"
                         />
                       </div>
-                    </motion.div>
+                    </m.div>
                   );
                 }
 
                 return (
-                  <motion.div key={folder.id} variants={itemVariants} className="group relative flex items-center">
+                  <m.div key={folder.id} variants={itemVariants} className="group relative flex items-center">
                     <Link
                       href={`/dashboard?f=${folder.id}`}
                       onDragOver={(e) => { e.preventDefault(); onDragOver(folder.id); }}
@@ -262,11 +262,11 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                         <Trash size={10} weight="light" />
                       </button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 );
               })
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
       {ConfirmDialog}

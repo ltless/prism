@@ -24,12 +24,12 @@ export function Toggle({ checked, onChange, size = "md", color = "primary", disa
  onClick={onChange}
  disabled={disabled}
  className={cn(
- `${trackSize} rounded-full border p-1 flex items-center transition-all duration-300 cursor-pointer shrink-0`,
+ `${trackSize} rounded-full border p-1 flex items-center transition-colors duration-300 cursor-pointer shrink-0`,
  checked ? `${activeBg} justify-end` : "bg-main-border/20 border-main-border/30 justify-start",
  disabled && "opacity-50 cursor-not-allowed"
  )}
  >
- <div className={cn(`${knobSize} rounded-full shadow-sm transition-all duration-300`, checked ? activeKnob : "bg-muted-text")} />
+ <div className={cn(`${knobSize} rounded-full shadow-sm transition-colors duration-300`, checked ? activeKnob : "bg-muted-text")} />
  </button>
  );
 }

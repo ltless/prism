@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { Shield, ShieldSlash, Spinner, Check, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { PinInput } from "./PinInput";
@@ -97,14 +97,14 @@ export function PinVaultDialog({
   return (
   <AnimatePresence>
   {dialog && (
-  <motion.div
+  <m.div
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
   exit={{ opacity: 0 }}
   role="dialog" aria-modal="true" aria-label="PIN vault dialog" className="fixed inset-0 z-50 flex items-center justify-center"
   >
   <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-  <motion.div
+  <m.div
   initial={{ scale: 0.95, opacity: 0, y: 10 }}
   animate={{ scale: 1, opacity: 1, y: 0 }}
   exit={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -199,8 +199,8 @@ export function PinVaultDialog({
  </div>
  </div>
  )}
-  </motion.div>
-  </motion.div>
+  </m.div>
+  </m.div>
   )}
   </AnimatePresence>
   );

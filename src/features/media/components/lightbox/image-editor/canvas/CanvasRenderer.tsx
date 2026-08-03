@@ -283,6 +283,7 @@ export const CanvasRenderer = memo(forwardRef<CanvasRendererHandle, CanvasRender
             <p className="text-sm">Loading image…</p>
           </div>
         )}
+        {/* ponytail: will-change:transform acceptable — canvas redraws every frame */}
         <canvas
           ref={canvasRef}
           className="w-full h-full object-contain select-none block"

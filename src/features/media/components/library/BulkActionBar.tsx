@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { CheckCircle, Heart, Copy, Scissors, Trash, X, Download } from "@phosphor-icons/react";
 
 interface BulkActionBarProps {
@@ -19,7 +19,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  return (
  <AnimatePresence>
  {count > 0 && !isSelecting && (
- <motion.div
+ <m.div
  initial={{ y: 100, opacity: 0 }}
  animate={{ y: 0, opacity: 1 }}
  exit={{ y: 100, opacity: 0 }}
@@ -40,7 +40,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  type="button"
  onClick={onFavorite}
  aria-label="Favorite selected items"
- className="p-2 md:p-2.5 text-white/60 hover:text-rose-500 hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
+ className="p-2 md:p-2.5 text-white/60 hover:text-rose-500 hover:bg-white/5 rounded-xl transition-colors duration-300 ease-out-expo cursor-pointer "
  >
  <Heart size={15} weight="light" />
  </button>
@@ -48,7 +48,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  type="button"
  onClick={onCopy}
  aria-label="Copy selected items"
- className="p-2 md:p-2.5 text-white/60 hover:text-primary hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
+ className="p-2 md:p-2.5 text-white/60 hover:text-primary hover:bg-white/5 rounded-xl transition-colors duration-300 ease-out-expo cursor-pointer "
  >
  <Copy size={15} weight="light" />
  </button>
@@ -56,7 +56,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  type="button"
  onClick={onCut}
  aria-label="Cut selected items"
- className="p-2 md:p-2.5 text-white/60 hover:text-amber-500 hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
+ className="p-2 md:p-2.5 text-white/60 hover:text-amber-500 hover:bg-white/5 rounded-xl transition-colors duration-300 ease-out-expo cursor-pointer "
  >
  <Scissors size={15} weight="light" />
  </button>
@@ -64,7 +64,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  type="button"
  onClick={onDownload}
  aria-label="Download selected items"
- className="p-2 md:p-2.5 text-white/60 hover:text-primary hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
+ className="p-2 md:p-2.5 text-white/60 hover:text-primary hover:bg-white/5 rounded-xl transition-colors duration-300 ease-out-expo cursor-pointer "
  >
  <Download size={15} weight="light" />
  </button>
@@ -72,7 +72,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  type="button"
  onClick={onTrash}
  aria-label="Move selected items to trash"
- className="p-2 md:p-2.5 text-white/60 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
+ className="p-2 md:p-2.5 text-white/60 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors duration-300 ease-out-expo cursor-pointer "
  >
  <Trash size={15} weight="light" />
  </button>
@@ -84,11 +84,11 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  type="button"
  onClick={onClear}
  aria-label="Cancel selection"
- className="p-2 md:p-2.5 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
+ className="p-2 md:p-2.5 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-colors duration-300 ease-out-expo cursor-pointer "
  >
  <X size={15} weight="light" />
  </button>
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>
  );

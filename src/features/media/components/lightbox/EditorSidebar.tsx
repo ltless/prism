@@ -308,6 +308,7 @@ export function EditorSidebar({
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
+    // ponytail: unavoidable — must read localStorage after mount
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLocked(localStorage.getItem(LOCK_KEY) === "true");
   }, []);
@@ -483,7 +484,7 @@ export function EditorSidebar({
                       }}
                       title={c.name}
                       style={{ backgroundColor: c.hex }}
-                      className={`w-full aspect-square rounded border cursor-pointer transition-all ${
+                      className={`w-full aspect-square rounded border cursor-pointer transition-[color,transform] ${
                         brushColor === c.hex
                           ? "border-primary ring-1 ring-primary/40 scale-110"
                           : "border-main-border hover:scale-105"
@@ -533,7 +534,7 @@ export function EditorSidebar({
                             setHexDraft(color);
                           }}
                           style={{ backgroundColor: color }}
-                          className={`w-full aspect-square rounded border cursor-pointer transition-all ${
+                          className={`w-full aspect-square rounded border cursor-pointer transition-[color,transform] ${
                             brushColor === color
                               ? "border-primary ring-1 ring-primary/40 scale-110"
                               : "border-main-border hover:scale-105"
@@ -770,7 +771,7 @@ export function EditorSidebar({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
-              className={`w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer ${
+              className={`w-8 h-8 flex items-center justify-center rounded transition-[color,transform] cursor-pointer ${
                 isActive
                   ? "text-primary bg-primary/10"
                   : isDragging

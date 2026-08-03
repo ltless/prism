@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 
 export default function RegisterPage() {
   const { register, user } = useAuth();
@@ -63,7 +63,7 @@ export default function RegisterPage() {
   if (success) {
     return (
       <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center space-y-3"
@@ -73,7 +73,7 @@ export default function RegisterPage() {
           </div>
           <h2 className="text-base font-semibold text-main-text">Account created</h2>
           <p className="text-[11px] text-muted-text">Redirecting to setup...</p>
-        </motion.div>
+        </m.div>
       </div>
     );
   }
@@ -156,7 +156,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-9 bg-primary text-primary-foreground rounded flex items-center justify-center gap-2 text-[12px] font-medium hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all cursor-pointer mt-1"
+              className="w-full h-9 bg-primary text-primary-foreground rounded flex items-center justify-center gap-2 text-[12px] font-medium hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-[opacity,transform] cursor-pointer mt-1"
             >
               {loading ? (
                 <div className="w-3.5 h-3.5 border-[1.5px] border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />

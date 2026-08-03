@@ -107,7 +107,7 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
                   type="button"
                   onClick={() => onSelect(item)}
                   aria-label={`Select ${item.title || "image"}`}
-                  className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-all"
+                  className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-[border-color,box-shadow]"
                 >
                   <Image src={`/api/v1/media/files/${item.filePath}?thumb=1`} alt={item.title} fill sizes="(max-width: 560px) 20vw, 96px" className="w-full h-full object-cover" unoptimized />
                 </button>

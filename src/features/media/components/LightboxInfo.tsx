@@ -23,6 +23,11 @@ interface LightboxInfoProps {
   folders?: Folder[];
 }
 
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric', month: 'short', day: 'numeric',
+  hour: '2-digit', minute: '2-digit'
+});
+
 function StatusBadge({ icon: Icon, label, iconClass }: { icon: ElementType; label: string; iconClass?: string }) {
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-bg border border-main-border/40 text-[11px] font-medium text-muted-text">
@@ -47,10 +52,7 @@ export function LightboxInfo({ item, folders }: LightboxInfoProps) {
     else if (typeof date === "number") d = new Date(date < 1e12 ? date * 1000 : date);
     else d = new Date(date);
     if (isNaN(d.getTime())) return null;
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    }).format(d);
+    return dateFormatter.format(d);
   };
 
   const copyHash = () => {

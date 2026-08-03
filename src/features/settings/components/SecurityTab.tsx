@@ -77,7 +77,7 @@ export function SecurityTab() {
                 type="button"
                 onClick={handleChangePassword}
                 disabled={pwLoading || !oldPw || !newPw || !confirmPw}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer shadow-sm"
               >
                 {pwLoading ? <Spinner size={12} className="animate-spin" weight="light" /> : <Check size={12} weight="bold" />}
                 Update Password
@@ -134,7 +134,7 @@ export function SecurityTab() {
               <button
                 type="button"
                 onClick={() => openDialog(hasPin ? "change" : "set")}
-                className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 transition-all cursor-pointer shadow-sm"
+                className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
               >
                 <Shield size={12} weight="fill" />
                 {hasPin ? "Change Security PIN" : "Setup Security PIN"}
@@ -143,7 +143,7 @@ export function SecurityTab() {
                 <button
                   type="button"
                   onClick={() => openDialog("remove")}
-                  className="px-3.5 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] font-medium hover:bg-rose-500/15 transition-all cursor-pointer"
+                  className="px-3.5 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] font-medium hover:bg-rose-500/15 transition-colors cursor-pointer"
                 >
                   Disable PIN Lock
                 </button>

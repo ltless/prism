@@ -17,11 +17,11 @@ export function SidebarLogo({ isExpanded }: SidebarLogoProps) {
     >
       <div className="relative flex items-center justify-center shrink-0">
         <div className={cn(
-          "border border-main-text/60 rotate-45 flex items-center justify-center transition-all duration-300 ease-out-expo group-hover/logo:border-primary group-hover/logo:rotate-[135deg]",
+          "border border-main-text/60 rotate-45 flex items-center justify-center transition-[color,transform] duration-300 ease-out-expo group-hover/logo:border-primary group-hover/logo:rotate-[135deg]",
           isExpanded ? "w-4 h-4" : "w-3.5 h-3.5"
         )}>
           <div className={cn(
-            "bg-main-text/60 group-hover/logo:bg-primary transition-all duration-300 ease-out-expo",
+            "bg-main-text/60 group-hover/logo:bg-primary transition-colors duration-300 ease-out-expo",
             isExpanded ? "w-1 h-1" : "w-0.5 h-0.5"
           )} />
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import {
   User,
   Lock,
@@ -135,7 +135,7 @@ export function SetupWizard() {
   return (
     <div className="min-h-screen bg-app-bg flex items-center justify-center p-6 relative overflow-hidden">
       <div className="w-full max-w-xl relative z-10">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
@@ -164,7 +164,7 @@ export function SetupWizard() {
           {/* Content */}
           <div className="px-8 py-10 min-h-[400px] flex flex-col items-center text-center">
             <AnimatePresence mode="wait">
-              <motion.div
+              <m.div
                 key={currentStep}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -209,7 +209,7 @@ export function SetupWizard() {
 
                   {steps[currentStep].id === 'finish' && <FinishStep />}
                 </div>
-              </motion.div>
+              </m.div>
             </AnimatePresence>
           </div>
 
@@ -222,7 +222,7 @@ export function SetupWizard() {
             onBack={() => currentStep > 0 && setCurrentStep(currentStep - 1)}
             onNext={handleNext}
           />
-          </motion.div>
+          </m.div>
 
           <div className="flex flex-col items-center mt-6 gap-1.5">
             <div className="flex items-center gap-1.5 text-xs text-muted-text/50">

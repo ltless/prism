@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MagnifyingGlass, ArrowUp, X, List, Spinner, Sun, Moon } from "@phosphor-icons/react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { SettingsModal } from "@/features/settings/components/SettingsModal";
 import { useSidebar } from "@/components/sidebar-context";
 import { useUploadQueue } from "@/features/media/hooks/useUploadQueue";
@@ -42,7 +42,7 @@ export function TopBar() {
     if (e.target.files) startUpload(e.target.files);
   };
 
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || "");
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || "");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,7 +117,7 @@ export function TopBar() {
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search..."
-                className="bg-transparent border-0 rounded py-1 pl-7 pr-6 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-all duration-200 w-32 focus:w-56"
+                className="bg-transparent border-0 rounded py-1 pl-7 pr-6 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-[width,background-color] duration-200 w-32 focus:w-56"
               />
               {searchQuery ? (
                 <button
@@ -160,7 +160,7 @@ export function TopBar() {
             >
               <AnimatePresence mode="wait">
                 {theme === "dark" ? (
-                  <motion.div
+                  <m.div
                     key="sun"
                     initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
                     animate={{ rotate: 0, opacity: 1, scale: 1 }}
@@ -168,9 +168,9 @@ export function TopBar() {
                     transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
                   >
                     <Sun size={13} weight="light" />
-                  </motion.div>
+                  </m.div>
                 ) : (
-                  <motion.div
+                  <m.div
                     key="moon"
                     initial={{ rotate: 90, opacity: 0, scale: 0.5 }}
                     animate={{ rotate: 0, opacity: 1, scale: 1 }}
@@ -178,7 +178,7 @@ export function TopBar() {
                     transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
                   >
                     <Moon size={13} weight="light" />
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </button>
@@ -192,7 +192,7 @@ export function TopBar() {
 
         <AnimatePresence>
           {mobileSearchOpen && (
-            <motion.form
+            <m.form
               initial={{ scaleY: 0, opacity: 0 }}
               animate={{ scaleY: 1, opacity: 1 }}
               exit={{ scaleY: 0, opacity: 0 }}
@@ -214,7 +214,7 @@ export function TopBar() {
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Search..."
-                  className="w-full bg-surface-bg/50 border-0 rounded py-2 pl-8 pr-8 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-all"
+                  className="w-full bg-surface-bg/50 border-0 rounded py-2 pl-8 pr-8 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-colors"
                 />
                 {searchQuery && (
                   <button
@@ -226,7 +226,7 @@ export function TopBar() {
                   </button>
                 )}
               </div>
-            </motion.form>
+            </m.form>
           )}
         </AnimatePresence>
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { X, CaretLeft, CaretRight, MagnifyingGlassPlus, MagnifyingGlassMinus, Check, Spinner, Sparkle, Info } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import { formatBytes } from "@/core/utils/format";
@@ -34,7 +34,7 @@ export function DuplicateCompareModal({
  const [zoom, setZoom] = useState(1);
  const [position, setPosition] = useState({ x: 0, y: 0 });
  const [isDragging, setIsDragging] = useState(false);
- const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+ const dragStart = useRef({ x: 0, y: 0 });
  const [showInfo, setShowInfo] = useState(false);
  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
  const [prevBestIndex, setPrevBestIndex] = useState(bestIndex);
@@ -70,16 +70,16 @@ export function DuplicateCompareModal({
  }, [zoom]);
 
  const handleMouseDown = (e: React.MouseEvent) => {
- if (zoom > 1) {
- setIsDragging(true);
- setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
- }
+   if (zoom > 1) {
+     setIsDragging(true);
+     dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+   }
  };
 
  const handleMouseMove = (e: React.MouseEvent) => {
- if (isDragging && zoom > 1) {
- setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
- }
+   if (isDragging && zoom > 1) {
+     setPosition({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
+   }
  };
 
  const handleMouseUp = () => setIsDragging(false);
@@ -112,7 +112,7 @@ export function DuplicateCompareModal({
  return (
  <AnimatePresence>
  {isOpen && (
- <motion.div
+ <m.div
  initial={{ opacity: 0 }}
  animate={{ opacity: 1 }}
  exit={{ opacity: 0 }}
@@ -121,7 +121,7 @@ export function DuplicateCompareModal({
  onClick={onClose}
  >
  {/* Floating Toolbar */}
- <motion.div
+ <m.div
  initial={{ opacity: 0, y: -8 }}
  animate={{ opacity: 1, y: 0 }}
  transition={{ duration: 0.2, delay: 0.1 }}
@@ -186,7 +186,7 @@ export function DuplicateCompareModal({
  >
  <X size={14} weight="light" />
  </button>
- </motion.div>
+ </m.div>
 
  {/* Image Area */}
  <div
@@ -234,7 +234,7 @@ export function DuplicateCompareModal({
  </div>
 
  {/* Bottom Bar */}
- <motion.div
+ <m.div
  initial={{ opacity: 0, y: 8 }}
  animate={{ opacity: 1, y: 0 }}
  transition={{ duration: 0.2, delay: 0.1 }}
@@ -244,7 +244,7 @@ export function DuplicateCompareModal({
  {/* Info Panel (collapsible) */}
  <AnimatePresence>
  {showInfo && (
- <motion.div
+ <m.div
  initial={{ scaleY: 0, opacity: 0 }}
  animate={{ scaleY: 1, opacity: 1 }}
  exit={{ scaleY: 0, opacity: 0 }}
@@ -337,7 +337,7 @@ export function DuplicateCompareModal({
  </button>
  </div>
  </div>
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>
 
@@ -351,7 +351,7 @@ export function DuplicateCompareModal({
  type="button"
  onClick={() => { setActiveIndex(idx); setZoom(1); setPosition({ x: 0, y: 0 }); }}
  className={cn(
- "relative rounded-lg overflow-hidden transition-all duration-200",
+ "relative rounded-lg overflow-hidden transition-[box-shadow,transform] duration-200",
  idx === activeIndex
  ? "ring-2 ring-primary ring-offset-1 ring-offset-black scale-105"
  : "opacity-50 hover:opacity-80"
@@ -402,8 +402,8 @@ export function DuplicateCompareModal({
  {isResolving ? "Resolving..." : isBest ? "Keep (Best)" : "Keep"}
  </button>
  </div>
- </motion.div>
- </motion.div>
+ </m.div>
+ </m.div>
  )}
  </AnimatePresence>
  );

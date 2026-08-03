@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { X } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { ImageCropModal } from "@/shared/components/ImageCropModal";
@@ -110,7 +110,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
    {isOpen && (
     <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" key="settings-modal-overlay" className="fixed inset-0 z-modal flex items-end md:items-center justify-center p-0 md:p-4">
   {/* Backdrop — child container, absolute nutup container */}
-  <motion.div
+  <m.div
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
   exit={{ opacity: 0 }}
@@ -120,7 +120,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   />
 
   {/* Modal Container */}
-  <motion.div
+  <m.div
   initial={{ scale: reduced ? 1 : 0.98, opacity: 0, y: reduced ? 0 : 12 }}
   animate={{ scale: 1, opacity: 1, y: 0 }}
   exit={{ scale: reduced ? 1 : 0.98, opacity: 0, y: reduced ? 0 : 12 }}
@@ -167,7 +167,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
  {/* Mobile bottom tabs */}
  <MobileTabBar tabs={tabs} activeTab={activeTab} onTabChange={(tab: string) => setActiveTab(tab as Tab)} />
-   </motion.div>
+   </m.div>
   </div>
   )}
 

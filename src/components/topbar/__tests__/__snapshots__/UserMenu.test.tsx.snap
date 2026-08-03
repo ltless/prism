@@ -9,7 +9,7 @@ exports[`UserMenu > opens dropdown on click 1`] = `
       aria-expanded="true"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
+      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
       type="button"
     >
       <div
@@ -118,7 +118,7 @@ exports[`UserMenu > renders avatar with initial letter when no image 1`] = `
       aria-expanded="false"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
+      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
       type="button"
     >
       <div
@@ -140,7 +140,7 @@ exports[`UserMenu > renders avatar with user image when available 1`] = `
       aria-expanded="false"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
+      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
       type="button"
     >
       <img

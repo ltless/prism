@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 import { Spinner, CheckCircle, Warning, X } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
@@ -51,7 +51,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
 
   return createPortal(
     <AnimatePresence mode="wait">
-      <motion.div
+      <m.div
         initial={{ x: 80, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: 80, opacity: 0 }}
@@ -59,7 +59,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
         className="fixed bottom-4 right-4 md:bottom-5 md:right-5 z-toast w-[calc(100vw-2rem)] md:w-72 flex flex-col items-end gap-1.5"
       >
         {waitingCount > 0 && (
-          <motion.div
+          <m.div
             initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 8, opacity: 0 }}
@@ -67,7 +67,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
           >
             <div className="w-1 h-1 bg-white/80 rounded-full animate-pulse" />
             {waitingCount} queued
-          </motion.div>
+          </m.div>
         )}
 
         <div className={cn(
@@ -98,13 +98,13 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
 
           {isUploading && (
             <div className="h-1 w-full bg-surface-bg rounded-full overflow-hidden">
-              <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: uploadProgress / 100 }}
+              <m.div initial={{ scaleX: 0 }} animate={{ scaleX: uploadProgress / 100 }}
                 className="h-full bg-primary rounded-full origin-left" transition={{ type: "spring", bounce: 0, duration: 0.3 }}
               />
             </div>
           )}
         </div>
-      </motion.div>
+      </m.div>
     </AnimatePresence>,
     document.body
   );

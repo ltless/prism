@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { CaretRight } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 
@@ -140,7 +140,7 @@ export function ContextMenu({ items, children, className }: ContextMenuProps) {
  {typeof document !== "undefined" && createPortal(
  <AnimatePresence>
  {isOpen && (
- <motion.div
+ <m.div
  ref={menuRef}
  initial={{ opacity: 0, y: -4 }}
  animate={{ opacity: 1, y: 0 }}
@@ -193,7 +193,7 @@ export function ContextMenu({ items, children, className }: ContextMenuProps) {
 
   <AnimatePresence>
   {item.subItems && activeSubMenu === idx && (
-  <motion.div
+  <m.div
   initial={{ opacity: 0, x: submenuLeft ? -4 : 4 }}
   animate={{ opacity: 1, x: 0 }}
   exit={{ opacity: 0, x: submenuLeft ? -4 : 4 }}
@@ -219,14 +219,14 @@ export function ContextMenu({ items, children, className }: ContextMenuProps) {
  {item.subItems.length === 0 && (
  <p className="p-3 text-[11px] text-muted-text/40 text-center">No folders</p>
  )}
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>
 
  {item.divider && <div className="my-1 h-px bg-main-border/40 mx-2" />}
  </div>
  ))}
- </motion.div>
+ </m.div>
  )}
  </AnimatePresence>,
  document.body

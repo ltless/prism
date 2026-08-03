@@ -160,7 +160,7 @@ export function StorageTab() {
                   <div className="h-2.5 w-full bg-app-bg rounded-full overflow-hidden border border-main-border/30 p-[1px]">
                     <div
                       className={cn(
-                        "h-full rounded-full transition-all duration-700 bg-gradient-to-r",
+                        "h-full rounded-full transition-[width] duration-700 bg-gradient-to-r",
                         percentage > 90
                           ? "from-rose-500 to-red-600"
                           : percentage > 70
@@ -235,8 +235,8 @@ export function StorageTab() {
                 type="button"
                 onClick={handleSaveGlobal}
                 disabled={isSavingGlobal || selectedGlobalLimit === (data?.globalDefaultBytes ?? null) || isLoading}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
-              >
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
+                >
                 {isSavingGlobal ? <Spinner size={12} className="animate-spin" weight="light" /> : <FloppyDisk size={12} weight="light" />}
                 {isSavingGlobal ? "Saving..." : "Save Default"}
               </button>
@@ -276,8 +276,8 @@ export function StorageTab() {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || selectedLimit === data?.limitBytes || isLoading}
-                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
-              >
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
+                >
                 {isSaving ? <Spinner size={12} className="animate-spin" weight="light" /> : <FloppyDisk size={12} weight="light" />}
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
@@ -306,7 +306,7 @@ export function StorageTab() {
                 type="button"
                 onClick={handleClearTrashAndCache}
                 disabled={isCleaning}
-                className="w-full py-2 rounded-lg border border-dashed border-rose-500/30 text-rose-500 text-[11px] font-semibold hover:bg-rose-500/5 transition-all cursor-pointer disabled:opacity-50"
+                className="w-full py-2 rounded-lg border border-dashed border-rose-500/30 text-rose-500 text-[11px] font-semibold hover:bg-rose-500/5 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {isCleaning ? <Spinner size={13} className="inline mr-1.5 animate-spin" weight="light" /> : <Trash size={13} className="inline mr-1.5" weight="light" />}
                 {isCleaning ? "Clearing..." : "Purge Trash & Cache"}

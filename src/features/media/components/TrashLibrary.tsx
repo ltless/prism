@@ -84,7 +84,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  type="button"
  onClick={handleEmptyTrash}
  disabled={isEmptying}
- className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white transition-all ease-out-expo cursor-pointer text-xs disabled:opacity-50"
+ className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white transition-colors ease-out-expo cursor-pointer text-xs disabled:opacity-50"
  >
  <Broom size={14} weight="light" className={cn(isEmptying && "animate-spin")} />
  {isEmptying ? "Emptying..." : "Empty Trash"}
@@ -126,7 +126,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  onClick={(e) => { e.stopPropagation(); handleRestore(item.id); }}
  disabled={!!isProcessing}
  type="button"
- className="p-2 bg-panel-bg/90 border border-main-border rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white shadow-lg transition-all ease-out-expo cursor-pointer disabled:opacity-50"
+ className="p-2 bg-panel-bg/90 border border-main-border rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white shadow-lg transition-colors ease-out-expo cursor-pointer disabled:opacity-50"
  title="Restore"
  >
  <ArrowClockwise size={16} weight="light" className={cn(isProcessing === item.id && "animate-spin")} />
@@ -135,7 +135,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  onClick={(e) => { e.stopPropagation(); handlePermanentDelete(item.id); }}
  disabled={!!isProcessing}
  type="button"
- className="p-2 bg-panel-bg/90 border border-main-border rounded-xl text-rose-600 hover:bg-rose-600 hover:text-white shadow-lg transition-all ease-out-expo cursor-pointer disabled:opacity-50"
+ className="p-2 bg-panel-bg/90 border border-main-border rounded-xl text-rose-600 hover:bg-rose-600 hover:text-white shadow-lg transition-colors ease-out-expo cursor-pointer disabled:opacity-50"
  title="Delete Permanently"
  >
  <ShieldWarning size={16} weight="light" />

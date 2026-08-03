@@ -21,7 +21,7 @@ export function PasswordInput({ value, onChange, label, placeholder }: PasswordI
  type={show ? "text" : "password"}
  value={value}
  onChange={e => onChange(e.target.value)}
- className="w-full px-3 py-2 bg-app-bg border border-main-border rounded-xl text-xs font-bold text-main-text placeholder:text-muted-text/50 focus:border-primary outline-none transition-all ease-out-expo shadow-inner pr-9"
+ className="w-full px-3 py-2 bg-app-bg border border-main-border rounded-xl text-xs font-bold text-main-text placeholder:text-muted-text/50 focus:border-primary outline-none transition-colors ease-out-expo shadow-inner pr-9"
  placeholder={placeholder || "Enter password..."}
  />
  <button

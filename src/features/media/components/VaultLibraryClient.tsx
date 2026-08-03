@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Lock, WarningCircle, Gear } from "@phosphor-icons/react";
-import { motion, AnimatePresence } from "motion/react";
+import { m, AnimatePresence } from "motion/react";
 import { PinInput } from "@/features/settings/components/PinInput";
 import { verifyVaultPinAction } from "@/features/profile/services/profileActions";
 import MediaLibraryClient from "./MediaLibraryClient";
@@ -107,7 +107,7 @@ export default function VaultLibraryClient({
  </div>
  <Link
  href="/dashboard/settings?tab=security"
- className="w-full py-2.5 rounded-xl bg-surface-bg/80 border border-main-border/65 text-main-text text-xs font-semibold hover:bg-primary/5 hover:border-primary/20 transition-all ease-out-expo flex items-center justify-center gap-2 cursor-pointer"
+ className="w-full py-2.5 rounded-xl bg-surface-bg/80 border border-main-border/65 text-main-text text-xs font-semibold hover:bg-primary/5 hover:border-primary/20 transition-[background-color,border-color] ease-out-expo flex items-center justify-center gap-2 cursor-pointer"
  >
  <Gear size={13} weight="light" />
  Configure Vault PIN
@@ -131,7 +131,7 @@ export default function VaultLibraryClient({
  return (
  <div className="flex-1 flex items-center justify-center p-6 bg-app-bg select-none">
  <AnimatePresence mode="wait">
- <motion.div
+ <m.div
  initial={{ opacity: 0, scale: 0.95 }}
  animate={{ opacity: 1, scale: 1 }}
  exit={{ opacity: 0, scale: 0.95 }}
@@ -158,7 +158,7 @@ export default function VaultLibraryClient({
  label={isVerifying ? "Decrypting Vault..." : "Enter 6-Digit PIN Code"}
  />
  </div>
- </motion.div>
+ </m.div>
  </AnimatePresence>
  </div>
  );

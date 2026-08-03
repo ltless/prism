@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { m } from "motion/react";
 
 interface WizardProgressProps {
  steps: { id: string }[];
@@ -13,7 +13,7 @@ export function WizardProgress({ steps, currentStep }: WizardProgressProps) {
  {steps.map((step, idx) => (
  <div key={step.id} className="flex-1 h-1 rounded-full bg-main-border/30 overflow-hidden relative">
   {idx <= currentStep && (
-  <motion.div
+  <m.div
   initial={false}
   animate={{ scaleX: 1 }}
   transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}

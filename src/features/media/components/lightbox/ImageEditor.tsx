@@ -81,7 +81,7 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasContainerSize, setCanvasContainerSize] = useState({ width: 0, height: 0 });
 
@@ -318,7 +318,7 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
 
       if (activeTool === "hand" || activeTool === "select" || e.button === 1) {
         setIsPanning(true);
-        setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+        panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
       }
     },
     [activeTool, pan]
@@ -327,12 +327,12 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (isPanning) {
-        setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+        setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y });
       }
       // Cursor X/Y lives in an isolated listener in EditorSidebar
       // (CursorPosInfo), so mousemove never re-renders this component.
     },
-    [isPanning, panStart]
+    [isPanning]
   );
 
   const handleMouseUp = useCallback(() => {

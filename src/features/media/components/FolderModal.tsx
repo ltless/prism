@@ -67,7 +67,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
             <Folder size={14} weight="fill" className="text-primary" />
             New Folder
           </h3>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-surface-bg rounded-xl border border-main-border/40 text-muted-text hover:text-main-text transition-all duration-300 ease-out-expo cursor-pointer">
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-surface-bg rounded-xl border border-main-border/40 text-muted-text hover:text-main-text transition-colors duration-300 ease-out-expo cursor-pointer">
             <X size={16} weight="light" />
           </button>
         </div>
@@ -87,7 +87,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSave()}
               placeholder="e.g. Vacation 2024"
-              className="w-full px-3.5 py-2.5 bg-surface-bg/40 border border-main-border/60 rounded-xl text-xs text-main-text placeholder:text-muted-text/50 focus:border-primary/50 focus:bg-panel-bg outline-none transition-all duration-300 ease-out-expo"
+              className="w-full px-3.5 py-2.5 bg-surface-bg/40 border border-main-border/60 rounded-xl text-xs text-main-text placeholder:text-muted-text/50 focus:border-primary/50 focus:bg-panel-bg outline-none transition-[background-color,border-color] duration-300 ease-out-expo"
             />
           </div>
 
@@ -99,7 +99,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
                   key={color.id}
                   type="button"
                   onClick={() => setSelectedColor(color.id)}
-                  className={cn("w-7 h-7 rounded-full border-2 transition-all duration-300 ease-out-expo flex items-center justify-center cursor-pointer",
+                  className={cn("w-7 h-7 rounded-full border-2 transition-[border-color,transform] duration-300 ease-out-expo flex items-center justify-center cursor-pointer",
                     selectedColor === color.id ? "border-main-text scale-110 shadow-md" : "border-transparent hover:scale-105"
                   )}
                   style={{ backgroundColor: color.hex }}
@@ -115,7 +115,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 rounded-xl text-[11px] font-semibold text-muted-text hover:text-main-text hover:bg-surface-bg/60 transition-all duration-300 ease-out-expo cursor-pointer"
+            className="flex-1 py-2 rounded-xl text-[11px] font-semibold text-muted-text hover:text-main-text hover:bg-surface-bg/60 transition-colors duration-300 ease-out-expo cursor-pointer"
           >
             Cancel
           </button>
@@ -123,7 +123,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-[2] py-2 bg-primary text-primary-foreground rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all duration-300 ease-out-expo cursor-pointer"
+            className="flex-[2] py-2 bg-primary text-primary-foreground rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-opacity duration-300 ease-out-expo cursor-pointer"
           >
             {isSaving ? <Spinner size={13} weight="bold" className="animate-spin" /> : <FloppyDisk size={13} weight="light" />}
             Create Folder

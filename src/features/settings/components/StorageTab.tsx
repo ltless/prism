@@ -232,6 +232,7 @@ export function StorageTab() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleSaveGlobal}
                 disabled={isSavingGlobal || selectedGlobalLimit === (data?.globalDefaultBytes ?? null) || isLoading}
                 className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
@@ -272,6 +273,7 @@ export function StorageTab() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={isSaving || selectedLimit === data?.limitBytes || isLoading}
                 className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
@@ -301,6 +303,7 @@ export function StorageTab() {
                 <p className="text-xs text-muted-text">Safely purge files scheduled for deletion and regenerate transient system data.</p>
               </div>
               <button
+                type="button"
                 onClick={handleClearTrashAndCache}
                 disabled={isCleaning}
                 className="w-full py-2 rounded-lg border border-dashed border-rose-500/30 text-rose-500 text-[11px] font-semibold hover:bg-rose-500/5 transition-all cursor-pointer disabled:opacity-50"

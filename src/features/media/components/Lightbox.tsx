@@ -318,7 +318,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     className="absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-4 md:px-6 z-20 bg-linear-to-b from-black/70 to-transparent pointer-events-none"
     >
     <div className="flex items-center gap-3 pointer-events-auto">
-    <button onClick={onClose} aria-label="Close" className="p-2.5 hover:bg-white/15 rounded text-white transition-colors cursor-pointer">
+    <button type="button" onClick={onClose} aria-label="Close" className="p-2.5 hover:bg-white/15 rounded text-white transition-colors cursor-pointer">
     <X size={20} weight="light" />
     </button>
     <div className="flex flex-col">
@@ -330,7 +330,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     </div>
     <div className="flex items-center gap-1.5 pointer-events-auto">
     {!isVideo && (
-    <button onClick={() => setIsEditing(true)} aria-label="Edit" className="px-3 py-2 hover:bg-white/15 rounded text-xs text-white transition-colors cursor-pointer border border-white/10">
+    <button type="button" onClick={() => setIsEditing(true)} aria-label="Edit" className="px-3 py-2 hover:bg-white/15 rounded text-xs text-white transition-colors cursor-pointer border border-white/10">
     Edit
     </button>
     )}
@@ -338,6 +338,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     <Download size={18} weight="light" />
     </a>
     <button
+    type="button"
     onClick={() => setIsInfoOpen(v => !v)}
     aria-label={isInfoOpen ? "Close info" : "Open info"}
     aria-pressed={isInfoOpen}
@@ -352,9 +353,9 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     </div>
 
     {/* Info panel — pushes image aside (desktop) / bottom sheet (mobile) */}
-    {isMobile ? (
     <AnimatePresence>
     {isInfoOpen && (
+      isMobile ? (
     <motion.div
     key="info-mobile"
     initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
@@ -363,7 +364,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     >
     <div className="flex items-center justify-between px-4 h-11 border-b border-main-border shrink-0">
     <h3 className="text-xs text-muted-text font-medium">Details</h3>
-    <button onClick={() => setIsInfoOpen(false)} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded transition-colors cursor-pointer">
+    <button type="button" onClick={() => setIsInfoOpen(false)} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded transition-colors cursor-pointer">
     <X size={16} weight="light" />
     </button>
     </div>
@@ -371,23 +372,19 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     <LightboxInfo item={{ ...item, transcodeStatus }} folders={folders} />
     </div>
     </motion.div>
-    )}
-    </AnimatePresence>
-    ) : (
-    <AnimatePresence>
-    {isInfoOpen && (
+      ) : (
     <motion.div
     key="info-desktop"
-    initial={{ width: 0, opacity: 0 }}
-    animate={{ width: 320, opacity: 1 }}
-    exit={{ width: 0, opacity: 0 }}
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: 20 }}
     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-    className="shrink-0 overflow-hidden border-l border-white/10"
+    className="shrink-0 w-[320px] overflow-hidden border-l border-white/10"
     >
     <div className="w-[320px] h-full bg-panel-bg flex flex-col overflow-hidden">
     <div className="flex items-center justify-between px-4 h-11 border-b border-main-border shrink-0">
     <h3 className="text-xs text-muted-text font-medium">Details</h3>
-    <button onClick={() => setIsInfoOpen(false)} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded transition-colors cursor-pointer">
+    <button type="button" onClick={() => setIsInfoOpen(false)} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded transition-colors cursor-pointer">
     <X size={16} weight="light" />
     </button>
     </div>
@@ -396,9 +393,9 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     </div>
     </div>
     </motion.div>
+      )
     )}
     </AnimatePresence>
-    )}
     </>
     )}
     </motion.div>

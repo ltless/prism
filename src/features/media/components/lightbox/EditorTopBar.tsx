@@ -36,6 +36,7 @@ function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, sa
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={isOpen ? onClose : onTrigger}
         className="px-2 py-1 text-[11px] font-medium text-muted-text hover:text-main-text hover:bg-surface-bg rounded cursor-pointer"
       >
@@ -49,6 +50,7 @@ function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, sa
             ) : (
               <button
                 key={item.label}
+                type="button"
                 onClick={() => { onAction?.(item.label); onClose(); }}
                 disabled={isSaving && (item.label === "Save Copy" || item.label === "Overwrite")}
                 className="w-full px-3 py-1.5 flex items-center justify-between text-[11px] text-main-text hover:bg-surface-bg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -149,6 +151,7 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
       <header className="w-full flex items-center justify-between px-4 md:px-6 py-2.5 bg-app-bg">
         <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Open sidebar"
             className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer"
@@ -195,6 +198,7 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
 
         <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer overflow-hidden"

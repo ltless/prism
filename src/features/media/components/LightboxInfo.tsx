@@ -140,6 +140,7 @@ export function LightboxInfo({ item, folders }: LightboxInfoProps) {
         <div className="pt-2.5 border-t border-main-border/30 flex items-center justify-between gap-2">
           <span className="text-[11px] font-medium text-muted-text shrink-0">SHA-256</span>
           <button
+            type="button"
             onClick={copyHash}
             aria-label="Copy hash"
             className="flex items-center gap-1.5 text-[11px] font-mono text-muted-text hover:text-primary transition-colors cursor-pointer min-w-0"

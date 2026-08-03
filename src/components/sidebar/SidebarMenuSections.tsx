@@ -47,12 +47,13 @@ export function SidebarMenuSections({
   return (
     <>
       {sections.map((section, idx) => (
-        <div key={idx} className={cn("mb-4", !isExpanded && "mb-2")}>
+        <div key={section.title} className={cn("mb-4", !isExpanded && "mb-2")}>
           {isExpanded && (
             <div className="flex items-center justify-between mb-2 px-3">
               {section.isFolderSection ? (
                 <>
                   <button
+                    type="button"
                     onClick={() => setFoldersExpanded(!foldersExpanded)}
                     aria-label={foldersExpanded ? "Collapse folders" : "Expand folders"}
                     className="flex items-center gap-2 group/title cursor-pointer"
@@ -66,6 +67,7 @@ export function SidebarMenuSections({
                     </div>
                   </button>
                   <button
+                    type="button"
                     onClick={onCreateFolder}
                     aria-label="Create Folder"
                     className="p-1 hover:bg-surface-bg rounded-md transition-colors group/add cursor-pointer"

@@ -33,6 +33,7 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  return (
  <div className="relative">
  <button
+ type="button"
  onClick={() => setIsConfirming(true)}
  disabled={disabled || isConfirming || isNuking}
  className="group w-full flex items-center justify-center gap-2 px-4 py-3 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl text-xs transition-all duration-300 ease-out-expo disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
@@ -62,6 +63,7 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  </p>
  <div className="flex items-center gap-2">
  <button 
+ type="button"
  onClick={handleNuke}
  disabled={isNuking}
  className="flex-1 bg-rose-500 text-white text-[11px] py-2 rounded-xl hover:bg-rose-600 transition-all ease-out-expo flex items-center justify-center gap-2 cursor-pointer"
@@ -69,6 +71,7 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  {isNuking ? <Spinner size={12} weight="light" className="animate-spin" /> : "Confirm Nuke"}
  </button>
  <button 
+ type="button"
  onClick={() => setIsConfirming(false)}
  disabled={isNuking}
  className="p-2 bg-surface-bg text-muted-text rounded-xl hover:bg-main-border hover:text-main-text transition-all ease-out-expo cursor-pointer"

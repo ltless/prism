@@ -22,6 +22,7 @@ export default function EditorPage() {
             </p>
           </div>
           <button
+            type="button"
             onClick={() => setIsLibraryOpen(true)}
             className="mt-1 px-3.5 py-1.5 rounded bg-primary text-primary-foreground text-[11px] font-medium cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
           >

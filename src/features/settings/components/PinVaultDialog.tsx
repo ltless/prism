@@ -39,6 +39,7 @@ export function PinVaultDialog({
  }
  setLoading(true);
  setError(null);
+ try {
  const res = await onSetPin(pinInput);
  if (res.success) {
  toast.success("PIN set successfully");
@@ -48,7 +49,9 @@ export function PinVaultDialog({
  setError(res.error || "Failed to set PIN");
  toast.error(res.error || "Failed to set PIN");
  }
+ } finally {
  setLoading(false);
+ }
  };
 
  const handleChange = async () => {
@@ -58,6 +61,7 @@ export function PinVaultDialog({
  }
  setLoading(true);
  setError(null);
+ try {
  const res = await onChangePin(pinOld, pinInput);
  if (res.success) {
  toast.success("PIN changed successfully");
@@ -67,12 +71,15 @@ export function PinVaultDialog({
  setError(res.error || "Failed to change PIN");
  toast.error(res.error || "Failed to change PIN");
  }
+ } finally {
  setLoading(false);
+ }
  };
 
  const handleRemove = async () => {
  setLoading(true);
  setError(null);
+ try {
  const res = await onRemovePin(pinOld);
  if (res.success) {
  toast.success("PIN removed successfully");
@@ -82,7 +89,9 @@ export function PinVaultDialog({
  setError(res.error || "Failed to remove PIN");
  toast.error(res.error || "Failed to remove PIN");
  }
+ } finally {
  setLoading(false);
+ }
  };
 
   return (
@@ -103,6 +112,7 @@ export function PinVaultDialog({
   className="relative bg-panel-bg border border-main-border/50 rounded-xl p-8 w-full max-w-xs mx-4"
   >
   <button
+ type="button"
  onClick={onClose}
  className="absolute top-3 right-3 text-muted-text hover:text-main-text transition-colors cursor-pointer"
  >
@@ -126,10 +136,10 @@ export function PinVaultDialog({
  <p className="text-[13px] font-medium text-main-text">Confirm PIN</p>
  <PinInput value={pinConfirm} onChange={setPinConfirm} maxLength={6} label="Re-enter PIN" />
  <div className="flex gap-2 w-full mt-4">
- <button onClick={() => { setStep(0); setPinConfirm(""); }} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
+ <button type="button" onClick={() => { setStep(0); setPinConfirm(""); }} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
  Back
  </button>
- <button onClick={handleSet} disabled={loading || pinConfirm.length !== 6 || pinInput !== pinConfirm} className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-colors cursor-pointer">
+ <button type="button" onClick={handleSet} disabled={loading || pinConfirm.length !== 6 || pinInput !== pinConfirm} className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-colors cursor-pointer">
  {loading ? <Spinner size={12} weight="light" className="animate-spin" /> : <Check size={12} weight="fill" />}
  Set PIN
  </button>
@@ -149,7 +159,7 @@ export function PinVaultDialog({
  <Shield size={24} weight="light" className="text-primary" />
  <p className="text-[13px] font-medium text-main-text">New PIN</p>
  <PinInput value={pinInput} onChange={(v) => { setPinInput(v); if (v.length === 6) setStep(2); }} maxLength={6} label="Enter new PIN" />
- <button onClick={() => { setStep(0); setPinInput(""); }} className="w-full px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer mt-4">
+ <button type="button" onClick={() => { setStep(0); setPinInput(""); }} className="w-full px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer mt-4">
  Back
  </button>
  </div>
@@ -160,10 +170,10 @@ export function PinVaultDialog({
  <p className="text-[13px] font-medium text-main-text">Confirm New PIN</p>
  <PinInput value={pinConfirm} onChange={setPinConfirm} maxLength={6} label="Re-enter new PIN" />
  <div className="flex gap-2 w-full mt-4">
- <button onClick={() => { setStep(1); setPinConfirm(""); }} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
+ <button type="button" onClick={() => { setStep(1); setPinConfirm(""); }} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
  Back
  </button>
- <button onClick={handleChange} disabled={loading || pinConfirm.length !== 6 || pinInput !== pinConfirm} className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-colors cursor-pointer">
+ <button type="button" onClick={handleChange} disabled={loading || pinConfirm.length !== 6 || pinInput !== pinConfirm} className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-colors cursor-pointer">
  {loading ? <Spinner size={12} weight="light" className="animate-spin" /> : <Check size={12} weight="fill" />}
  Change PIN
  </button>
@@ -180,10 +190,10 @@ export function PinVaultDialog({
  </p>
  <PinInput value={pinOld} onChange={setPinOld} maxLength={6} />
  <div className="flex gap-2 w-full mt-4">
- <button onClick={onClose} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
+ <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
  Cancel
  </button>
- <button onClick={handleRemove} disabled={loading || pinOld.length !== 6} className="flex-1 px-4 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] font-medium hover:bg-rose-500/15 disabled:opacity-50 transition-colors cursor-pointer">
+ <button type="button" onClick={handleRemove} disabled={loading || pinOld.length !== 6} className="flex-1 px-4 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] font-medium hover:bg-rose-500/15 disabled:opacity-50 transition-colors cursor-pointer">
  {loading ? <Spinner size={12} weight="light" className="animate-spin mx-auto" /> : "Remove"}
  </button>
  </div>

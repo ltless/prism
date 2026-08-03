@@ -37,6 +37,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
 
  <div className="flex items-center gap-0 md:gap-1 px-1 md:px-2">
  <button
+ type="button"
  onClick={onFavorite}
  aria-label="Favorite selected items"
  className="p-2 md:p-2.5 text-white/60 hover:text-rose-500 hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
@@ -44,6 +45,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  <Heart size={15} weight="light" />
  </button>
  <button
+ type="button"
  onClick={onCopy}
  aria-label="Copy selected items"
  className="p-2 md:p-2.5 text-white/60 hover:text-primary hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
@@ -51,6 +53,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  <Copy size={15} weight="light" />
  </button>
  <button
+ type="button"
  onClick={onCut}
  aria-label="Cut selected items"
  className="p-2 md:p-2.5 text-white/60 hover:text-amber-500 hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
@@ -58,6 +61,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  <Scissors size={15} weight="light" />
  </button>
  <button
+ type="button"
  onClick={onDownload}
  aria-label="Download selected items"
  className="p-2 md:p-2.5 text-white/60 hover:text-primary hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
@@ -65,6 +69,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  <Download size={15} weight="light" />
  </button>
  <button
+ type="button"
  onClick={onTrash}
  aria-label="Move selected items to trash"
  className="p-2 md:p-2.5 text-white/60 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "
@@ -76,6 +81,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  <div className="h-6 w-px bg-white/10 mx-0.5 md:mx-1" />
 
  <button
+ type="button"
  onClick={onClear}
  aria-label="Cancel selection"
  className="p-2 md:p-2.5 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-300 ease-out-expo cursor-pointer "

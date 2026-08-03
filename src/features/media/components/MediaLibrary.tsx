@@ -21,7 +21,9 @@ interface MediaLibraryProps {
   folders: FolderType[];
 }
 
-export default function MediaLibrary({ initialItems, folders = [] }: MediaLibraryProps) {
+const EMPTY_FOLDERS: FolderType[] = [];
+
+export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: MediaLibraryProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = searchParams.get('v');
@@ -120,6 +122,7 @@ export default function MediaLibrary({ initialItems, folders = [] }: MediaLibrar
  <SearchFilters />
  </div>
  <button
+ type="button"
  onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.delete('q'); p.delete('type'); p.delete('from'); p.delete('to'); router.push(`${window.location.pathname}?${p}`); }}
  className="text-xs text-primary font-bold hover:underline cursor-pointer"
  >

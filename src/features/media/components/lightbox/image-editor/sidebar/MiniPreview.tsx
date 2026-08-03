@@ -1,4 +1,5 @@
 import { memo, useRef, useState, useEffect } from "react";
+import Image from "next/image";
 
 interface MiniPreviewProps {
   mediaUrl: string;
@@ -83,8 +84,7 @@ export const MiniPreview = memo(function MiniPreview({
       ref={containerRef}
       className="relative aspect-video bg-surface-bg rounded border border-main-border overflow-hidden"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={mediaUrl} alt="" className="w-full h-full object-contain" />
+      <Image src={mediaUrl} alt="" fill sizes="220px" className="object-contain" unoptimized />
       {canCompute && (
         <div
           className="absolute border border-primary/60 bg-primary/10 pointer-events-none"

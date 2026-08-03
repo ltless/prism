@@ -16,17 +16,22 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
-    const result = await login(
-      formData.get("username") as string,
-      formData.get("password") as string,
-    );
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await login(
+        formData.get("username") as string,
+        formData.get("password") as string,
+      );
 
-    if (result?.error) {
-      setError(result.error);
+      if (result?.error) {
+        setError(result.error);
+      } else if (user && !user.hasCompletedSetup) {
+        router.push("/setup");
+      } else {
+        router.push("/dashboard");
+      }
+    } finally {
       setLoading(false);
-    } else {
-      router.push("/dashboard");
     }
   }
 

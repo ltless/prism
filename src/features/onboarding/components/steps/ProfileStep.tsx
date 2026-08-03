@@ -23,7 +23,7 @@ export function ProfileStep({ profileImage, coverImage, isUploading, onFileUploa
   <div className="w-full relative">
   <button type="button" onClick={() => coverInputRef.current?.click()} className="w-full h-28 rounded-xl bg-surface-bg border border-main-border/50 overflow-hidden group cursor-pointer relative block">
   {coverImage ? (
-  <Image src={`/api/v1/media/files/${coverImage}`} alt="Cover" fill className="object-cover" unoptimized priority />
+  <Image src={`/api/v1/media/files/${coverImage}`} alt="Cover" fill sizes="(max-width: 768px) 100vw, 500px" className="object-cover" unoptimized priority />
   ) : (
   <div className="w-full h-full flex items-center justify-center text-muted-text/30 group-hover:text-muted-text/50 transition-colors">
   {isUploading === 'cover' ? <Spinner className="animate-spin" weight="light" /> : <ImageIcon size={24} weight="light" />}
@@ -39,7 +39,7 @@ export function ProfileStep({ profileImage, coverImage, isUploading, onFileUploa
   <div className="absolute -bottom-7 left-5">
   <button type="button" onClick={() => profileInputRef.current?.click()} className="w-16 h-16 rounded-full bg-app-bg border-[3px] border-panel-bg shadow-md overflow-hidden group cursor-pointer relative block">
   {profileImage ? (
-  <Image src={`/api/v1/media/files/${profileImage}`} alt="Profile" fill className="object-cover" unoptimized priority />
+  <Image src={`/api/v1/media/files/${profileImage}`} alt="Profile" fill sizes="64px" className="object-cover" unoptimized priority />
   ) : (
   <div className="w-full h-full bg-surface-bg flex items-center justify-center text-muted-text/30 group-hover:text-muted-text/50 transition-colors">
   {isUploading === 'profile' ? <Spinner className="animate-spin" weight="light" /> : <User size={20} weight="light" />}

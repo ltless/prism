@@ -25,6 +25,7 @@ export function MobileTabBar({ tabs, activeTab, onTabChange }: MobileTabBarProps
  return (
  <button
  key={tab.id}
+ type="button"
  onClick={() => onTabChange(tab.id)}
  className={cn(
  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors duration-150 cursor-pointer",

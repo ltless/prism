@@ -80,6 +80,7 @@ export function TopBar() {
         <header className="w-full flex items-center justify-between px-4 md:px-6 py-2 bg-app-bg pointer-events-auto">
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={() => setMobileOpen(true)}
               aria-label="Open sidebar"
               className="md:hidden w-7 h-7 flex items-center justify-center rounded text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
@@ -96,6 +97,7 @@ export function TopBar() {
 
           <div className="flex items-center gap-0.5">
             <button
+              type="button"
               onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setTimeout(() => mobileSearchRef.current?.focus(), 100); }}
               aria-label="Toggle search"
               className="md:hidden w-7 h-7 flex items-center justify-center rounded text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
@@ -138,6 +140,7 @@ export function TopBar() {
             />
 
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Upload files"
               className="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer text-muted-text hover:text-main-text hover:bg-surface-bg"
@@ -150,6 +153,7 @@ export function TopBar() {
             </button>
 
             <button
+              type="button"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               className="w-7 h-7 flex items-center justify-center rounded text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer overflow-hidden"
@@ -189,10 +193,11 @@ export function TopBar() {
         <AnimatePresence>
           {mobileSearchOpen && (
             <motion.form
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ scaleY: 0, opacity: 0 }}
+              animate={{ scaleY: 1, opacity: 1 }}
+              exit={{ scaleY: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              style={{ transformOrigin: "top" }}
               onSubmit={handleSearch}
               className="md:hidden px-3 pb-2 bg-app-bg"
             >

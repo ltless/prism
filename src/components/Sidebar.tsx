@@ -104,6 +104,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
         style={{ width: isCollapsed ? 56 : SIDEBAR_WIDTH }}
       >
         <button
+          type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="absolute inset-y-0 my-auto right-0 translate-x-1/2 z-40 flex items-center justify-center w-4 h-8 rounded-full bg-panel-bg text-muted-text hover:text-main-text hover:bg-surface-bg transition-all duration-200 cursor-pointer border border-main-border/50"
@@ -131,6 +132,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
             className="fixed inset-y-0 left-0 w-64 flex flex-col bg-app-bg z-mobile-sidebar md:hidden shadow-xl"
           >
             <button
+              type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Close sidebar"
               className="absolute top-5 right-5 z-10 p-1.5 bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"

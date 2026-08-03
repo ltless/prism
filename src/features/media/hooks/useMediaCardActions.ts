@@ -30,15 +30,17 @@ export function useMediaCardActions(item: MediaItem, onDelete?: (id: string) => 
     if (isDeleting) return;
 
     setIsDeleting(true);
-    const result = await moveToTrashAction(item.id);
-    if (!result.success) {
-      toast.error(result.error || "Failed to move to trash");
+    try {
+      const result = await moveToTrashAction(item.id);
+      if (!result.success) {
+        toast.error(result.error || "Failed to move to trash");
+        return;
+      }
+      toast.success("File moved to trash");
+      onDelete?.(item.id);
+    } finally {
       setIsDeleting(false);
-      return;
     }
-    toast.success("File moved to trash");
-    onDelete?.(item.id);
-    setIsDeleting(false);
   };
 
   const handleDownload = () => {

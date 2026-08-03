@@ -47,6 +47,7 @@ export function EditorToolbar({
         return (
           <button
             key={tool.id}
+            type="button"
             onClick={() => onToolChange(tool.id)}
             title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ""}`}
             className={`w-8 h-8 flex items-center justify-center rounded cursor-pointer transition-colors ${
@@ -61,6 +62,7 @@ export function EditorToolbar({
       <div className="w-6 h-px bg-main-border/30 my-0.5" />
 
       <button
+        type="button"
         onClick={onToggleBeforeAfter}
         title={`Before/After ( \ )`}
         className={`w-8 h-8 flex items-center justify-center rounded cursor-pointer transition-colors ${

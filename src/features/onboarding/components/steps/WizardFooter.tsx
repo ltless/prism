@@ -16,6 +16,7 @@ export function WizardFooter({ currentStep, totalSteps, isCompleting, isUploadin
  return (
  <div className="px-8 py-5 border-t border-main-border/30 flex items-center justify-between">
  <button
+ type="button"
  onClick={onBack}
  disabled={currentStep === 0 || isCompleting}
  className={cn(
@@ -30,6 +31,7 @@ export function WizardFooter({ currentStep, totalSteps, isCompleting, isUploadin
  </button>
 
  <button
+ type="button"
  onClick={onNext}
  disabled={isCompleting || isUploading !== null}
  className={cn(

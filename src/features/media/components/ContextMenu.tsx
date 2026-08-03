@@ -150,8 +150,9 @@ export function ContextMenu({ items, children, className }: ContextMenuProps) {
  className="w-52 bg-panel-bg border border-main-border/50 shadow-xl rounded-xl p-1 overflow-visible"
  >
   {items.map((item, idx) => (
-  <div key={idx} className="relative">
+  <div key={item.label} className="relative">
   <button
+  type="button"
   aria-haspopup={item.subItems ? "menu" : undefined}
   aria-expanded={item.subItems ? activeSubMenu === idx : undefined}
   onMouseEnter={() => item.subItems ? setActiveSubMenu(idx) : setActiveSubMenu(null)}
@@ -203,6 +204,7 @@ export function ContextMenu({ items, children, className }: ContextMenuProps) {
  {item.subItems.map((sub, sIdx) => (
  <button
  key={sIdx}
+ type="button"
  onClick={(e) => {
  e.stopPropagation();
  sub.onClick();

@@ -18,7 +18,9 @@ export interface DuplicateGroup {
  isNearDuplicate: boolean;
 }
 
-export function DuplicateList({ groups, folderMap = {} }: { groups: DuplicateGroup[]; folderMap?: Record<string, string> }) {
+const EMPTY_FOLDER_MAP: Record<string, string> = {};
+
+export function DuplicateList({ groups, folderMap = EMPTY_FOLDER_MAP }: { groups: DuplicateGroup[]; folderMap?: Record<string, string> }) {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [compareModal, setCompareModal] = useState<{ groupId: string; index: number } | null>(null);
   const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
@@ -171,6 +173,7 @@ export function DuplicateList({ groups, folderMap = {} }: { groups: DuplicateGro
   src={`/api/v1/media/files/${item.filePath}?thumb=1`}
   alt={item.title}
   fill
+  sizes="120px"
   className="object-cover"
   unoptimized
   priority={idx === 0}
@@ -230,6 +233,7 @@ export function DuplicateList({ groups, folderMap = {} }: { groups: DuplicateGro
  <button
  onClick={(e) => { e.stopPropagation(); handleKeep(item, group.items); }}
  disabled={!!resolvingId}
+ type="button"
  className={cn(
  "w-full h-8 rounded-lg flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer transition-colors duration-200",
  resolvingId === item.id

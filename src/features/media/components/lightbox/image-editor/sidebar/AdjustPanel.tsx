@@ -34,6 +34,7 @@ function CollapsibleSection({
   return (
     <div>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 w-full pt-1 group cursor-pointer"
       >
@@ -578,6 +579,7 @@ export function AdjustPanel({
               return (
                 <button
                   key={preset.label}
+                  type="button"
                   onClick={() => {
                     setScalar("temperature", preset.temperature);
                     setScalar("tint", preset.tint);
@@ -599,6 +601,7 @@ export function AdjustPanel({
 
           {hasAdjustments && (
             <button
+              type="button"
               onClick={resetWhiteBalance}
               className="w-full py-1.5 text-[11px] font-medium text-muted-text hover:text-primary border border-main-border/60 rounded transition-colors cursor-pointer"
             >
@@ -611,6 +614,7 @@ export function AdjustPanel({
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-main-text/80">Invert</span>
             <button
+              type="button"
               onClick={() => onInvertChange(!adjustments.invert)}
               className={`px-3 py-1 text-xs font-semibold rounded border transition-all cursor-pointer ${
                 adjustments.invert
@@ -671,6 +675,7 @@ export function AdjustPanel({
               />
               {(adjustments.duotone?.colorA !== "#000000" || adjustments.duotone?.colorB !== "#ffffff") && (
                 <button
+                  type="button"
                   onClick={() => {
                     onDuotoneColorAChange("#000000");
                     onDuotoneColorBChange("#ffffff");
@@ -711,6 +716,7 @@ export function AdjustPanel({
                 adjustments.tritone?.colorB !== "#808080" ||
                 adjustments.tritone?.colorC !== "#ffffff") && (
                 <button
+                  type="button"
                   onClick={() => {
                     onTritoneColorAChange("#000000");
                     onTritoneColorBChange("#808080");
@@ -760,6 +766,7 @@ export function AdjustPanel({
                 adjustments.quadtone?.colorC !== "#bfbfbf" ||
                 adjustments.quadtone?.colorD !== "#ffffff") && (
                 <button
+                  type="button"
                   onClick={() => {
                     onQuadtoneColorAChange("#000000");
                     onQuadtoneColorBChange("#404040");
@@ -837,6 +844,7 @@ export function AdjustPanel({
             adjustments.splitToning?.highlightsSaturation !== 0 ||
             adjustments.splitToning?.balance !== 0) && (
             <button
+              type="button"
               onClick={() => {
                 setMergeField(
                   "splitToning",
@@ -909,6 +917,7 @@ export function AdjustPanel({
             adjustments.levels?.outBlack !== 0 ||
             adjustments.levels?.outWhite !== 255) && (
             <button
+              type="button"
               onClick={() => {
                 setMergeField(
                   "levels",

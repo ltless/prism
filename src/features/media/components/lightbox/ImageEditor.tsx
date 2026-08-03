@@ -269,6 +269,9 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
     [currentItem, onSuccess, isSaving]
   );
 
+  const zoomRef = useRef(zoom);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
   const handleWheel = useCallback((e: WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -279,20 +282,16 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
       const cx = e.clientX - rect.left - rect.width / 2;
       const cy = e.clientY - rect.top - rect.height / 2;
 
-      setZoom((prevZoom) => {
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const nextZoom = Math.min(10, Math.max(0.1, prevZoom + delta));
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      const prevZoom = zoomRef.current;
+      const nextZoom = Math.min(10, Math.max(0.1, prevZoom + delta));
+      const ratio = nextZoom / prevZoom;
 
-        setPan((prevPan) => {
-          const ratio = nextZoom / prevZoom;
-          return {
-            x: cx - ratio * (cx - prevPan.x),
-            y: cy - ratio * (cy - prevPan.y),
-          };
-        });
-
-        return nextZoom;
-      });
+      setZoom(nextZoom);
+      setPan((prevPan) => ({
+        x: cx - ratio * (cx - prevPan.x),
+        y: cy - ratio * (cy - prevPan.y),
+      }));
     }
   }, []);
 
@@ -443,7 +442,7 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  willChange: "transform",
+                  willChange: isPanning ? "transform" : "auto",
                 }}
               >
                 <CanvasRenderer

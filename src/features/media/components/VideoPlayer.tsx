@@ -318,6 +318,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  {/* Left Side: Play/Pause, Volume, Timer */}
  <div className="flex items-center gap-3">
  <button
+ type="button"
  onClick={togglePlay}
  className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-all ease-out-expo cursor-pointer"
  >
@@ -327,6 +328,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
  {/* Volume Section */}
  <div className="flex items-center gap-2 group/volume">
  <button
+ type="button"
  onClick={toggleMute}
  className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-all ease-out-expo cursor-pointer"
  >
@@ -351,6 +353,7 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
 
  {/* Right Side: Fullscreen toggle */}
  <button
+ type="button"
  onClick={toggleFullscreen}
  className="p-1.5 hover:text-main-text hover:bg-surface-bg rounded-lg transition-all ease-out-expo cursor-pointer"
  >

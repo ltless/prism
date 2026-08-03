@@ -14,6 +14,7 @@ export function LibraryHeader({ selectedCount, onClearSelection }: LibraryHeader
  {selectedCount} Records Selected
  </p>
  <button
+ type="button"
  onClick={onClearSelection}
  className="text-xs text-muted-text hover:text-main-text transition-colors cursor-pointer antialiased"
  >

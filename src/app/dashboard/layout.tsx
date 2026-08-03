@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { MainContentWrapper } from "@/components/MainContentWrapper";
@@ -23,7 +24,9 @@ export default async function DashboardLayout({
       <div className="flex h-dvh bg-app-bg overflow-hidden text-main-text">
         <Sidebar folders={allFolders} />
         <MainContentWrapper>
-          {children}
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
         </MainContentWrapper>
       </div>
     </SidebarProvider>

@@ -38,14 +38,17 @@ export function SecurityTab() {
     if (newPw !== confirmPw) { toast.error("Passwords don't match"); return; }
     if (newPw.length < 8) { toast.error("Password must be at least 8 characters"); return; }
     setPwLoading(true);
-    const res = await changePasswordAction(oldPw, newPw);
-    if (res.success) {
-      toast.success("Password changed");
-      setOldPw(""); setNewPw(""); setConfirmPw("");
-    } else {
-      toast.error(res.error || "Failed");
+    try {
+      const res = await changePasswordAction(oldPw, newPw);
+      if (res.success) {
+        toast.success("Password changed");
+        setOldPw(""); setNewPw(""); setConfirmPw("");
+      } else {
+        toast.error(res.error || "Failed");
+      }
+    } finally {
+      setPwLoading(false);
     }
-    setPwLoading(false);
   };
 
   const openDialog = (d: PinDialog) => {
@@ -71,6 +74,7 @@ export function SecurityTab() {
 
             <div className="flex justify-end pt-2">
               <button
+                type="button"
                 onClick={handleChangePassword}
                 disabled={pwLoading || !oldPw || !newPw || !confirmPw}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
@@ -128,6 +132,7 @@ export function SecurityTab() {
           ) : (
             <div className="flex gap-2 pt-2 border-t border-main-border/30">
               <button
+                type="button"
                 onClick={() => openDialog(hasPin ? "change" : "set")}
                 className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 transition-all cursor-pointer shadow-sm"
               >
@@ -136,6 +141,7 @@ export function SecurityTab() {
               </button>
               {hasPin && (
                 <button
+                  type="button"
                   onClick={() => openDialog("remove")}
                   className="px-3.5 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] font-medium hover:bg-rose-500/15 transition-all cursor-pointer"
                 >

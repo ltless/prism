@@ -27,13 +27,16 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
 
   const handleSaveUsername = async () => {
     setIsSavingUsername(true);
-    const res = await updateUsernameAction(username);
-    if (res.success) {
-      toast.success("Username updated");
-    } else {
-      toast.error(res.error || "Failed to update username");
+    try {
+      const res = await updateUsernameAction(username);
+      if (res.success) {
+        toast.success("Username updated");
+      } else {
+        toast.error(res.error || "Failed to update username");
+      }
+    } finally {
+      setIsSavingUsername(false);
     }
-    setIsSavingUsername(false);
   };
 
   return (
@@ -54,7 +57,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
               onClick={() => coverInputRef.current?.click()}
             >
               {coverSrc ? (
-                <Image src={coverSrc} alt="Cover" fill className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized priority />
+                <Image src={coverSrc} alt="Cover" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized priority />
               ) : (
                 <div className="absolute inset-0 bg-gradient-to-tr from-surface-bg to-panel-bg flex items-center justify-center">
                   <ImageIcon className="w-8 h-8 text-muted-text/30" weight="light" />
@@ -76,7 +79,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
                 onClick={() => profileInputRef.current?.click()}
               >
                 {profileSrc ? (
-                  <Image src={profileSrc} alt="Profile" fill className="object-cover" unoptimized priority />
+                  <Image src={profileSrc} alt="Profile" fill sizes="80px" className="object-cover" unoptimized priority />
                 ) : (
                   <div className="w-full h-full bg-primary flex items-center justify-center text-2xl font-semibold text-primary-foreground uppercase">
                     {session?.user?.name?.[0] || "U"}
@@ -121,6 +124,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
                 placeholder="Enter username..."
               />
               <button
+                type="button"
                 onClick={handleSaveUsername}
                 disabled={isSavingUsername || !username.trim() || username === session?.user?.name}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-all duration-200 cursor-pointer shrink-0 shadow-sm"
@@ -140,6 +144,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
           <div className="grid grid-cols-2 gap-4">
             {/* Dark Theme Mockup Option */}
             <button
+              type="button"
               onClick={() => setTheme("dark")}
               aria-pressed={theme === "dark"}
               className={cn(
@@ -181,6 +186,7 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
 
             {/* Light Theme Mockup Option */}
             <button
+              type="button"
               onClick={() => setTheme("light")}
               aria-pressed={theme === "light"}
               className={cn(

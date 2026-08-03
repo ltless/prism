@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 
 interface User {
   id: string;
@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
         body: JSON.stringify({ username, password }),
       });
+      if (!res.ok) throw new Error(`Login failed: ${res.status}`);
       const data = await res.json();
       if (!res.ok) return { error: data.message || "Invalid credentials." };
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
         body: JSON.stringify({ username, password }),
       });
+      if (!res.ok) throw new Error(`Registration failed: ${res.status}`);
       const data = await res.json();
       if (!res.ok) return { error: data.message || "Registration failed." };
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
@@ -124,8 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   }, []);
 
+  const value = useMemo(
+    () => ({ user, login, register, logout, isLoading, refreshProfile }),
+    [user, login, register, logout, isLoading, refreshProfile],
+  );
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading, refreshProfile }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

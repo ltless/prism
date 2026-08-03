@@ -107,6 +107,7 @@ export function PanelHeader({
         </span>
       </div>
       <button
+        type="button"
         onClick={onClose}
         className="text-muted-text hover:text-main-text transition-colors cursor-pointer p-0.5 -mr-0.5"
         aria-label={`Close ${label}`}
@@ -208,7 +209,9 @@ const presetColors = [
 // Swatches localStorage
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = "prism-editor-swatches";
+const STORAGE_KEY = "prism-editor-swatches:v1";
+const ORDER_KEY = "prism-editor-panel-order:v1";
+const LOCK_KEY = "prism-editor-panel-locked:v1";
 
 function loadSwatches(): string[] {
   if (typeof window === "undefined") return [];
@@ -222,6 +225,19 @@ function loadSwatches(): string[] {
 
 function saveSwatches(colors: string[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(colors));
+}
+
+function formatSize(w: number, h: number) {
+  return !w || !h ? "—" : `${w} × ${h}`;
+}
+
+function formatMimeType(m: string) {
+  if (!m) return "—";
+  if (m.includes("jpeg") || m.includes("jpg")) return "JPEG";
+  if (m.includes("png")) return "PNG";
+  if (m.includes("webp")) return "WebP";
+  if (m.includes("gif")) return "GIF";
+  return m.split("/")[1]?.toUpperCase() || m;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,15 +282,13 @@ export function EditorSidebar({
   onQuadtoneColorDChange,
 }: EditorSidebarProps) {
   const [openPanels, setOpenPanels] = useState<Set<PanelId>>(new Set());
-  const [hexInput, setHexInput] = useState(brushColor);
+  const [hexDraft, setHexDraft] = useState<string | null>(null);
+  const hexInput = hexDraft ?? brushColor;
   const [swatches, setSwatches] = useState<string[]>(loadSwatches);
 
   useEffect(() => {
     saveSwatches(swatches);
   }, [swatches]);
-
-  const ORDER_KEY = "prism-editor-panel-order";
-  const LOCK_KEY = "prism-editor-panel-locked";
 
   const panelItemMap = new Map(panelItems.map((item) => [item.id, item]));
 
@@ -291,18 +305,21 @@ export function EditorSidebar({
     return panelItems.map((item) => item.id);
   });
 
-  const [isLocked, setIsLocked] = useState(() => typeof window !== "undefined" && localStorage.getItem(LOCK_KEY) === "true");
+  const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLocked(localStorage.getItem(LOCK_KEY) === "true");
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(ORDER_KEY, JSON.stringify(panelOrder));
   }, [panelOrder]);
 
   const toggleLock = () => {
-    setIsLocked((prev) => {
-      const next = !prev;
-      localStorage.setItem(LOCK_KEY, String(next));
-      return next;
-    });
+    const next = !isLocked;
+    setIsLocked(next);
+    localStorage.setItem(LOCK_KEY, String(next));
   };
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -360,7 +377,7 @@ export function EditorSidebar({
   };
 
   const handleHexChange = (val: string) => {
-    setHexInput(val);
+    setHexDraft(val);
     if (/^#[0-9A-Fa-f]{6}$/.test(val)) onBrushColorChange(val);
   };
 
@@ -372,17 +389,6 @@ export function EditorSidebar({
 
   const removeSwatch = (color: string) => {
     setSwatches((prev) => prev.filter((c) => c !== color));
-  };
-
-  const formatSize = (w: number, h: number) =>
-    !w || !h ? "—" : `${w} × ${h}`;
-  const formatMimeType = (m: string) => {
-    if (!m) return "—";
-    if (m.includes("jpeg") || m.includes("jpg")) return "JPEG";
-    if (m.includes("png")) return "PNG";
-    if (m.includes("webp")) return "WebP";
-    if (m.includes("gif")) return "GIF";
-    return m.split("/")[1]?.toUpperCase() || m;
   };
 
   return (
@@ -470,9 +476,10 @@ export function EditorSidebar({
                   {presetColors.map((c) => (
                     <button
                       key={c.hex}
+                      type="button"
                       onClick={() => {
                         onBrushColorChange(c.hex);
-                        setHexInput(c.hex);
+                        setHexDraft(c.hex);
                       }}
                       title={c.name}
                       style={{ backgroundColor: c.hex }}
@@ -490,7 +497,7 @@ export function EditorSidebar({
                     value={brushColor}
                     onChange={(e) => {
                       onBrushColorChange(e.target.value);
-                      setHexInput(e.target.value);
+                      setHexDraft(e.target.value);
                     }}
                     className="w-7 h-7 rounded border border-main-border cursor-pointer"
                   />
@@ -520,9 +527,10 @@ export function EditorSidebar({
                     {swatches.map((color) => (
                       <div key={color} className="relative group">
                         <button
+                          type="button"
                           onClick={() => {
                             onBrushColorChange(color);
-                            setHexInput(color);
+                            setHexDraft(color);
                           }}
                           style={{ backgroundColor: color }}
                           className={`w-full aspect-square rounded border cursor-pointer transition-all ${
@@ -532,6 +540,7 @@ export function EditorSidebar({
                           }`}
                         />
                         <button
+                          type="button"
                           onClick={() => removeSwatch(color)}
                           className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
                         >
@@ -542,6 +551,7 @@ export function EditorSidebar({
                   </div>
                 )}
                 <button
+                  type="button"
                   onClick={addSwatch}
                   className="w-full py-1.5 border border-dashed border-main-border text-[11px] text-muted-text hover:text-main-text hover:border-primary rounded cursor-pointer flex items-center justify-center gap-1.5"
                 >
@@ -617,6 +627,7 @@ export function EditorSidebar({
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() =>
                       onRotationChange((rotation - 90 + 360) % 360)
                     }
@@ -625,6 +636,7 @@ export function EditorSidebar({
                     ↺ 90° CCW
                   </button>
                   <button
+                    type="button"
                     onClick={() => onRotationChange((rotation + 90) % 360)}
                     className="px-2 py-1.5 border border-main-border/60 bg-surface-bg/40 hover:bg-surface-bg rounded text-[11px] cursor-pointer text-muted-text hover:text-main-text transition-colors"
                   >
@@ -635,6 +647,7 @@ export function EditorSidebar({
                 <SubHeader label="Mirror" />
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={onFlipH}
                     className={`py-1.5 border rounded text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
                       flipH
@@ -645,6 +658,7 @@ export function EditorSidebar({
                     <FlipHorizontal size={14} weight="light" /> Horizontal
                   </button>
                   <button
+                    type="button"
                     onClick={onFlipV}
                     className={`py-1.5 border rounded text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
                       flipV
@@ -724,6 +738,7 @@ export function EditorSidebar({
       <div className="w-10 shrink-0 flex flex-col items-center py-2 gap-0.5 bg-app-bg">
         {/* Lock toggle */}
         <button
+          type="button"
           onClick={toggleLock}
           title={isLocked ? "Unlock panel order" : "Lock panel order"}
           className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${
@@ -746,6 +761,7 @@ export function EditorSidebar({
           return (
             <button
               key={item.id}
+              type="button"
               draggable={!isLocked}
               onClick={() => togglePanel(item.id)}
               title={item.label}

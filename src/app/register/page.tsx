@@ -23,34 +23,34 @@ export default function RegisterPage() {
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirmPassword") as string;
 
-    if (!username || !password || !confirmPassword) {
-      setError("All fields are required");
-      setLoading(false);
-      return;
-    }
+    try {
+      if (!username || !password || !confirmPassword) {
+        setError("All fields are required");
+        return;
+      }
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match");
+        return;
+      }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      setLoading(false);
-      return;
-    }
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters");
+        return;
+      }
 
-    const result = await register(username, password);
+      const result = await register(username, password);
 
-    if (result?.error) {
-      setError(result.error);
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        setSuccess(true);
+        setTimeout(() => {
+          router.push("/setup");
+        }, 800);
+      }
+    } finally {
       setLoading(false);
-    } else {
-      setSuccess(true);
-      setTimeout(() => {
-        router.push("/setup");
-      }, 800);
     }
   }
 

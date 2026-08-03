@@ -247,6 +247,7 @@ export const MediaCard = memo(function MediaCard({
  <button
  onClick={(e) => { e.stopPropagation(); handleDelete(e); }}
  disabled={isDeleting}
+ type="button"
  className="text-white/40 hover:text-rose-500 transition-colors p-1"
  title="Move to Trash"
  >
@@ -254,6 +255,7 @@ export const MediaCard = memo(function MediaCard({
  </button>
  <button
  onClick={(e) => handleToggleFavorite(e)}
+ type="button"
  className={cn(
  "transition-colors p-1",
  isFav ? "text-yellow-400" : "text-white/40 hover:text-yellow-400"

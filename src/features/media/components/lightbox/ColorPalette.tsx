@@ -25,6 +25,7 @@ export const ColorPalette = memo(function ColorPalette({ palette }: ColorPalette
         {palette.map((color: string) => (
           <button
             key={color}
+            type="button"
             onClick={() => copyToClipboard(color)}
             className="group relative flex flex-col items-center gap-1.5 cursor-pointer"
           >

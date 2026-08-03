@@ -20,6 +20,7 @@ const GAP = 8;
 function useColumnCount(): number {
   const [cols, setCols] = useState(2);
   useEffect(() => {
+    const ac = new AbortController();
     const mqls = COL_QUERIES.map(([q, n]) => {
       const m = window.matchMedia(q);
       return { m, n };
@@ -29,8 +30,8 @@ function useColumnCount(): number {
       setCols(2);
     };
     update();
-    mqls.forEach(({ m }) => m.addEventListener("change", update));
-    return () => mqls.forEach(({ m }) => m.removeEventListener("change", update));
+    mqls.forEach(({ m }) => m.addEventListener("change", update, { signal: ac.signal }));
+    return () => ac.abort();
   }, []);
   return cols;
 }

@@ -10,6 +10,7 @@ exports[`UserMenu > opens dropdown on click 1`] = `
       aria-haspopup="menu"
       aria-label="Open user menu"
       class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
+      type="button"
     >
       <div
         class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden"
@@ -59,6 +60,7 @@ exports[`UserMenu > opens dropdown on click 1`] = `
         <button
           class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-surface-bg"
           role="menuitem"
+          type="button"
         >
           <svg
             class="text-muted-text group-hover:text-main-text transition-colors"
@@ -81,6 +83,7 @@ exports[`UserMenu > opens dropdown on click 1`] = `
         <button
           class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
           role="menuitem"
+          type="button"
         >
           <svg
             class="text-muted-text group-hover:text-rose-500 transition-colors"
@@ -116,6 +119,7 @@ exports[`UserMenu > renders avatar with initial letter when no image 1`] = `
       aria-haspopup="menu"
       aria-label="Open user menu"
       class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
+      type="button"
     >
       <div
         class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden"
@@ -137,10 +141,12 @@ exports[`UserMenu > renders avatar with user image when available 1`] = `
       aria-haspopup="menu"
       aria-label="Open user menu"
       class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
+      type="button"
     >
       <img
         alt="User avatar"
         class="rounded-full object-cover"
+        sizes="28px"
         src="/api/v1/media/files//avatars/test.png"
       />
     </button>

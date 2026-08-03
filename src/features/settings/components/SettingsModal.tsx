@@ -25,6 +25,13 @@ interface SettingsModalProps {
 
 type Tab = "general" | "security" | "storage" | "about";
 
+const tabs = [
+  { id: "general" as Tab, label: "General", icon: "User" as const },
+  { id: "security" as Tab, label: "Security", icon: "Shield" as const },
+  { id: "storage" as Tab, label: "Storage", icon: "HardDrive" as const },
+  { id: "about" as Tab, label: "About", icon: "Info" as const },
+];
+
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { refreshProfile } = useAuth();
   const { session: effectiveSession } = useEffectiveSession();
@@ -57,14 +64,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
  if (!file) return;
 
  const reader = new FileReader();
- reader.addEventListener("load", () => {
+ reader.onload = () => {
  setCropModal({
  isOpen: true,
  image: reader.result as string,
  type,
  aspect: type === "image" ? 1 : 16 / 5
  });
- });
+ };
  reader.readAsDataURL(file);
  if (e.target) e.target.value = "";
  };
@@ -98,13 +105,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const profileSrc = profilePath ? `/api/v1/media/files/${profilePath}` : null;
   const coverSrc = coverPath ? `/api/v1/media/files/${coverPath}` : null;
 
- const tabs = [
- { id: "general" as Tab, label: "General", icon: "User" as const },
- { id: "security" as Tab, label: "Security", icon: "Shield" as const },
- { id: "storage" as Tab, label: "Storage", icon: "HardDrive" as const },
- { id: "about" as Tab, label: "About", icon: "Info" as const },
- ];
-
   return (
   <AnimatePresence>
    {isOpen && (
@@ -137,6 +137,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
  {tabs.find(t => t.id === activeTab)?.label}
  </h2>
  <button 
+ type="button"
  onClick={onClose}
  aria-label="Close settings"
  className="p-1.5 hover:bg-surface-bg rounded-lg text-muted-text hover:text-main-text transition-colors cursor-pointer"

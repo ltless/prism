@@ -40,6 +40,7 @@ export const SliderRow = memo(function SliderRow({
           </span>
           {isDirty && onReset && (
             <button
+              type="button"
               onClick={() => {
                 onReset?.();
                 onCommit?.();

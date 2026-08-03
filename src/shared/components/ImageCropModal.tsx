@@ -87,6 +87,7 @@ export function ImageCropModal({
  {title}
  </h3>
  <button
+ type="button"
  onClick={onClose}
  className="p-2 hover:bg-surface-bg rounded-full text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer "
  >
@@ -132,6 +133,7 @@ export function ImageCropModal({
 
  <div className="flex gap-4">
  <button
+ type="button"
  onClick={() => {
  setZoom(1);
  setCrop({ x: 0, y: 0 });
@@ -142,6 +144,7 @@ export function ImageCropModal({
  Reset
  </button>
  <button
+ type="button"
  onClick={handleSave}
  className="flex-[2] py-4 rounded-full bg-primary text-primary-foreground text-xs hover:shadow-lg hover:shadow-primary/20 transition-all ease-out-expo flex items-center justify-center gap-2 cursor-pointer shadow-md "
  >

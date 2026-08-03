@@ -81,6 +81,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
 
  {initialItems.length > 0 && (
  <button
+ type="button"
  onClick={handleEmptyTrash}
  disabled={isEmptying}
  className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white transition-all ease-out-expo cursor-pointer text-xs disabled:opacity-50"
@@ -124,6 +125,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  <button
  onClick={(e) => { e.stopPropagation(); handleRestore(item.id); }}
  disabled={!!isProcessing}
+ type="button"
  className="p-2 bg-panel-bg/90 border border-main-border rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white shadow-lg transition-all ease-out-expo cursor-pointer disabled:opacity-50"
  title="Restore"
  >
@@ -132,6 +134,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  <button
  onClick={(e) => { e.stopPropagation(); handlePermanentDelete(item.id); }}
  disabled={!!isProcessing}
+ type="button"
  className="p-2 bg-panel-bg/90 border border-main-border rounded-xl text-rose-600 hover:bg-rose-600 hover:text-white shadow-lg transition-all ease-out-expo cursor-pointer disabled:opacity-50"
  title="Delete Permanently"
  >

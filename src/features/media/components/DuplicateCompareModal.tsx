@@ -36,17 +36,20 @@ export function DuplicateCompareModal({
  const [isDragging, setIsDragging] = useState(false);
  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
  const [showInfo, setShowInfo] = useState(false);
+ const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+ const [prevBestIndex, setPrevBestIndex] = useState(bestIndex);
  const containerRef = useRef<HTMLDivElement>(null);
 
- useEffect(() => {
- if (isOpen) {
- // eslint-disable-next-line react-hooks/set-state-in-effect
- setActiveIndex(bestIndex);
- setZoom(1);
- setPosition({ x: 0, y: 0 });
- setShowInfo(false);
+ // Reset ephemeral state when the modal opens or bestIndex changes —
+ // set-state-during-render (React-endorsed) instead of set-state-in-effect.
+ if (isOpen && (isOpen !== prevIsOpen || bestIndex !== prevBestIndex)) {
+   setPrevIsOpen(isOpen);
+   setPrevBestIndex(bestIndex);
+   setActiveIndex(bestIndex);
+   setZoom(1);
+   setPosition({ x: 0, y: 0 });
+   setShowInfo(false);
  }
- }, [isOpen, bestIndex]);
 
  const handlePrev = useCallback(() => {
  setActiveIndex(prev => (prev > 0 ? prev - 1 : items.length - 1));
@@ -142,6 +145,7 @@ export function DuplicateCompareModal({
 
  {/* Zoom Controls */}
  <button
+ type="button"
  onClick={handleZoomOut}
  disabled={zoom <= 1}
  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-30 cursor-pointer"
@@ -152,6 +156,7 @@ export function DuplicateCompareModal({
  {Math.round(zoom * 100)}%
  </span>
  <button
+ type="button"
  onClick={handleZoomIn}
  disabled={zoom >= 4}
  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-30 cursor-pointer"
@@ -163,6 +168,7 @@ export function DuplicateCompareModal({
 
  {/* Info Toggle */}
  <button
+ type="button"
  onClick={() => setShowInfo(prev => !prev)}
  className={cn(
  "p-1.5 rounded-lg transition-colors cursor-pointer",
@@ -174,6 +180,7 @@ export function DuplicateCompareModal({
 
  {/* Close */}
  <button
+ type="button"
  onClick={onClose}
  className="p-1.5 rounded-lg text-white/50 hover:bg-white/10 hover:text-white/70 transition-colors cursor-pointer"
  >
@@ -194,12 +201,14 @@ export function DuplicateCompareModal({
  >
  {/* Nav Buttons */}
  <button
+ type="button"
  onClick={handlePrev}
  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/30 hover:bg-black/50 transition-colors cursor-pointer"
  >
  <CaretLeft size={20} weight="light" className="text-white" />
  </button>
  <button
+ type="button"
  onClick={handleNext}
  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-black/30 hover:bg-black/50 transition-colors cursor-pointer"
  >
@@ -236,10 +245,11 @@ export function DuplicateCompareModal({
  <AnimatePresence>
  {showInfo && (
  <motion.div
- initial={{ height: 0, opacity: 0 }}
- animate={{ height: "auto", opacity: 1 }}
- exit={{ height: 0, opacity: 0 }}
+ initial={{ scaleY: 0, opacity: 0 }}
+ animate={{ scaleY: 1, opacity: 1 }}
+ exit={{ scaleY: 0, opacity: 0 }}
  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+ style={{ transformOrigin: "bottom" }}
  className="overflow-hidden bg-black/80 border-t border-white/5"
  >
  <div className="px-6 py-4 flex gap-8">
@@ -308,6 +318,7 @@ export function DuplicateCompareModal({
  {/* Keep Button */}
  <div className="flex items-end">
  <button
+ type="button"
  onClick={() => onKeep(item)}
  disabled={isResolving}
  className={cn(
@@ -337,6 +348,7 @@ export function DuplicateCompareModal({
  return (
  <button
  key={thumb.id}
+ type="button"
  onClick={() => { setActiveIndex(idx); setZoom(1); setPosition({ x: 0, y: 0 }); }}
  className={cn(
  "relative rounded-lg overflow-hidden transition-all duration-200",
@@ -372,6 +384,7 @@ export function DuplicateCompareModal({
 
  {/* Quick Keep */}
  <button
+ type="button"
  onClick={() => onKeep(item)}
  disabled={isResolving}
  className={cn(

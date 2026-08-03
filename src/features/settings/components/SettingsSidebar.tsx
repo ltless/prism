@@ -30,6 +30,7 @@ export function SettingsSidebar({ tabs, activeTab, onTabChange }: SettingsSideba
  return (
  <button
  key={tab.id}
+ type="button"
  onClick={() => onTabChange(tab.id)}
  className={cn(
  "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors duration-150 cursor-pointer",
@@ -49,6 +50,7 @@ export function SettingsSidebar({ tabs, activeTab, onTabChange }: SettingsSideba
 
  <div className="mt-auto">
  <button
+ type="button"
  onClick={() => logout()}
  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-rose-500 hover:bg-rose-500/5 transition-colors duration-150 cursor-pointer"
  >

@@ -35,6 +35,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Open user menu"
         aria-expanded={isOpen}
@@ -42,7 +43,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
         className="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-all duration-150 cursor-pointer overflow-hidden"
       >
         {session?.user?.image ? (
-          <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill className="rounded-full object-cover" unoptimized priority />
+          <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill sizes="28px" className="rounded-full object-cover" unoptimized priority />
         ) : (
           <div className="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden">
             {session?.user?.name?.[0]?.toUpperCase() || "U"}
@@ -65,7 +66,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full shrink-0 relative overflow-hidden">
                   {session?.user?.image ? (
-                    <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill className="rounded-full object-cover" unoptimized priority />
+                    <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill sizes="28px" className="rounded-full object-cover" unoptimized priority />
                   ) : (
                     <div className="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground">
                       {session?.user?.name?.[0]?.toUpperCase() || "U"}
@@ -81,6 +82,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
 
             <div className="p-0.5">
               <button
+                type="button"
                 role="menuitem"
                 onClick={() => { onOpenSettings(); setIsOpen(false); }}
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-surface-bg"
@@ -89,6 +91,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
                 <span className="text-[11px] font-medium text-muted-text group-hover:text-main-text">Settings</span>
               </button>
               <button
+                type="button"
                 role="menuitem"
                 onClick={() => logout()}
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-rose-500/5"

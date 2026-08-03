@@ -35,6 +35,7 @@ export function SearchFilters() {
  {!mimeType ? (
  <>
  <button
+ type="button"
  onClick={() => updateParam("type", "image")}
  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-muted-text hover:text-main-text hover:border-primary/30 transition-all ease-out-expo cursor-pointer"
  >
@@ -42,6 +43,7 @@ export function SearchFilters() {
  Images
  </button>
  <button
+ type="button"
  onClick={() => updateParam("type", "video")}
  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-muted-text hover:text-main-text hover:border-primary/30 transition-all ease-out-expo cursor-pointer"
  >
@@ -93,6 +95,7 @@ export function SearchFilters() {
 
  {hasFilters && (
  <button
+ type="button"
  onClick={clearAll}
  className="text-xs font-bold text-muted-text hover:text-main-text underline underline-offset-2 transition-colors cursor-pointer"
  >
@@ -107,7 +110,7 @@ function Chip({ children, onClear }: { children: React.ReactNode; onClear: () =>
  return (
  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-xs font-bold text-primary">
  {children}
- <button onClick={onClear} className="hover:text-main-text transition-colors cursor-pointer">
+ <button type="button" onClick={onClear} className="hover:text-main-text transition-colors cursor-pointer">
  <X size={10} weight="light" />
  </button>
  </span>

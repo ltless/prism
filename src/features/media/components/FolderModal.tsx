@@ -45,15 +45,18 @@ export function FolderModal({ onClose }: FolderModalProps) {
  setIsSaving(true);
  setError("");
 
+ try {
  const result = await createFolderAction(name.trim(), selectedColor);
  if (!result.success) {
  setError(result.error || "Failed to create folder");
- setIsSaving(false);
  return;
  }
  toast.success("Folder created");
  router.refresh();
  onClose();
+ } finally {
+ setIsSaving(false);
+ }
   };
 
   return (
@@ -64,7 +67,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
             <Folder size={14} weight="fill" className="text-primary" />
             New Folder
           </h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface-bg rounded-xl border border-main-border/40 text-muted-text hover:text-main-text transition-all duration-300 ease-out-expo cursor-pointer">
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-surface-bg rounded-xl border border-main-border/40 text-muted-text hover:text-main-text transition-all duration-300 ease-out-expo cursor-pointer">
             <X size={16} weight="light" />
           </button>
         </div>
@@ -94,6 +97,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
               {COLORS.map(color => (
                 <button
                   key={color.id}
+                  type="button"
                   onClick={() => setSelectedColor(color.id)}
                   className={cn("w-7 h-7 rounded-full border-2 transition-all duration-300 ease-out-expo flex items-center justify-center cursor-pointer",
                     selectedColor === color.id ? "border-main-text scale-110 shadow-md" : "border-transparent hover:scale-105"
@@ -109,12 +113,14 @@ export function FolderModal({ onClose }: FolderModalProps) {
 
         <div className="p-6 pt-0 flex gap-3">
           <button
+            type="button"
             onClick={onClose}
             className="flex-1 py-2 rounded-xl text-[11px] font-semibold text-muted-text hover:text-main-text hover:bg-surface-bg/60 transition-all duration-300 ease-out-expo cursor-pointer"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={isSaving}
             className="flex-[2] py-2 bg-primary text-primary-foreground rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all duration-300 ease-out-expo cursor-pointer"

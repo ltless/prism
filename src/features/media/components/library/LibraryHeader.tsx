@@ -9,7 +9,7 @@ export function LibraryHeader({ selectedCount, onClearSelection }: LibraryHeader
  if (selectedCount === 0) return null;
  
  return (
- <div className="absolute top-4 right-6 flex items-center gap-4 animate-in fade-in slide-in-from-right-4 duration-300 z-40">
+ <div className="absolute top-4 right-6 flex items-center gap-4 z-40">
  <p className="text-xs text-primary antialiased">
  {selectedCount} Records Selected
  </p>

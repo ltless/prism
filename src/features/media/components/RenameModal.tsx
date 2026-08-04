@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useEffectEvent } from "react";
 import { m, AnimatePresence } from "motion/react";
 import { X, Check } from "@phosphor-icons/react";
 import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
@@ -33,17 +33,16 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
    }
   }, [isOpen, initialTitle]);
 
+ const onEscape = useEffectEvent(() => { onClose(); });
  useEffect(() => {
  if (!isOpen) return;
  // Listening to Escape because clicking the close button or clicking outside is too mainstream
  const handleKeyDown = (e: KeyboardEvent) => {
- if (e.key === "Escape") {
- onClose();
- }
+ if (e.key === "Escape") onEscape();
  };
  window.addEventListener("keydown", handleKeyDown);
  return () => window.removeEventListener("keydown", handleKeyDown);
- }, [isOpen, onClose]);
+ }, [isOpen]);
 
  const handleSubmit = async (e: React.FormEvent) => {
  e.preventDefault();
@@ -85,9 +84,10 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
  Rename Asset
  </h3>
  <button
- type="button"
- onClick={onClose}
- className="p-1 hover:bg-surface-bg rounded-lg text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer"
+ 	type="button"
+ 	onClick={onClose}
+ 	aria-label="Close"
+ 	className="p-1 hover:bg-surface-bg rounded-lg text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer"
  >
  <X size={16} weight="light" />
  </button>

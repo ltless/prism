@@ -45,6 +45,7 @@ exports[`ConfirmModal > renders when open 1`] = `
           </h3>
         </div>
         <button
+          aria-label="Close"
           class="p-1 hover:bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"
           type="button"
         >

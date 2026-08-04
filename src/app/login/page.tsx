@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const { login, user } = useAuth();
+  const { login } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,9 +25,8 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError(result.error);
-      } else if (user && !user.hasCompletedSetup) {
-        router.push("/setup");
       } else {
+        // dashboard layout redirects incomplete setup to /setup
         router.push("/dashboard");
       }
     } finally {
@@ -35,14 +34,8 @@ export default function LoginPage() {
     }
   }
 
-  useEffect(() => {
-    if (user && !user.hasCompletedSetup) {
-      router.push("/setup");
-    }
-  }, [user, router]);
-
   return (
-    <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay opacity-100">
       <div className="w-full max-w-[320px] flex flex-col gap-8 relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">

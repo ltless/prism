@@ -12,7 +12,7 @@ interface UserProfileResponse {
   preferences: string | null;
 }
 
-export async function getPreferencesAction() {
+async function getPreferencesAction() {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return { success: false, error: "Unauthorized" };

@@ -70,11 +70,12 @@ export function NukeButton({ disabled }: { disabled: boolean }) {
  >
  {isNuking ? <Spinner size={12} weight="light" className="animate-spin" /> : "Confirm Nuke"}
  </button>
- <button 
- type="button"
- onClick={() => setIsConfirming(false)}
- disabled={isNuking}
- className="p-2 bg-surface-bg text-muted-text rounded-xl hover:bg-main-border hover:text-main-text transition-colors ease-out-expo cursor-pointer"
+ <button
+ 	type="button"
+ 	onClick={() => setIsConfirming(false)}
+ 	disabled={isNuking}
+ 	aria-label="Cancel nuke"
+ 	className="p-2 bg-surface-bg text-muted-text rounded-xl hover:bg-main-border hover:text-main-text transition-colors ease-out-expo cursor-pointer"
  >
  <X size={14} weight="light" />
  </button>

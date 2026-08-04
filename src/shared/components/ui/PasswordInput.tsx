@@ -15,9 +15,10 @@ export function PasswordInput({ value, onChange, label, placeholder }: PasswordI
 
  return (
  <div>
- <label className="text-[11px] text-muted-text">{label}</label>
+ <label htmlFor="password-input" className="text-[11px] text-muted-text">{label}</label>
  <div className="relative mt-1">
  <input
+ id="password-input"
  type={show ? "text" : "password"}
  value={value}
  onChange={e => onChange(e.target.value)}
@@ -27,6 +28,7 @@ export function PasswordInput({ value, onChange, label, placeholder }: PasswordI
  <button
  type="button"
  onClick={() => setShow(!show)}
+ aria-label={show ? "Hide password" : "Show password"}
  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer "
  >
  {show ? <EyeSlash size={15} weight="light" /> : <Eye size={15} weight="light" />}

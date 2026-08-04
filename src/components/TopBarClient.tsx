@@ -123,6 +123,7 @@ export function TopBar() {
                 <button
                   type="button"
                   onClick={() => handleSearchChange('')}
+                  aria-label="Clear search"
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-text/30 hover:text-muted-text cursor-pointer"
                 >
                   <X size={10} weight="light" />
@@ -220,6 +221,7 @@ export function TopBar() {
                   <button
                     type="button"
                     onClick={() => { handleSearchChange(''); setMobileSearchOpen(false); }}
+                    aria-label="Clear search"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-text/30 cursor-pointer"
                   >
                     <X size={10} weight="light" />

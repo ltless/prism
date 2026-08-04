@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo, useEffect } from "react";
+import { useState, memo } from "react";
 import Image from "next/image";
 import { Folder, Trash, Heart, FolderSimple, Download, Hash, Star, Pencil, Play, Spinner, Warning, Lock, LockOpen, Image as ImageIcon, FileVideo } from "@phosphor-icons/react";
 import { m, AnimatePresence } from "motion/react";
@@ -13,6 +13,10 @@ import { useTranscodePolling } from "../hooks/useTranscodePolling";
 import { formatDuration } from "@/core/utils/format";
 import { useMediaCardActions } from "../hooks/useMediaCardActions";
 import { RenameModal } from "./RenameModal";
+
+function handleDragEnd(e: React.DragEvent) {
+  (e.target as HTMLElement).classList.remove("opacity-40");
+}
 
 export const MediaCard = memo(function MediaCard({
   item,
@@ -37,6 +41,7 @@ export const MediaCard = memo(function MediaCard({
   const reduced = useReducedMotion();
   const [isTapped, setIsTapped] = useState(false);
   const [transcodeStatus, setTranscodeStatus] = useState(item.transcodeStatus);
+  const [prevTranscodeStatus, setPrevTranscodeStatus] = useState(item.transcodeStatus);
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const imageUrl = `/api/v1/media/files/${item.filePath}?thumb=1`;
@@ -44,11 +49,12 @@ export const MediaCard = memo(function MediaCard({
   const isVideo = item.mimeType?.startsWith("video/");
   const formattedDuration = item.duration ? formatDuration(item.duration) : null;
 
- useEffect(() => {
- setTranscodeStatus(item.transcodeStatus);
- }, [item.transcodeStatus]);
+  if (item.transcodeStatus !== prevTranscodeStatus) {
+    setPrevTranscodeStatus(item.transcodeStatus);
+    setTranscodeStatus(item.transcodeStatus);
+  }
 
- useTranscodePolling(item.id, transcodeStatus, !!isVideo, setTranscodeStatus);
+  useTranscodePolling(item.id, transcodeStatus, !!isVideo, setTranscodeStatus);
 
  // Because keeping 7 inline handler functions in this component was a crime against readability,
  // we outsource everything to our trusty custom hook.
@@ -134,10 +140,6 @@ export const MediaCard = memo(function MediaCard({
  const yOffset = idsToMove.length > 1 ? 15 : 32;
  e.dataTransfer.setDragImage(ghost, xOffset, yOffset);
  setTimeout(() => ghost.remove(), 0);
- };
-
- const handleDragEnd = (e: React.DragEvent) => {
- (e.target as HTMLElement).classList.remove("opacity-40");
  };
 
  return (

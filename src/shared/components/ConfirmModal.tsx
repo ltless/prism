@@ -63,6 +63,7 @@ export function ConfirmModal({
               <button
                 type="button"
                 onClick={onCancel}
+                aria-label="Close"
                 className="p-1 hover:bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"
               >
                 <X size={12} weight="light" />

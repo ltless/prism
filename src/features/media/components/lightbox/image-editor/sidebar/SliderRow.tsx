@@ -46,6 +46,7 @@ export const SliderRow = memo(function SliderRow({
                 onCommit?.();
               }}
               className="text-muted-text/60 hover:text-primary transition-colors cursor-pointer"
+              aria-label={`Reset ${label}`}
               title="Reset to 0"
             >
               <ArrowCounterClockwise size={10} weight="regular" />
@@ -62,6 +63,7 @@ export const SliderRow = memo(function SliderRow({
         )}
         <input
           type="range"
+          aria-label="Adjustment value"
           value={value}
           min={min}
           max={max}

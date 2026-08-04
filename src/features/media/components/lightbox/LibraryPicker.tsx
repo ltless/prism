@@ -18,7 +18,7 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,77 +45,73 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
   }, []);
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    dialog.showModal();
+    return () => {
+      dialog.close();
     };
-    document.addEventListener("keydown", handleKey);
-    dialogRef.current?.focus();
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  }, []);
 
   const filtered = search
     ? items.filter((item) => item.title?.toLowerCase().includes(search.toLowerCase()))
     : items;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" role="presentation" onClick={onClose}>
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Open from library"
-        tabIndex={-1}
-        className="bg-app-bg border border-main-border rounded-xl shadow-2xl w-[560px] max-h-[70vh] flex flex-col overflow-hidden outline-none"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center justify-between px-4 py-3 border-b border-main-border">
-          <span className="text-sm font-bold text-main-text">Open from Library</span>
-          <button type="button" onClick={onClose} aria-label="Close library picker" className="p-1.5 rounded-lg hover:bg-surface-bg text-muted-text cursor-pointer">
-            <X size={16} weight="light" />
-          </button>
-        </header>
+    <dialog
+      ref={dialogRef}
+      aria-label="Open from library"
+      className="fixed inset-0 z-50 m-auto w-[560px] max-h-[70vh] bg-app-bg border border-main-border rounded-xl shadow-2xl flex flex-col overflow-hidden outline-none backdrop:bg-black/50 backdrop:backdrop-blur-sm"
+      onClose={onClose}
+    >
+      <header className="flex items-center justify-between px-4 py-3 border-b border-main-border">
+        <span className="text-sm font-bold text-main-text">Open from Library</span>
+        <button type="button" onClick={onClose} aria-label="Close library picker" className="p-1.5 rounded-lg hover:bg-surface-bg text-muted-text cursor-pointer">
+          <X size={16} weight="light" />
+        </button>
+      </header>
 
-        <div className="px-4 py-3 border-b border-main-border">
-          <div className="relative">
-            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-text/50" weight="light" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search photos..."
-              className="w-full bg-surface-bg border border-main-border rounded-lg py-2 pl-9 pr-3 text-sm text-main-text placeholder:text-muted-text/40 outline-none focus:border-primary"
-              autoFocus
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scroll p-4">
-          {loading ? (
-            <p className="text-sm text-muted-text text-center py-8">Loading...</p>
-          ) : error ? (
-            <div className="text-center py-8 space-y-2">
-              <p className="text-sm text-muted-text">{error}</p>
-              <button onClick={() => { setLoading(true); fetch(`/api/v1/media?page=1&limit=${PAGE_SIZE}`).then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))).then(d => { setItems(d.items || []); setError(null); }).catch(() => setError("Failed to load library")).finally(() => setLoading(false)); }} type="button" className="text-sm text-primary hover:underline cursor-pointer">Retry</button>
-            </div>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-text text-center py-8">No photos found</p>
-          ) : (
-            <div className="grid grid-cols-5 gap-2">
-              {filtered.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onSelect(item)}
-                  aria-label={`Select ${item.title || "image"}`}
-                  className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-[border-color,box-shadow]"
-                >
-                  <Image src={`/api/v1/media/files/${item.filePath}?thumb=1`} alt={item.title} fill sizes="(max-width: 560px) 20vw, 96px" className="w-full h-full object-cover" unoptimized />
-                </button>
-              ))}
-            </div>
-          )}
+      <div className="px-4 py-3 border-b border-main-border">
+        <div className="relative">
+          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-text/50" weight="light" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search photos..."
+            aria-label="Search photos"
+            className="w-full bg-surface-bg border border-main-border rounded-lg py-2 pl-9 pr-3 text-sm text-main-text placeholder:text-muted-text/40 outline-none focus:border-primary"
+            autoFocus
+          />
         </div>
       </div>
-    </div>
+
+      <div className="flex-1 overflow-y-auto custom-scroll p-4">
+        {loading ? (
+          <p className="text-sm text-muted-text text-center py-8">Loading...</p>
+        ) : error ? (
+          <div className="text-center py-8 space-y-2">
+            <p className="text-sm text-muted-text">{error}</p>
+            <button onClick={() => { setLoading(true); fetch(`/api/v1/media?page=1&limit=${PAGE_SIZE}`).then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))).then(d => { setItems(d.items || []); setError(null); }).catch(() => setError("Failed to load library")).finally(() => setLoading(false)); }} type="button" className="text-sm text-primary hover:underline cursor-pointer">Retry</button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-text text-center py-8">No photos found</p>
+        ) : (
+          <div className="grid grid-cols-5 gap-2">
+            {filtered.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelect(item)}
+                aria-label={`Select ${item.title || "image"}`}
+                className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-[border-color,box-shadow]"
+              >
+                <Image src={`/api/v1/media/files/${item.filePath}?thumb=1`} alt={item.title} fill sizes="(max-width: 560px) 20vw, 96px" className="w-full h-full object-cover" unoptimized />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </dialog>
   );
 }

@@ -35,7 +35,7 @@ export async function nukeLibraryAction(confirmToken?: string) {
   });
 }
 
-export async function updateMediaMetadataAction(filename: string, metadata: Record<string, unknown>) {
+async function updateMediaMetadataAction(filename: string, metadata: Record<string, unknown>) {
   return safeAction("updateMediaMetadata", async () => {
     const hash = filename.replace(/\.[^.]+$/, "");
     await goFetch(`/api/v1/media/hash/${hash}`, {

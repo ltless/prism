@@ -43,7 +43,7 @@ export async function rateLimit(
  return { success: true, limit, remaining: limit - record.count, reset: record.resetTime };
 }
 
-export function rateLimitResponse(reset: number) {
+function rateLimitResponse(reset: number) {
  return new NextResponse(
  JSON.stringify({ error: "Too many requests. Please try again later." }),
  {

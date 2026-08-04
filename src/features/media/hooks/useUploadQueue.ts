@@ -77,8 +77,13 @@ export function useUploadQueue() {
   setUploadResult(null);
 
   const currentBatch = uploadQueueRef.current.shift();
-  if (!currentBatch) return;
+  if (!currentBatch) {
+    setIsUploading(false);
+    isProcessingRef.current = false;
+    return;
+  }
   setWaitingCount(prev => Math.max(0, prev - currentBatch.length));
+  try {
 
   let completed = 0;
   let failed = 0;
@@ -246,6 +251,11 @@ export function useUploadQueue() {
   }
 
   if (fileInputRef.current) fileInputRef.current.value = "";
+  } catch (err) {
+    console.error(err);
+    setIsUploading(false);
+    isProcessingRef.current = false;
+  }
   }, [router]);
 
   useEffect(() => {

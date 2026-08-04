@@ -62,22 +62,24 @@ export function SearchFilters() {
  <div className="relative">
  <Calendar size={12} weight="light" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-text pointer-events-none" />
  <input
- type="date"
- value={dateFrom ?? ""}
- onChange={(e) => updateParam("from", e.target.value || null)}
- placeholder="From"
- className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-[border-color,box-shadow] [color-scheme:light] dark:[color-scheme:dark]"
+ 	type="date"
+ 	value={dateFrom ?? ""}
+ 	onChange={(e) => updateParam("from", e.target.value || null)}
+ 	aria-label="Date from"
+ 	placeholder="From"
+ 	className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-[border-color,box-shadow] [color-scheme:light] dark:[color-scheme:dark]"
  />
  </div>
  <span className="text-xs text-muted-text">-</span>
  <div className="relative">
  <Calendar size={12} weight="light" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-text pointer-events-none" />
  <input
- type="date"
- value={dateTo ?? ""}
- onChange={(e) => updateParam("to", e.target.value || null)}
- placeholder="To"
- className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-[border-color,box-shadow] [color-scheme:light] dark:[color-scheme:dark]"
+ 	type="date"
+ 	value={dateTo ?? ""}
+ 	onChange={(e) => updateParam("to", e.target.value || null)}
+ 	aria-label="Date to"
+ 	placeholder="To"
+ 	className="w-32 pl-7 pr-2 py-1.5 rounded-full border border-main-border bg-surface-bg text-xs font-bold text-main-text focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-[border-color,box-shadow] [color-scheme:light] dark:[color-scheme:dark]"
  />
  </div>
  </div>
@@ -110,7 +112,7 @@ function Chip({ children, onClear }: { children: React.ReactNode; onClear: () =>
  return (
  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-xs font-bold text-primary">
  {children}
- <button type="button" onClick={onClear} className="hover:text-main-text transition-colors cursor-pointer">
+ <button type="button" onClick={onClear} aria-label="Clear filter" className="hover:text-main-text transition-colors cursor-pointer">
  <X size={10} weight="light" />
  </button>
  </span>

@@ -67,7 +67,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
             <Folder size={14} weight="fill" className="text-primary" />
             New Folder
           </h3>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-surface-bg rounded-xl border border-main-border/40 text-muted-text hover:text-main-text transition-colors duration-300 ease-out-expo cursor-pointer">
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 hover:bg-surface-bg rounded-xl border border-main-border/40 text-muted-text hover:text-main-text transition-colors duration-300 ease-out-expo cursor-pointer">
             <X size={16} weight="light" />
           </button>
         </div>
@@ -80,8 +80,9 @@ export function FolderModal({ onClose }: FolderModalProps) {
           )}
 
           <div className="space-y-2">
-            <label className="text-[11px] font-semibold text-muted-text px-1">Folder Name</label>
+            <label htmlFor="folder-name-input" className="text-[11px] font-semibold text-muted-text px-1">Folder Name</label>
             <input
+              id="folder-name-input"
               ref={nameInputRef}
               value={name}
               onChange={e => setName(e.target.value)}
@@ -92,13 +93,14 @@ export function FolderModal({ onClose }: FolderModalProps) {
           </div>
 
           <div className="space-y-3">
-            <label className="text-[11px] font-semibold text-muted-text px-1">Label Color</label>
+            <label htmlFor="folder-color-group" className="text-[11px] font-semibold text-muted-text px-1">Label Color</label>
             <div className="flex flex-wrap gap-3 px-1">
               {COLORS.map(color => (
                 <button
                   key={color.id}
                   type="button"
                   onClick={() => setSelectedColor(color.id)}
+                  aria-label={`Color ${color.id}`}
                   className={cn("w-7 h-7 rounded-full border-2 transition-[border-color,transform] duration-300 ease-out-expo flex items-center justify-center cursor-pointer",
                     selectedColor === color.id ? "border-main-text scale-110 shadow-md" : "border-transparent hover:scale-105"
                   )}

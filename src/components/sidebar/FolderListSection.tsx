@@ -209,6 +209,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                           }}
                           onBlur={commitRename}
                           placeholder="Folder name"
+                          aria-label="Folder name"
                           className="flex-1 bg-transparent border border-main-border/40 rounded px-1.5 py-0.5 text-[11px] text-main-text outline-none focus:border-primary/50 transition-colors"
                         />
                       </div>

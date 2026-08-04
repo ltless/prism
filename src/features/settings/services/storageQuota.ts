@@ -1,6 +1,6 @@
 import { DEFAULT_USER_QUOTA_BYTES } from "@/core/constants";
 
-export const STORAGE_DEFAULT_KEY = "storage_default_quota";
+const STORAGE_DEFAULT_KEY = "storage_default_quota";
 
 /**
  * Parse the stored app_settings value into an effective bytes limit.

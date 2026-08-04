@@ -22,7 +22,9 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <div className="flex h-dvh bg-app-bg overflow-hidden text-main-text">
-        <Sidebar folders={allFolders} />
+        <Suspense fallback={null}>
+          <Sidebar folders={allFolders} />
+        </Suspense>
         <MainContentWrapper>
           <Suspense fallback={null}>
             {children}

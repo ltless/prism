@@ -87,9 +87,10 @@ export function ImageCropModal({
  {title}
  </h3>
  <button
- type="button"
- onClick={onClose}
- className="p-2 hover:bg-surface-bg rounded-full text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer "
+ 	type="button"
+ 	onClick={onClose}
+ 	aria-label="Close"
+ 	className="p-2 hover:bg-surface-bg rounded-full text-muted-text hover:text-main-text transition-colors ease-out-expo cursor-pointer "
  >
  <X size={20} weight="light" />
  </button>

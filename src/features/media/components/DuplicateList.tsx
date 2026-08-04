@@ -150,13 +150,16 @@ export function DuplicateList({ groups, folderMap = EMPTY_FOLDER_MAP }: { groups
 
  return (
  <div
- key={item.id}
- className={cn(
- "flex-1 min-w-0 group cursor-pointer transition-colors duration-200 hover:bg-surface-bg/50",
- resolvingId === item.id && "bg-primary/5",
- isBest && "bg-primary/[0.02]"
- )}
- onClick={() => setCompareModal({ groupId: group.id, index: idx })}
+ 	key={item.id}
+ 	className={cn(
+ 		"flex-1 min-w-0 group cursor-pointer transition-colors duration-200 hover:bg-surface-bg/50",
+ 		resolvingId === item.id && "bg-primary/5",
+ 		isBest && "bg-primary/[0.02]"
+ 	)}
+ 	role="button"
+ 	tabIndex={0}
+ 	onClick={() => setCompareModal({ groupId: group.id, index: idx })}
+ 	onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setCompareModal({ groupId: group.id, index: idx }); }}
  >
   {/* Thumbnail */}
   <div className="relative aspect-[4/3] bg-surface-bg overflow-hidden">

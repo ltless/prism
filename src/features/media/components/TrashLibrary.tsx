@@ -14,6 +14,7 @@ import { ContextMenu } from "./ContextMenu";
 import { MediaItem } from "../types";
 import { toast } from "sonner";
 import { useConfirm } from "../../../shared/hooks/useConfirm";
+import { AnimatePresence } from "motion/react";
 
 export default function TrashLibrary({ initialItems }: { initialItems: MediaItem[] }) {
  const { confirm, ConfirmDialog } = useConfirm();
@@ -116,7 +117,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  ];
 
  return (
- <div key={item.id} className="relative group/trash-card" onClick={() => setSelectedIdx(idx)}>
+ <div key={item.id} className="relative group/trash-card" role="button" tabIndex={0} onClick={() => setSelectedIdx(idx)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedIdx(idx); }}>
  <ContextMenu items={menuItems}>
  <MediaCard item={item} />
  </ContextMenu>
@@ -148,8 +149,10 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  )}
  </div>
 
+ <AnimatePresence>
  {selectedIdx !== null && (
   <Lightbox
+  key={initialItems[selectedIdx].id}
   item={initialItems[selectedIdx]}
   onClose={() => setSelectedIdx(null)}
   onNext={selectedIdx < initialItems.length - 1 ? () => setSelectedIdx(selectedIdx + 1) : undefined}
@@ -158,6 +161,7 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
   totalItems={initialItems.length}
   />
  )}
+ </AnimatePresence>
  {ConfirmDialog}
  </div>
  );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useEffect, useState, useRef, useCallback } from "react";import { useSearchParams, useRouter } from "next/navigation";
+import { useMemo, useEffect, useState, useRef, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Spinner, MagnifyingGlass as SearchIcon } from "@phosphor-icons/react";
-import { LayoutGroup } from "motion/react";
+import { LayoutGroup, AnimatePresence } from "motion/react";
 import { Lightbox } from "./Lightbox";
 import { UploadZone } from "./UploadZone";
 import { MediaItem, Folder as FolderType } from "../types";
@@ -182,11 +183,13 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: 
  onDownload={handleBulkDownload}
  />
 
- {selectedId !== null && (() => {
- const idx = displayedItems.findIndex(i => i.id === selectedId);
+ {(() => {
+ const idx = selectedId !== null ? displayedItems.findIndex(i => i.id === selectedId) : -1;
  if (idx === -1) return null;
  return (
+  <AnimatePresence>
   <Lightbox
+  key={displayedItems[idx].id}
   item={displayedItems[idx]} onClose={() => setSelectedId(null)}
   onNext={idx < displayedItems.length - 1 ? () => setSelectedId(displayedItems[idx + 1].id) : undefined}
   onPrev={idx > 0 ? () => setSelectedId(displayedItems[idx - 1].id) : undefined}
@@ -194,6 +197,7 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: 
   totalItems={displayedItems.length}
   folders={folders}
   />
+  </AnimatePresence>
  );
  })()}
   

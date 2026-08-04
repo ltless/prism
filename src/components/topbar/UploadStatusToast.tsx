@@ -90,7 +90,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
               </p>
             </div>
             {!isUploading && (
-              <button type="button" onClick={onDismiss} className="p-1 hover:bg-surface-bg rounded text-muted-text cursor-pointer self-start -mt-0.5">
+              <button type="button" onClick={onDismiss} aria-label="Dismiss" className="p-1 hover:bg-surface-bg rounded text-muted-text cursor-pointer self-start -mt-0.5">
                 <X size={10} weight="light" />
               </button>
             )}

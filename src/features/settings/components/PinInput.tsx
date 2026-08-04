@@ -66,10 +66,11 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
 
  {/* Backspace */}
  <button
- type="button"
- onClick={handleBackspace}
- disabled={value.length === 0}
- className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-muted-text hover:bg-surface-bg/80 hover:border-main-border disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+ 	type="button"
+ 	onClick={handleBackspace}
+ 	disabled={value.length === 0}
+ 	aria-label="Backspace"
+ 	className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-muted-text hover:bg-surface-bg/80 hover:border-main-border disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
  >
  ⌫
  </button>
@@ -85,10 +86,11 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
 
  {/* Clear */}
  <button
- type="button"
- onClick={handleClear}
- disabled={value.length === 0}
- className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-muted-text hover:bg-rose-500/5 hover:border-rose-500/20 hover:text-rose-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+ 	type="button"
+ 	onClick={handleClear}
+ 	disabled={value.length === 0}
+ 	aria-label="Clear"
+ 	className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-muted-text hover:bg-rose-500/5 hover:border-rose-500/20 hover:text-rose-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
  >
  ✕
  </button>

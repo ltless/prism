@@ -103,7 +103,7 @@ export function PinVaultDialog({
   exit={{ opacity: 0 }}
   role="dialog" aria-modal="true" aria-label="PIN vault dialog" className="fixed inset-0 z-50 flex items-center justify-center"
   >
-  <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+  <button type="button" aria-label="Close dialog backdrop" className="absolute inset-0 bg-black/60 border-0 cursor-default" onClick={onClose} />
   <m.div
   initial={{ scale: 0.95, opacity: 0, y: 10 }}
   animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -112,10 +112,11 @@ export function PinVaultDialog({
   className="relative bg-panel-bg border border-main-border/50 rounded-xl p-8 w-full max-w-xs mx-4"
   >
   <button
- type="button"
- onClick={onClose}
- className="absolute top-3 right-3 text-muted-text hover:text-main-text transition-colors cursor-pointer"
- >
+  type="button"
+  onClick={onClose}
+  aria-label="Close"
+  className="absolute top-3 right-3 text-muted-text hover:text-main-text transition-colors cursor-pointer"
+  >
  <X size={16} weight="light" />
  </button>
 

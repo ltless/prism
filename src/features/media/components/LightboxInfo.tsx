@@ -28,6 +28,16 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   hour: '2-digit', minute: '2-digit'
 });
 
+function formatDate(date: Date | string | number | null | undefined) {
+  if (!date) return null;
+  let d: Date;
+  if (date instanceof Date) d = date;
+  else if (typeof date === "number") d = new Date(date < 1e12 ? date * 1000 : date);
+  else d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  return dateFormatter.format(d);
+}
+
 function StatusBadge({ icon: Icon, label, iconClass }: { icon: ElementType; label: string; iconClass?: string }) {
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-bg border border-main-border/40 text-[11px] font-medium text-muted-text">
@@ -44,16 +54,6 @@ export function LightboxInfo({ item, folders }: LightboxInfoProps) {
   const palette = metadata.palette || [];
   const isVideo = item.mimeType?.startsWith("video/");
   const formattedDuration = item.duration ? formatDuration(item.duration) : null;
-
-  const formatDate = (date: Date | string | number | null | undefined) => {
-    if (!date) return null;
-    let d: Date;
-    if (date instanceof Date) d = date;
-    else if (typeof date === "number") d = new Date(date < 1e12 ? date * 1000 : date);
-    else d = new Date(date);
-    if (isNaN(d.getTime())) return null;
-    return dateFormatter.format(d);
-  };
 
   const copyHash = () => {
     if (!item.hash) return;

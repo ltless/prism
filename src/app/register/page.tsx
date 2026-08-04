@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { m } from "motion/react";
 
 export default function RegisterPage() {
-  const { register, user } = useAuth();
+  const { register } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,12 +54,6 @@ export default function RegisterPage() {
     }
   }
 
-  useEffect(() => {
-    if (user && !user.hasCompletedSetup) {
-      router.push("/setup");
-    }
-  }, [user, router]);
-
   if (success) {
     return (
       <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay">
@@ -79,7 +73,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay opacity-100">
       <div className="w-full max-w-[320px] flex flex-col gap-8 relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">

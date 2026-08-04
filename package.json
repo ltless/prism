@@ -21,7 +21,8 @@
     "setup:ffmpeg": "node scripts/setup-ffmpeg.js",
     "setup:env": "node scripts/setup-env.js",
     "setup": "node scripts/setup.js",
-    "test:e2e": "playwright test --config=e2e/playwright.config.ts"
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -30,7 +31,6 @@
     "@tanstack/react-virtual": "^3.14.5",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
-    "exifr": "^7.1.3",
     "motion": "^12.42.2",
     "next": "16.2.10",
     "react": "19.2.7",
@@ -39,7 +39,6 @@
     "sharp": "^0.35.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

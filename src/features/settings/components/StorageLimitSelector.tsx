@@ -63,6 +63,7 @@ export function StorageLimitSelector({ value, onChange, options = defaultOptions
             if (Number.isFinite(n) && n > 0) onChange(n * GB);
           }}
           placeholder="Custom GB"
+          aria-label="Custom storage limit in GB"
           className="flex-1 h-10 px-3 bg-surface-bg border border-main-border/40 rounded-lg text-xs text-main-text placeholder:text-muted-text/50 outline-none focus:border-primary/50 transition-colors"
         />
         <span className="text-xs text-muted-text font-medium shrink-0">GB</span>

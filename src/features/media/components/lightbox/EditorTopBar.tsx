@@ -7,7 +7,7 @@ import { m, AnimatePresence } from "motion/react";
 import { useSidebar } from "@/components/sidebar-context";
 import { useTheme } from "@/components/ThemeProvider";
 import { UserMenu } from "@/components/topbar/UserMenu";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useEffectEvent } from "react";
 import { SettingsModal } from "@/features/settings/components/SettingsModal";
 
 interface MenuItem {
@@ -25,13 +25,14 @@ interface MenuGroup {
 function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, savingMode }: { menu: MenuGroup; isOpen: boolean; onTrigger: () => void; onClose: () => void; onAction?: (label: string) => void; isSaving?: boolean; savingMode?: "overwrite" | "copy" | null }) {
   const ref = useRef<HTMLDivElement>(null);
 
+  const onOutsideClose = useEffectEvent(() => { onClose(); });
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      if (ref.current && !ref.current.contains(e.target as Node)) onOutsideClose();
     };
     if (isOpen) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return (
     <div ref={ref} className="relative">

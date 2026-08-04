@@ -22,7 +22,7 @@ export const MEDIA_LIMITS = {
  ],
 };
 
-export const VIDEO_LIMITS = {
+const VIDEO_LIMITS = {
  MAX_TRANSCODE_TIMEOUT_MS: 10 * 60 * 1000,
  TRANSCODE_CRF: 23,
  TRANSCODE_PRESET: 'fast',

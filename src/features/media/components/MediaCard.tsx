@@ -152,7 +152,7 @@ export const MediaCard = memo(function MediaCard({
  className="h-full w-full"
  >
   <m.div
-  whileHover={reduced ? {} : { y: -4 }} whileTap={reduced ? {} : { scale: 0.97 }}
+  whileTap={reduced ? {} : { scale: 0.97 }}
   transition={{ type: "spring", stiffness: 400, damping: 17 }}
   className={cn(
   "aspect-square bg-surface-bg rounded-xl overflow-hidden group relative cursor-pointer border shadow-sm",
@@ -182,8 +182,7 @@ export const MediaCard = memo(function MediaCard({
   onError={() => setImgError(true)}
   onLoad={() => setImgLoaded(true)}
   className={cn(
-  "object-cover select-none pointer-events-none transition-[opacity,filter,transform] duration-500 ease-out-expo",
-  "group-hover:scale-105",
+  "object-cover select-none pointer-events-none transition-[opacity,filter] duration-500 ease-out-expo",
   imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-sm",
   isDeleting ? "opacity-50 grayscale blur-sm" : isSelected ? "opacity-80" : "",
   isCut ? "opacity-40 grayscale" : ""
@@ -200,7 +199,7 @@ export const MediaCard = memo(function MediaCard({
  {/* Video Play Icon Overlay */}
  {isVideo && (
   <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
- <div className="w-10 h-10 rounded-full bg-black/50 border border-white/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 ease-out-expo">
+ <div className="w-10 h-10 rounded-full bg-black/50 border border-white/20 flex items-center justify-center">
  <Play size={16} weight="fill" className="text-white ml-0.5" />
  </div>
  </div>

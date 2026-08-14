@@ -152,7 +152,6 @@ export default function TrashLibrary({ initialItems }: { initialItems: MediaItem
  <AnimatePresence>
  {selectedIdx !== null && (
   <Lightbox
-  key={initialItems[selectedIdx].id}
   item={initialItems[selectedIdx]}
   onClose={() => setSelectedIdx(null)}
   onNext={selectedIdx < initialItems.length - 1 ? () => setSelectedIdx(selectedIdx + 1) : undefined}

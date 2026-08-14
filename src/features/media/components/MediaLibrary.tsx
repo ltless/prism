@@ -189,7 +189,6 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: 
  return (
   <AnimatePresence>
   <Lightbox
-  key={displayedItems[idx].id}
   item={displayedItems[idx]} onClose={() => setSelectedId(null)}
   onNext={idx < displayedItems.length - 1 ? () => setSelectedId(displayedItems[idx + 1].id) : undefined}
   onPrev={idx > 0 ? () => setSelectedId(displayedItems[idx - 1].id) : undefined}

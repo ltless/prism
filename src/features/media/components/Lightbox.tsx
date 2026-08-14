@@ -11,7 +11,6 @@ import { useTranscodePolling } from "../hooks/useTranscodePolling";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
 import { LightboxInfoPanel } from "./lightbox/LightboxInfoPanel";
 import { LightboxControls } from "./lightbox/LightboxControls";
-import { useZoomPan } from "./lightbox/useZoomPan";
 
 interface LightboxProps {
   item: MediaItem;
@@ -33,14 +32,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const lastTap = useRef<number>(0);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const {
-    isZoomed, panPos, zoomStyle, containerRef,
-    setIsZoomed, setPanPos, resetZoom,
-    handleDoubleClick, handleMouseDown, handleMouseMove, handleMouseUp,
-  } = useZoomPan();
 
   // Reset per-item UI state when the displayed item changes. Set-state-during-render
   // (React-endorsed for "reset on prop change") avoids the set-state-in-effect pattern.
@@ -50,7 +42,6 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     setTranscodeStatus(item.transcodeStatus);
     setImgError(false);
     setImgLoaded(false);
-    resetZoom();
   }
 
   const mediaUrl = `/api/v1/media/files/${item.filePath}`;
@@ -95,11 +86,10 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
       return;
     }
     if (e.key === "Escape") {
-      if (isZoomed) { resetZoom(); return; }
       if (isInfoOpen) { setIsInfoOpen(false); return; }
       onClose();
     }
-    if (isZoomed || isInfoOpen) return;
+    if (isInfoOpen) return;
     if (isVideo) return;
     if (e.key === "ArrowRight" && onNext) onNext();
     if (e.key === "ArrowLeft" && onPrev) onPrev();
@@ -112,7 +102,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Swipe + double-tap
+  // Swipe navigation
   const swipeState = useRef<{ startX: number; startY: number } | null>(null);
   const SWIPE_THRESHOLD = 30;
 
@@ -124,7 +114,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!swipeState.current || isVideo || isZoomed) return;
+    if (!swipeState.current || isVideo) return;
     const touch = e.touches[0];
     const diffX = touch.clientX - swipeState.current.startX;
     const diffY = Math.abs(touch.clientY - swipeState.current.startY);
@@ -137,14 +127,6 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
   };
 
   const handleTouchEnd = () => {
-    if (swipeState.current) {
-      const now = Date.now();
-      if (now - lastTap.current < 300 && !isVideo) {
-        setIsZoomed(z => !z);
-        if (isZoomed) setPanPos({ x: 0, y: 0 });
-      }
-      lastTap.current = now;
-    }
     swipeState.current = null;
   };
 
@@ -169,19 +151,14 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
             onSuccess={() => router.refresh()}
           />
         ) : (
-          <m.div key="viewer" className="contents">
+          <div key="viewer" className="contents">
             {/* Image viewport — flex-1, shrinks when info panel opens */}
             <div
-              ref={containerRef}
               role="button"
               tabIndex={0}
               aria-label="Image viewer"
-              className="flex-1 relative flex items-center justify-center p-2 md:p-8 min-w-0 transition-[flex-grow,flex-shrink] duration-300 ease-out-expo"
-              onDoubleClick={handleDoubleClick}
-              onMouseDown={handleMouseDown}
-              onMouseMove={(e) => { showControls(); handleMouseMove(e); }}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
+              className="no-press-scale flex-1 relative flex items-center justify-center p-2 md:p-8 min-w-0"
+              onMouseMove={showControls}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -235,15 +212,14 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -20, scale: 0.95 }}
                       transition={{ type: "spring", stiffness: 300, damping: 30, opacity: { duration: 0.3 } }}
-                      style={zoomStyle}
-                      className="max-w-full max-h-full object-contain shadow-2xl select-none transition-transform duration-200 ease-out"
+                      className="max-w-full max-h-full object-contain shadow-2xl select-none"
                     />
                   </m.div>
                 )}
               </AnimatePresence>
 
               <LightboxControls
-                view={{ controls: controlsVisible, zoomed: isZoomed, video: !!isVideo, imgLoaded }}
+                view={{ controls: controlsVisible, video: !!isVideo, imgLoaded }}
                 counter={{ has: hasCounter, current: currentIndex, total: totalItems }}
                 title={item.title}
                 mediaUrl={mediaUrl}
@@ -268,7 +244,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
                 />
               ) : null}
             </AnimatePresence>
-          </m.div>
+          </div>
         )}
       </AnimatePresence>
     </m.div>

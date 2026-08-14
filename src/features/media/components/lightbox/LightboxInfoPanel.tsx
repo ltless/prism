@@ -1,6 +1,6 @@
 "use client";
 
-import { m, AnimatePresence } from "motion/react";
+import { m } from "motion/react";
 import { X } from "@phosphor-icons/react";
 import { LightboxInfo } from "../LightboxInfo";
 import { MediaItem, Folder } from "../../types";
@@ -38,11 +38,11 @@ export function LightboxInfoPanel({ item, transcodeStatus, folders, isMobile, on
   return (
     <m.div
       key="info-desktop"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
+      initial={{ width: 0, opacity: 0 }}
+      animate={{ width: 320, opacity: 1 }}
+      exit={{ width: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="shrink-0 w-[320px] overflow-hidden border-l border-white/10"
+      className="shrink-0 overflow-hidden border-l border-white/10"
     >
       <div className="w-[320px] h-full bg-panel-bg flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 h-11 border-b border-main-border shrink-0">

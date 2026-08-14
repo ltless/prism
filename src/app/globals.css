@@ -93,7 +93,7 @@
     @apply border-main-border;
   }
 
-  button, [role="button"], a[role="button"] {
+  button, [role="button"]:not(.no-press-scale), a[role="button"] {
     &:active:not(:disabled) {
       transform: scale(0.98);
     }

@@ -94,29 +94,8 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, hasCounter, currentIndex
   );
 }
 
-interface ZoomHintProps {
-  visible: boolean;
-}
-
-function ZoomHint({ visible }: ZoomHintProps) {
-  return (
-    <AnimatePresence>
-      {visible ? (
-        <m.div
-          key="zoom-hint"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          transition={{ delay: 0.5, duration: 0.3 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-white/40 z-20 pointer-events-none"
-        >
-          Double-click to zoom
-        </m.div>
-      ) : null}
-    </AnimatePresence>
-  );
-}
-
 interface LightboxControlsProps {
-  view: { controls: boolean; zoomed: boolean; video: boolean; imgLoaded: boolean };
+  view: { controls: boolean; video: boolean; imgLoaded: boolean };
   counter: { has: boolean; current?: number; total?: number };
   title: string;
   mediaUrl: string;
@@ -134,9 +113,8 @@ export function LightboxControls({
 }: LightboxControlsProps) {
   return (
     <>
-      <NavArrow direction="prev" visible={view.controls && !view.zoomed && !!onPrev} onClick={onPrev ?? (() => {})} />
-      <NavArrow direction="next" visible={view.controls && !view.zoomed && !!onNext} onClick={onNext ?? (() => {})} />
-      <ZoomHint visible={view.imgLoaded && !view.zoomed && !view.video && view.controls} />
+      <NavArrow direction="prev" visible={view.controls && !!onPrev} onClick={onPrev ?? (() => {})} />
+      <NavArrow direction="next" visible={view.controls && !!onNext} onClick={onNext ?? (() => {})} />
       <TopBar
         visible={view.controls}
         title={title}

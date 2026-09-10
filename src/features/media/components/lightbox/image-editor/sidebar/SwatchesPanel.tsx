@@ -32,7 +32,7 @@ export function SwatchesPanel({ brushColor, onBrushColorChange, swatches, onAddS
                   }}
                   aria-label={`Select color ${color}`}
                   style={{ backgroundColor: color }}
-                  className={`w-full aspect-square rounded border cursor-pointer transition-[color,transform] ${
+                  className={`w-full aspect-square rounded-md border cursor-pointer transition-[color,transform] ${
                     brushColor === color
                       ? "border-primary ring-1 ring-primary/40 scale-110"
                       : "border-main-border hover:scale-105"
@@ -53,7 +53,7 @@ export function SwatchesPanel({ brushColor, onBrushColorChange, swatches, onAddS
         <button
           type="button"
           onClick={onAddSwatch}
-          className="w-full py-1.5 border border-dashed border-main-border text-[11px] text-muted-text hover:text-main-text hover:border-primary rounded cursor-pointer flex items-center justify-center gap-1.5"
+          className="w-full py-1.5 border border-dashed border-main-border text-[11px] text-muted-text hover:text-main-text hover:border-primary rounded-md cursor-pointer flex items-center justify-center gap-1.5"
         >
           <Plus size={12} weight="light" />
           Add Current Color

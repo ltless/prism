@@ -24,7 +24,7 @@ export function LightboxInfoPanel({ item, transcodeStatus, folders, isMobile, on
       >
         <div className="flex items-center justify-between px-4 h-11 border-b border-main-border shrink-0">
           <h3 className="text-xs text-muted-text font-medium">Details</h3>
-          <button type="button" onClick={onClose} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded transition-colors cursor-pointer">
+          <button type="button" onClick={onClose} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded-md transition-colors cursor-pointer">
             <X size={16} weight="light" />
           </button>
         </div>
@@ -47,7 +47,7 @@ export function LightboxInfoPanel({ item, transcodeStatus, folders, isMobile, on
       <div className="w-[320px] h-full bg-panel-bg flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 h-11 border-b border-main-border shrink-0">
           <h3 className="text-xs text-muted-text font-medium">Details</h3>
-          <button type="button" onClick={onClose} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded transition-colors cursor-pointer">
+          <button type="button" onClick={onClose} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded-md transition-colors cursor-pointer">
             <X size={16} weight="light" />
           </button>
         </div>

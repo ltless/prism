@@ -61,7 +61,7 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, hasCounter, currentIndex
           className="absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-4 md:px-6 z-20 bg-linear-to-b from-black/70 to-transparent pointer-events-none"
         >
           <div className="flex items-center gap-3 pointer-events-auto">
-            <button type="button" onClick={onClose} aria-label="Close" className="p-2.5 hover:bg-white/15 rounded text-white transition-colors cursor-pointer">
+            <button type="button" onClick={onClose} aria-label="Close" className="p-2.5 hover:bg-white/15 rounded-md text-white transition-colors cursor-pointer">
               <X size={20} weight="light" />
             </button>
             <div className="flex flex-col">
@@ -72,10 +72,10 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, hasCounter, currentIndex
             </div>
           </div>
           <div className="flex items-center gap-1.5 pointer-events-auto">
-            <button type="button" onClick={onEdit} aria-label="Edit" className="px-3 py-2 hover:bg-white/15 rounded text-xs text-white transition-colors cursor-pointer border border-white/10">
+            <button type="button" onClick={onEdit} aria-label="Edit" className="px-3 py-2 hover:bg-white/15 rounded-md text-xs text-white transition-colors cursor-pointer border border-white/10">
               Edit
             </button>
-            <a href={mediaUrl} download={title} aria-label="Download" className="p-2.5 hover:bg-white/15 rounded text-white transition-colors inline-flex items-center justify-center">
+            <a href={mediaUrl} download={title} aria-label="Download" className="p-2.5 hover:bg-white/15 rounded-md text-white transition-colors inline-flex items-center justify-center">
               <Download size={18} weight="light" />
             </a>
             <button
@@ -83,7 +83,7 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, hasCounter, currentIndex
               onClick={onInfoToggle}
               aria-label={isInfoOpen ? "Close info" : "Open info"}
               aria-pressed={isInfoOpen}
-              className={cn("p-2.5 rounded transition-colors cursor-pointer", isInfoOpen ? "bg-white text-black" : "text-white hover:bg-white/15")}
+              className={cn("p-2.5 rounded-md transition-colors cursor-pointer", isInfoOpen ? "bg-white text-black" : "text-white hover:bg-white/15")}
             >
               <Info size={18} weight="light" />
             </button>

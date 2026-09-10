@@ -83,7 +83,7 @@ export function TopBar() {
               type="button"
               onClick={() => setMobileOpen(true)}
               aria-label="Open sidebar"
-              className="md:hidden w-7 h-7 flex items-center justify-center rounded text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
+              className="md:hidden w-7 h-7 flex items-center justify-center rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
             >
               <List size={14} weight="light" />
             </button>
@@ -100,7 +100,7 @@ export function TopBar() {
               type="button"
               onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setTimeout(() => mobileSearchRef.current?.focus(), 100); }}
               aria-label="Toggle search"
-              className="md:hidden w-7 h-7 flex items-center justify-center rounded text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
+              className="md:hidden w-7 h-7 flex items-center justify-center rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
             >
               <MagnifyingGlass size={13} weight="light" />
             </button>
@@ -117,7 +117,7 @@ export function TopBar() {
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search..."
-                className="bg-transparent border-0 rounded py-1 pl-7 pr-6 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-[width,background-color] duration-200 w-32 focus:w-56"
+                className="bg-transparent border-0 rounded-md py-1 pl-7 pr-6 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-[width,background-color] duration-200 w-32 focus:w-56"
               />
               {searchQuery ? (
                 <button
@@ -144,7 +144,7 @@ export function TopBar() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Upload files"
-              className="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer text-muted-text hover:text-main-text hover:bg-surface-bg"
+              className="w-7 h-7 flex items-center justify-center rounded-md transition-colors cursor-pointer text-muted-text hover:text-main-text hover:bg-surface-bg"
             >
               {isUploading ? (
                 <Spinner size={13} weight="bold" className="animate-spin text-primary" />
@@ -157,7 +157,7 @@ export function TopBar() {
               type="button"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="w-7 h-7 flex items-center justify-center rounded text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer overflow-hidden"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer overflow-hidden"
             >
               <AnimatePresence mode="wait">
                 {theme === "dark" ? (
@@ -215,7 +215,7 @@ export function TopBar() {
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Search..."
-                  className="w-full bg-surface-bg/50 border-0 rounded py-2 pl-8 pr-8 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-colors"
+                  className="w-full bg-surface-bg/50 border-0 rounded-md py-2 pl-8 pr-8 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-colors"
                 />
                 {searchQuery && (
                   <button

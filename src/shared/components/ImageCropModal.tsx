@@ -79,7 +79,7 @@ export function ImageCropModal({
   animate={{ scale: 1, opacity: 1 }}
   exit={{ scale: reduced ? 1 : 0.9, opacity: 0 }}
   transition={{ duration: reduced ? 0 : 0.2 }}
-  className="relative w-full max-w-xl bg-panel-bg rounded-[40px] border border-main-border shadow-xl overflow-hidden flex flex-col"
+  className="relative w-full max-w-xl bg-panel-bg rounded-2xl border border-main-border shadow-xl overflow-hidden flex flex-col"
  >
  {/* Header */}
  <div className="p-6 border-b border-main-border flex items-center justify-between">

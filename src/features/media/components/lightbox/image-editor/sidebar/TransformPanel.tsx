@@ -32,7 +32,7 @@ export function TransformPanel({ rotation, flipH, flipV, imageWidth, imageHeight
               value={imageWidth}
               readOnly
               aria-label="Image width"
-              className="w-full bg-surface-bg border border-main-border rounded px-2 py-1 text-[11px] font-mono text-main-text outline-none"
+              className="w-full bg-surface-bg border border-main-border rounded-md px-2 py-1 text-[11px] font-mono text-main-text outline-none"
             />
           </div>
           <div className="space-y-1">
@@ -44,7 +44,7 @@ export function TransformPanel({ rotation, flipH, flipV, imageWidth, imageHeight
               value={imageHeight}
               readOnly
               aria-label="Image height"
-              className="w-full bg-surface-bg border border-main-border rounded px-2 py-1 text-[11px] font-mono text-main-text outline-none"
+              className="w-full bg-surface-bg border border-main-border rounded-md px-2 py-1 text-[11px] font-mono text-main-text outline-none"
             />
           </div>
         </div>
@@ -64,14 +64,14 @@ export function TransformPanel({ rotation, flipH, flipV, imageWidth, imageHeight
           <button
             type="button"
             onClick={() => onRotationChange((rotation - 90 + 360) % 360)}
-            className="px-2 py-1.5 border border-main-border/60 bg-surface-bg/40 hover:bg-surface-bg rounded text-[11px] cursor-pointer text-muted-text hover:text-main-text transition-colors"
+            className="px-2 py-1.5 border border-main-border/60 bg-surface-bg/40 hover:bg-surface-bg rounded-md text-[11px] cursor-pointer text-muted-text hover:text-main-text transition-colors"
           >
             ↺ 90° CCW
           </button>
           <button
             type="button"
             onClick={() => onRotationChange((rotation + 90) % 360)}
-            className="px-2 py-1.5 border border-main-border/60 bg-surface-bg/40 hover:bg-surface-bg rounded text-[11px] cursor-pointer text-muted-text hover:text-main-text transition-colors"
+            className="px-2 py-1.5 border border-main-border/60 bg-surface-bg/40 hover:bg-surface-bg rounded-md text-[11px] cursor-pointer text-muted-text hover:text-main-text transition-colors"
           >
             ↻ 90° CW
           </button>
@@ -82,7 +82,7 @@ export function TransformPanel({ rotation, flipH, flipV, imageWidth, imageHeight
           <button
             type="button"
             onClick={onFlipH}
-            className={`py-1.5 border rounded text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`py-1.5 border rounded-md text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
               flipH
                 ? "border-primary bg-primary/10 text-primary"
                 : "border-main-border/60 bg-surface-bg/40 text-muted-text hover:text-main-text hover:bg-surface-bg"
@@ -93,7 +93,7 @@ export function TransformPanel({ rotation, flipH, flipV, imageWidth, imageHeight
           <button
             type="button"
             onClick={onFlipV}
-            className={`py-1.5 border rounded text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`py-1.5 border rounded-md text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
               flipV
                 ? "border-primary bg-primary/10 text-primary"
                 : "border-main-border/60 bg-surface-bg/40 text-muted-text hover:text-main-text hover:bg-surface-bg"

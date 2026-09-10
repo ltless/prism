@@ -9,7 +9,7 @@ exports[`ErrorDisplay > renders title and message 1`] = `
       class="text-center max-w-sm"
     >
       <div
-        class="w-10 h-10 bg-rose-500/8 rounded flex items-center justify-center mx-auto mb-4"
+        class="w-10 h-10 bg-rose-500/8 rounded-md flex items-center justify-center mx-auto mb-4"
       >
         <svg
           class="text-rose-500"
@@ -48,7 +48,7 @@ exports[`ErrorDisplay > renders with action element 1`] = `
       class="text-center max-w-sm"
     >
       <div
-        class="w-10 h-10 bg-rose-500/8 rounded flex items-center justify-center mx-auto mb-4"
+        class="w-10 h-10 bg-rose-500/8 rounded-md flex items-center justify-center mx-auto mb-4"
       >
         <svg
           class="text-rose-500"
@@ -85,7 +85,7 @@ exports[`ErrorDisplay > renders without message 1`] = `
       class="text-center max-w-sm"
     >
       <div
-        class="w-10 h-10 bg-rose-500/8 rounded flex items-center justify-center mx-auto mb-4"
+        class="w-10 h-10 bg-rose-500/8 rounded-md flex items-center justify-center mx-auto mb-4"
       >
         <svg
           class="text-rose-500"

@@ -49,11 +49,11 @@ export function ConfirmModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: reduced ? 1 : 0.97, opacity: 0, y: reduced ? 0 : 6 }}
             transition={{ duration: reduced ? 0 : 0.15 }}
-            className="relative w-full max-w-sm bg-panel-bg rounded border border-main-border/50 shadow-modal overflow-hidden flex flex-col p-5 z-10"
+            className="relative w-full max-w-sm bg-panel-bg rounded-xl border border-main-border/50 shadow-modal overflow-hidden flex flex-col p-5 z-10"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded bg-rose-500/8 flex items-center justify-center text-rose-500">
+                <div className="w-7 h-7 rounded-md bg-rose-500/8 flex items-center justify-center text-rose-500">
                   <Warning size={14} weight="fill" />
                 </div>
                 <h3 id="confirm-modal-title" className="text-[12px] font-medium text-main-text">
@@ -64,7 +64,7 @@ export function ConfirmModal({
                 type="button"
                 onClick={onCancel}
                 aria-label="Close"
-                className="p-1 hover:bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"
+                className="p-1 hover:bg-surface-bg rounded-md text-muted-text hover:text-main-text transition-colors cursor-pointer"
               >
                 <X size={12} weight="light" />
               </button>
@@ -78,14 +78,14 @@ export function ConfirmModal({
               <button
                 type="button"
                 onClick={onCancel}
-                className="flex-1 py-2 rounded bg-surface-bg border border-main-border/50 text-main-text text-[11px] font-medium hover:border-muted-text/20 transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-md bg-surface-bg border border-main-border/50 text-main-text text-[11px] font-medium hover:border-muted-text/20 transition-colors cursor-pointer"
               >
                 {cancelLabel}
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
-                className="flex-1 py-2 rounded bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-[background-color,transform] cursor-pointer"
+                className="flex-1 py-2 rounded-md bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-[background-color,transform] cursor-pointer"
               >
                 {confirmLabel}
               </button>

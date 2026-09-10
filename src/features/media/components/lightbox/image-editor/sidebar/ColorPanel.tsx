@@ -40,7 +40,7 @@ export function ColorPanel({ brushColor, onBrushColorChange, onClose }: ColorPan
           <div className="relative w-10 h-10 shrink-0">
             <div className="absolute inset-0 rounded-md border border-main-border bg-white" />
             <div
-              className="absolute inset-1 rounded border border-main-border/60"
+              className="absolute inset-1 rounded-md border border-main-border/60"
               style={{ backgroundColor: brushColor }}
             />
           </div>
@@ -53,7 +53,7 @@ export function ColorPanel({ brushColor, onBrushColorChange, onClose }: ColorPan
               value={hexInput}
               onChange={(e) => handleHexChange(e.target.value)}
               aria-label="Hex color"
-              className="w-full bg-surface-bg border border-main-border rounded px-2 py-1 text-[11px] font-mono text-main-text outline-none focus:border-primary"
+              className="w-full bg-surface-bg border border-main-border rounded-md px-2 py-1 text-[11px] font-mono text-main-text outline-none focus:border-primary"
             />
           </div>
         </div>
@@ -68,7 +68,7 @@ export function ColorPanel({ brushColor, onBrushColorChange, onClose }: ColorPan
               }}
               title={c.name}
               style={{ backgroundColor: c.hex }}
-              className={`w-full aspect-square rounded border cursor-pointer transition-[color,transform] ${
+              className={`w-full aspect-square rounded-md border cursor-pointer transition-[color,transform] ${
                 brushColor === c.hex
                   ? "border-primary ring-1 ring-primary/40 scale-110"
                   : "border-main-border hover:scale-105"
@@ -85,7 +85,7 @@ export function ColorPanel({ brushColor, onBrushColorChange, onClose }: ColorPan
               setHexDraft(e.target.value);
             }}
             aria-label="Custom color picker"
-            className="w-7 h-7 rounded border border-main-border cursor-pointer"
+            className="w-7 h-7 rounded-md border border-main-border cursor-pointer"
           />
           <span className="text-xs text-muted-text uppercase tracking-wider font-semibold">
             Custom color

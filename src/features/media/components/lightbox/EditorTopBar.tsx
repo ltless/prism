@@ -39,7 +39,7 @@ function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, sa
       <button
         type="button"
         onClick={isOpen ? onClose : onTrigger}
-        className="px-2 py-1 text-[11px] font-medium text-muted-text hover:text-main-text hover:bg-surface-bg rounded cursor-pointer"
+        className="px-2 py-1 text-[11px] font-medium text-muted-text hover:text-main-text hover:bg-surface-bg rounded-md cursor-pointer"
       >
         {menu.label}
       </button>

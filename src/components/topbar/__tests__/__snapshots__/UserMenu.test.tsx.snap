@@ -20,7 +20,7 @@ exports[`UserMenu > opens dropdown on click 1`] = `
     </button>
     <div
       aria-label="User menu"
-      class="absolute top-9 right-0 w-44 bg-panel-bg border border-main-border/50 shadow-elevated rounded overflow-hidden z-[200]"
+      class="absolute top-9 right-0 w-44 bg-panel-bg border border-main-border/50 shadow-elevated rounded-md overflow-hidden z-[200]"
       role="menu"
     >
       <div
@@ -58,7 +58,7 @@ exports[`UserMenu > opens dropdown on click 1`] = `
         class="p-0.5"
       >
         <button
-          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-surface-bg"
+          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-surface-bg"
           role="menuitem"
           type="button"
         >
@@ -81,7 +81,7 @@ exports[`UserMenu > opens dropdown on click 1`] = `
           </span>
         </button>
         <button
-          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
+          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
           role="menuitem"
           type="button"
         >

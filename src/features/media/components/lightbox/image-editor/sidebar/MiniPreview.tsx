@@ -82,7 +82,7 @@ export const MiniPreview = memo(function MiniPreview({
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video bg-surface-bg rounded border border-main-border overflow-hidden"
+      className="relative aspect-video bg-surface-bg rounded-md border border-main-border overflow-hidden"
     >
       <Image src={mediaUrl} alt="" fill sizes="220px" className="object-contain" unoptimized />
       {canCompute && (

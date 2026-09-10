@@ -60,7 +60,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute top-9 right-0 w-44 bg-panel-bg border border-main-border/50 shadow-elevated rounded overflow-hidden z-[200]"
+            className="absolute top-9 right-0 w-44 bg-panel-bg border border-main-border/50 shadow-elevated rounded-md overflow-hidden z-[200]"
           >
             <div className="px-3 py-2 border-b border-main-border/30">
               <div className="flex items-center gap-2">
@@ -85,7 +85,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
                 type="button"
                 role="menuitem"
                 onClick={() => { onOpenSettings(); setIsOpen(false); }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-surface-bg"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-surface-bg"
               >
                 <GearSix size={13} weight="light" className="text-muted-text group-hover:text-main-text transition-colors" />
                 <span className="text-[11px] font-medium text-muted-text group-hover:text-main-text">Settings</span>
@@ -94,7 +94,7 @@ export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
                 type="button"
                 role="menuitem"
                 onClick={() => logout()}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
               >
                 <SignOut size={13} weight="light" className="text-muted-text group-hover:text-rose-500 transition-colors" />
                 <span className="text-[11px] font-medium text-muted-text group-hover:text-rose-500">Sign out</span>

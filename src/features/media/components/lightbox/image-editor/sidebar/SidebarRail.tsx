@@ -121,7 +121,7 @@ export function SidebarRail({ openPanels, isOpen, onTogglePanel }: SidebarRailPr
         type="button"
         onClick={toggleLock}
         title={isLocked ? "Unlock panel order" : "Lock panel order"}
-        className={`w-8 h-8 flex items-center justify-center rounded transition-colors cursor-pointer ${
+        className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors cursor-pointer ${
           isLocked
             ? "text-primary bg-primary/10"
             : "text-muted-text hover:text-main-text hover:bg-surface-bg"
@@ -150,7 +150,7 @@ export function SidebarRail({ openPanels, isOpen, onTogglePanel }: SidebarRailPr
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
             onDragEnd={handleDragEnd}
-            className={`w-8 h-8 flex items-center justify-center rounded transition-[color,transform] cursor-pointer ${
+            className={`w-8 h-8 flex items-center justify-center rounded-md transition-[color,transform] cursor-pointer ${
               isActive
                 ? "text-primary bg-primary/10"
                 : isDragging

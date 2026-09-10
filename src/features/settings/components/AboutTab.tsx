@@ -34,7 +34,7 @@ export function AboutTab() {
    <SectionCard icon={Info} title="System Specifications" className="w-full max-w-sm mb-6" bodyClassName="flex flex-col gap-2.5 text-[11px]">
      <div className="flex justify-between items-center py-0.5">
       <span className="text-muted-text">Software Version</span>
-      <span className="text-main-text font-semibold bg-primary/5 px-2 py-0.5 rounded border border-primary/10">0.1.0 (Beta)</span>
+      <span className="text-main-text font-semibold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">0.1.0 (Beta)</span>
      </div>
      <div className="h-px bg-main-border/30" />
      <div className="flex justify-between items-center py-0.5">

@@ -14,7 +14,7 @@ exports[`ConfirmModal > renders when open 1`] = `
       class="absolute inset-0 bg-black/50"
     />
     <div
-      class="relative w-full max-w-sm bg-panel-bg rounded border border-main-border/50 shadow-modal overflow-hidden flex flex-col p-5 z-10"
+      class="relative w-full max-w-sm bg-panel-bg rounded-xl border border-main-border/50 shadow-modal overflow-hidden flex flex-col p-5 z-10"
     >
       <div
         class="flex items-center justify-between mb-3"
@@ -23,7 +23,7 @@ exports[`ConfirmModal > renders when open 1`] = `
           class="flex items-center gap-2"
         >
           <div
-            class="w-7 h-7 rounded bg-rose-500/8 flex items-center justify-center text-rose-500"
+            class="w-7 h-7 rounded-md bg-rose-500/8 flex items-center justify-center text-rose-500"
           >
             <svg
               fill="currentColor"
@@ -46,7 +46,7 @@ exports[`ConfirmModal > renders when open 1`] = `
         </div>
         <button
           aria-label="Close"
-          class="p-1 hover:bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"
+          class="p-1 hover:bg-surface-bg rounded-md text-muted-text hover:text-main-text transition-colors cursor-pointer"
           type="button"
         >
           <svg
@@ -71,13 +71,13 @@ exports[`ConfirmModal > renders when open 1`] = `
         class="flex gap-2"
       >
         <button
-          class="flex-1 py-2 rounded bg-surface-bg border border-main-border/50 text-main-text text-[11px] font-medium hover:border-muted-text/20 transition-colors cursor-pointer"
+          class="flex-1 py-2 rounded-md bg-surface-bg border border-main-border/50 text-main-text text-[11px] font-medium hover:border-muted-text/20 transition-colors cursor-pointer"
           type="button"
         >
           Cancel
         </button>
         <button
-          class="flex-1 py-2 rounded bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-[background-color,transform] cursor-pointer"
+          class="flex-1 py-2 rounded-md bg-rose-500 text-white text-[11px] font-medium hover:bg-rose-600 active:scale-[0.98] transition-[background-color,transform] cursor-pointer"
           type="button"
         >
           Confirm

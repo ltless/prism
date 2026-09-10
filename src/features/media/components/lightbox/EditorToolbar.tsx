@@ -50,7 +50,7 @@ export function EditorToolbar({
             type="button"
             onClick={() => onToolChange(tool.id)}
             title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ""}`}
-            className={`w-8 h-8 flex items-center justify-center rounded cursor-pointer transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-colors ${
               isActive ? "text-primary bg-primary/10" : "text-muted-text hover:text-main-text hover:bg-surface-bg"
             }`}
           >
@@ -65,7 +65,7 @@ export function EditorToolbar({
         type="button"
         onClick={onToggleBeforeAfter}
         title={`Before/After ( \ )`}
-        className={`w-8 h-8 flex items-center justify-center rounded cursor-pointer transition-colors ${
+        className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-colors ${
           showBefore
             ? "text-primary bg-primary/10"
             : "text-muted-text hover:text-main-text hover:bg-surface-bg"

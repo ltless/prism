@@ -55,18 +55,34 @@ export const MediaGrid = memo(function MediaGrid({
  const cols = useColumnCount();
  const fallbackRef = useRef<HTMLDivElement>(null);
  const parentRef = scrollRef ?? fallbackRef;
+ const [containerWidth, setContainerWidth] = useState(0);
+
+ // Track the scroll container width so row heights re-measure when the
+ // sidebar collapses/expands and the available width changes.
+ useEffect(() => {
+  const el = parentRef.current;
+  if (!el) return;
+  const ro = new ResizeObserver(() => setContainerWidth(el.clientWidth));
+  ro.observe(el);
+  setContainerWidth(el.clientWidth);
+  return () => ro.disconnect();
+ }, [parentRef]);
 
  const rowCount = Math.ceil(items.length / cols);
  const virtualizer = useVirtualizer({
   count: rowCount,
   getScrollElement: () => parentRef.current,
   estimateSize: () => {
-   const el = parentRef.current;
-   const w = el ? el.clientWidth : 800;
+   const w = containerWidth || parentRef.current?.clientWidth || 800;
    return Math.floor((w - GAP * (cols - 1)) / cols) + GAP; // square cells + gap
   },
   overscan: 3,
  });
+
+ useEffect(() => {
+  virtualizer.measure();
+ }, [containerWidth, cols, virtualizer]);
+
 
  return (
   <div ref={fallbackRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>

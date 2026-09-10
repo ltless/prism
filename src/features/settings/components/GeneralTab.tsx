@@ -163,20 +163,20 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
       >
        {/* Premium dark UI Mockup preview */}
        <div className="w-full h-16 bg-[#0E0E0D] border border-white/5 rounded-lg mb-3 flex p-1.5 gap-1.5 overflow-hidden shadow-sm">
-        <div className="w-7 h-full bg-[#181816] rounded flex flex-col gap-1 p-1">
+        <div className="w-7 h-full bg-[#181816] rounded-md flex flex-col gap-1 p-1">
          <div className="h-1 w-full bg-[#2B2B28] rounded-full" />
          <div className="h-1 w-4 bg-[#2B2B28] rounded-full" />
         </div>
         <div className="flex-1 flex flex-col gap-1">
-         <div className="h-2 w-full bg-[#181816] rounded flex items-center px-1">
+         <div className="h-2 w-full bg-[#181816] rounded-md flex items-center px-1">
           <div className="w-1.5 h-1 bg-primary rounded-full" />
          </div>
          <div className="grid grid-cols-3 gap-1 flex-1">
-          <div className="bg-[#181816] rounded border border-white/5 flex items-center justify-center">
+          <div className="bg-[#181816] rounded-md border border-white/5 flex items-center justify-center">
            <div className="w-2.5 h-2.5 bg-primary/20 rounded-full" />
           </div>
-          <div className="bg-[#181816] rounded border border-white/5" />
-          <div className="bg-[#181816] rounded border border-white/5" />
+          <div className="bg-[#181816] rounded-md border border-white/5" />
+          <div className="bg-[#181816] rounded-md border border-white/5" />
          </div>
         </div>
        </div>
@@ -205,20 +205,20 @@ export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileS
       >
        {/* Premium light UI Mockup preview */}
        <div className="w-full h-16 bg-[#F9F8F6] border border-black/5 rounded-lg mb-3 flex p-1.5 gap-1.5 overflow-hidden shadow-sm">
-        <div className="w-7 h-full bg-[#EDEDE9] rounded flex flex-col gap-1 p-1">
+        <div className="w-7 h-full bg-[#EDEDE9] rounded-md flex flex-col gap-1 p-1">
          <div className="h-1 w-full bg-[#D6D6D0] rounded-full" />
          <div className="h-1 w-4 bg-[#D6D6D0] rounded-full" />
         </div>
         <div className="flex-1 flex flex-col gap-1">
-         <div className="h-2 w-full bg-[#EDEDE9] rounded flex items-center px-1">
+         <div className="h-2 w-full bg-[#EDEDE9] rounded-md flex items-center px-1">
           <div className="w-1.5 h-1 bg-[#D6D6D0] rounded-full" />
          </div>
          <div className="grid grid-cols-3 gap-1 flex-1">
-          <div className="bg-white rounded border border-black/5 flex items-center justify-center">
+          <div className="bg-white rounded-md border border-black/5 flex items-center justify-center">
            <div className="w-2.5 h-2.5 bg-primary/20 rounded-full" />
           </div>
-          <div className="bg-white rounded border border-black/5" />
-          <div className="bg-white rounded border border-black/5" />
+          <div className="bg-white rounded-md border border-black/5" />
+          <div className="bg-white rounded-md border border-black/5" />
          </div>
         </div>
        </div>

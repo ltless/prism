@@ -33,7 +33,7 @@ export const ColorPalette = memo(function ColorPalette({ palette }: ColorPalette
               className="w-9 h-9 rounded-lg border border-main-border/40 shadow-sm group-hover:scale-105 transition-transform"
               style={{ backgroundColor: color }}
             />
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-black text-white text-[11px] py-1 px-2 rounded font-mono font-medium whitespace-nowrap z-50 pointer-events-none shadow-md">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-black text-white text-[11px] py-1 px-2 rounded-md font-mono font-medium whitespace-nowrap z-50 pointer-events-none shadow-md">
               {copiedColor === color ? "Copied" : color.toUpperCase()}
             </div>
           </button>

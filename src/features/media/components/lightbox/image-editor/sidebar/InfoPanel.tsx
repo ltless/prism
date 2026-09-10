@@ -41,7 +41,7 @@ export function InfoPanel({ imageWidth, imageHeight, mimeType, zoom, sampledColo
             <div className="h-px bg-main-border/50 my-1" />
             <div className="flex items-center gap-2">
               <div
-                className="w-5 h-5 rounded border border-main-border shrink-0"
+                className="w-5 h-5 rounded-md border border-main-border shrink-0"
                 style={{
                   backgroundColor: `rgb(${sampledColor.r},${sampledColor.g},${sampledColor.b})`,
                 }}

@@ -87,7 +87,7 @@ export const Histogram = memo(function Histogram({ mediaUrl }: HistogramProps) {
       ref={canvasRef}
       width={200}
       height={80}
-      className="w-full rounded border border-main-border"
+      className="w-full rounded-md border border-main-border"
     />
   );
 });

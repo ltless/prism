@@ -30,7 +30,7 @@ export function WhiteBalanceSection() {
   return (
     <CollapsibleSection label="White Balance">
       <div className="flex items-center gap-2">
-        <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded border border-main-border/60 bg-surface-bg/40">
+        <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-main-border/60 bg-surface-bg/40">
           <SunDim
             size={12}
             weight="regular"
@@ -58,7 +58,7 @@ export function WhiteBalanceSection() {
                 : "Cool"}
           </span>
         </div>
-        <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded border border-main-border/60 bg-surface-bg/40">
+        <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-main-border/60 bg-surface-bg/40">
           <DropHalfBottom
             size={12}
             weight="regular"
@@ -128,7 +128,7 @@ export function WhiteBalanceSection() {
                 endDragSession();
               }}
               className={
-                "px-1.5 py-1.5 text-xs font-medium rounded border transition-colors cursor-pointer " +
+                "px-1.5 py-1.5 text-xs font-medium rounded-md border transition-colors cursor-pointer " +
                 (isActive
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-main-border/60 bg-surface-bg/40 text-muted-text hover:text-main-text hover:bg-surface-bg hover:border-main-border")
@@ -145,7 +145,7 @@ export function WhiteBalanceSection() {
         <button
           type="button"
           onClick={resetWhiteBalance}
-          className="w-full py-1.5 text-[11px] font-medium text-muted-text hover:text-primary border border-main-border/60 rounded transition-colors cursor-pointer"
+          className="w-full py-1.5 text-[11px] font-medium text-muted-text hover:text-primary border border-main-border/60 rounded-md transition-colors cursor-pointer"
         >
           Reset White Balance
         </button>

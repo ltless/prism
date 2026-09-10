@@ -10,18 +10,15 @@ import {
   Lock,
   Trash,
   X,
-  CaretLeft,
-  CaretRight
+  CaretLeft
 } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import type { Folder as FolderType } from "@/features/media/types";
 import { FolderModal } from "@/features/media/components/FolderModal";
 import { m, AnimatePresence } from "motion/react";
 import { useSidebar } from "@/components/sidebar-context";
-import { SidebarLogo } from "@/components/sidebar/SidebarLogo";
 import { SidebarMenuSections } from "@/components/sidebar/SidebarMenuSections";
-
-const SIDEBAR_WIDTH = 240;
+import { SIDEBAR_WIDTH, SIDEBAR_COLLAPSED_WIDTH } from "@/components/sidebar/constants";
 
 const menuSections = [
   {
@@ -54,7 +51,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [showFolderModal, setShowFolderModal] = useState(false);
 
-  const { isMobileOpen, setMobileOpen, isCollapsed, setIsCollapsed } = useSidebar();
+  const { isMobileOpen, setMobileOpen, isCollapsed, toggleCollapsed } = useSidebar();
 
   useEffect(() => {
     if (!isMobileOpen) return;
@@ -64,6 +61,8 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [isMobileOpen, setMobileOpen]);
+
+  const isExpanded = !isCollapsed;
 
   const sharedProps = {
     sections: menuSections,
@@ -88,7 +87,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={() => setMobileOpen(false)}
-            className="fixed inset-0 bg-black/50 z-sidebar md:hidden"
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-sidebar md:hidden"
           />
         )}
       </AnimatePresence>
@@ -96,29 +95,36 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden md:flex flex-col z-sidebar relative",
-          "fixed top-0 bottom-0 left-0",
+          "hidden md:flex flex-col z-sidebar fixed top-0 bottom-0 left-0",
           "bg-app-bg border-r border-main-border/30",
-          "transition-[width] duration-200 ease-out-expo"
+          "transition-[width] duration-300 ease-out-expo"
         )}
-        style={{ width: isCollapsed ? 56 : SIDEBAR_WIDTH }}
+        style={{ width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH }}
       >
+        <div className="flex-1 overflow-y-auto custom-scroll overflow-x-hidden pt-4">
+          <SidebarMenuSections {...sharedProps} isExpanded={isExpanded} />
+        </div>
+
+        {/* Edge toggle — right side, vertically centered */}
         <button
           type="button"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute inset-y-0 my-auto right-0 translate-x-1/2 z-40 flex items-center justify-center w-4 h-8 rounded-full bg-panel-bg text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors duration-200 cursor-pointer border border-main-border/50"
+          onClick={toggleCollapsed}
+          aria-label={isCollapsed ? "Pin sidebar open" : "Collapse to rail"}
+          title={isCollapsed ? "Pin open" : "Collapse"}
+          className={cn(
+            "absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 z-10",
+            "w-6 h-6 flex items-center justify-center rounded-full cursor-pointer",
+            "border border-main-border/60 bg-panel-bg text-muted-text shadow-sm",
+            "transition-colors duration-150 hover:text-main-text hover:border-main-border"
+          )}
         >
-          {isCollapsed ? <CaretRight size={10} weight="bold" /> : <CaretLeft size={10} weight="bold" />}
+          <span
+            className="inline-flex transition-transform duration-300 ease-out-expo"
+            style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            <CaretLeft size={12} weight="bold" />
+          </span>
         </button>
-
-        <div className="relative flex flex-col h-full">
-          <SidebarLogo isExpanded={!isCollapsed} />
-
-          <div className={cn("flex-1 overflow-y-auto custom-scroll py-1", isCollapsed ? "px-1" : "px-2")}>
-            <SidebarMenuSections {...sharedProps} isExpanded={!isCollapsed} />
-          </div>
-        </div>
       </aside>
 
       {/* Mobile sidebar */}
@@ -129,20 +135,18 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-y-0 left-0 w-64 flex flex-col bg-app-bg z-mobile-sidebar md:hidden shadow-xl"
+            className="fixed inset-y-0 left-0 w-64 flex flex-col bg-app-bg z-mobile-sidebar md:hidden"
           >
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Close sidebar"
-              className="absolute top-5 right-5 z-10 p-1.5 bg-surface-bg rounded text-muted-text hover:text-main-text transition-colors cursor-pointer"
+              className="absolute top-4 right-4 z-10 w-7 h-7 flex items-center justify-center rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
             >
               <X size={14} weight="light" />
             </button>
 
-            <SidebarLogo isExpanded={true} />
-
-            <div className="flex-1 overflow-y-auto px-3 space-y-5 custom-scroll">
+            <div className="flex-1 overflow-y-auto px-2 pt-4 custom-scroll">
               <SidebarMenuSections {...sharedProps} isExpanded={true} />
             </div>
           </m.aside>

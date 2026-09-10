@@ -185,13 +185,13 @@ export function DuplicateList({ groups, folderMap = EMPTY_FOLDER_MAP }: { groups
   />
   )}
   {isBest && (
- <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-primary rounded text-[11px] font-medium text-primary-foreground">
+ <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-primary rounded-md text-[11px] font-medium text-primary-foreground">
  Best
  </div>
  )}
  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
  <div className={cn(
- "px-1.5 py-0.5 rounded text-[11px] font-medium",
+ "px-1.5 py-0.5 rounded-md text-[11px] font-medium",
  itemScore.total > 0.7 ? "bg-emerald-500/90 text-white" : itemScore.total > 0.4 ? "bg-amber-500/90 text-white" : "bg-rose-500/90 text-white"
  )}>
  {(itemScore.total * 100).toFixed(0)}%

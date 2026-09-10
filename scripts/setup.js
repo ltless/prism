@@ -165,19 +165,32 @@ function dockerRunning() {
   return result.status === 0;
 }
 
+// matches the DATABASE_URL this script writes into backend/.env
+const DATABASE_URL = 'postgresql://prism:prism_dev_2024@localhost:5432/prism';
+
+function pgReachable() {
+  const result = spawnSync('pg_isready', ['-d', DATABASE_URL], { stdio: 'pipe' });
+  return result.status === 0;
+}
+
+
+
+function psqlSync(args, opts = {}) {
+  if (dockerRunning()) {
+    const flags = opts.input ? ['-i'] : [];
+    return spawnSync('docker', ['exec', ...flags, 'prism-postgres', 'psql', '-U', 'prism', '-d', 'prism', ...args], opts);
+  }
+  // native postgres fallback — same db, user, port as docker-compose.yml
+  return spawnSync('psql', [DATABASE_URL, ...args], opts);
+}
+
 function pgQuery(sql) {
-  const result = spawnSync('docker', [
-    'exec', 'prism-postgres',
-    'psql', '-U', 'prism', '-d', 'prism', '-t', '-A', '-c', sql,
-  ], { stdio: 'pipe', encoding: 'utf8' });
+  const result = psqlSync(['-t', '-A', '-c', sql], { stdio: 'pipe', encoding: 'utf8' });
   return result.stdout?.trim() || '';
 }
 
 function pgExec(sql) {
-  const result = spawnSync('docker', [
-    'exec', 'prism-postgres',
-    'psql', '-U', 'prism', '-d', 'prism', '-c', sql,
-  ], { stdio: 'pipe', encoding: 'utf8' });
+  const result = psqlSync(['-c', sql], { stdio: 'pipe' });
   return result.status === 0;
 }
 
@@ -239,14 +252,19 @@ async function main() {
   ok('JWT_SECRET matches across frontend + backend');
 
   // ─ 3. start postgres ─────────────
-  step('3/5', 'starting postgres (docker compose)');
+  step('3/5', 'starting postgres');
 
   if (dockerRunning()) {
-    ok('prism-postgres already running');
+    ok('prism-postgres (docker) already running');
+  } else if (pgReachable()) {
+    ok('native postgres detected on localhost:5432 — skipping docker');
   } else {
     const result = exec('docker compose up -d');
     if (result === null) {
-      err('docker compose failed. is docker installed and running?');
+      err('docker compose failed and no native postgres on localhost:5432.');
+      err('either install docker, or create the db manually:');
+      console.log('  sudo -u postgres psql -c "CREATE ROLE prism LOGIN PASSWORD \'prism_dev_2024\';"');
+      console.log('  sudo -u postgres psql -c "CREATE DATABASE prism OWNER prism;"');
       process.exit(1);
     }
     // wait for postgres to be ready
@@ -273,15 +291,12 @@ async function main() {
   if (tableExists && tableExists !== '') {
     ok('schema already exists (users table found)');
   } else {
-    // fresh database — apply embedded SQL migration via psql
+    // fresh database — apply embedded SQL migration via psql (docker or native)
     const migrationPath = path.join(ROOT, 'backend/internal/db/migrations/postgres.sql');
     const migrationSql = fs.readFileSync(migrationPath, 'utf8');
-    const schemaResult = spawnSync('docker', [
-      'exec', '-i', 'prism-postgres',
-      'psql', '-U', 'prism', '-d', 'prism',
-    ], { input: migrationSql, stdio: ['pipe', 'inherit', 'inherit'] });
+    const schemaResult = psqlSync([], { input: migrationSql, stdio: ['pipe', 'inherit', 'inherit'] });
     if (schemaResult.status !== 0) {
-      err('schema push failed. check docker container is running.');
+      err('schema push failed. check postgres is running.');
       process.exit(1);
     }
     ok('schema pushed');
@@ -307,7 +322,7 @@ async function main() {
       ok(`admin user "${username}" created`);
     } else {
       err('failed to create admin user. you can do it manually:');
-      console.log(`  docker exec prism-postgres psql -U prism -d prism -c "INSERT INTO users (id, username, password_hash, role, has_completed_setup, created_at, updated_at) VALUES (gen_random_uuid(), '${username}', '<bcrypt-hash>', 'admin', true, NOW(), NOW())"`);
+      console.log(`  psql "postgresql://prism:prism_dev_2024@localhost:5432/prism" -c "INSERT INTO users (id, username, password_hash, role, has_completed_setup, created_at, updated_at) VALUES (gen_random_uuid(), '${username}', '<bcrypt-hash>', 'admin', true, NOW(), NOW())"`);
       process.exit(1);
     }
   }

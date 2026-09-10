@@ -1,8 +1,8 @@
-"use client";
-
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { m } from "motion/react";
 import { cn } from "@/core/utils/cn";
+
 interface SidebarNavItemProps {
   item: {
     name: string;
@@ -30,29 +30,36 @@ export function SidebarNavItem({ item, activeFolderId, isExpanded }: SidebarNavI
     <Link
       href={item.path}
       title={!isExpanded ? item.name : undefined}
+      aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center group cursor-pointer relative",
-        isExpanded
-          ? "gap-2.5 px-2.5 py-1.5 rounded"
-          : "justify-center w-8 h-8 mx-auto rounded",
-        "transition-colors duration-150",
+        "group/nav relative flex items-center h-8 mx-2 gap-2.5 rounded-lg cursor-pointer",
+        "transition-[padding,background-color,color] duration-300 ease-out-expo",
+        isExpanded ? "pl-2 pr-2.5" : "pl-3.5 pr-0",
         isActive
-          ? "bg-primary/8 text-main-text"
-          : "bg-transparent text-muted-text hover:bg-surface-bg hover:text-main-text"
+          ? "bg-surface-bg text-main-text"
+          : "bg-transparent text-muted-text hover:bg-surface-bg/50 hover:text-main-text"
       )}
     >
-      <div className={cn(
-        "flex items-center justify-center shrink-0 transition-colors duration-150",
-        isExpanded ? "w-5 h-5" : "w-4 h-4",
-        isActive ? "text-primary" : "text-muted-text group-hover:text-main-text"
-      )}>
-        <Icon size={isExpanded ? 14 : 15} weight={isActive ? "fill" : "light"} />
-      </div>
-      <span className={cn(
-        "text-[11px] font-medium transition-colors duration-150 truncate whitespace-nowrap",
-        isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden",
-        isActive ? "text-main-text" : "text-muted-text group-hover:text-main-text"
-      )}>
+      {isActive && (
+        <m.span
+          layoutId="sidebar-active-indicator"
+          transition={{ type: "spring", stiffness: 500, damping: 40 }}
+          className="absolute left-0 top-1/2 -mt-2 w-[3px] h-4 rounded-full bg-main-text"
+        />
+      )}
+      <span
+        className={cn(
+          "flex items-center justify-center w-5 h-5 shrink-0 transition-transform duration-200 ease-out-expo",
+          "group-hover/nav:scale-110",
+          isActive ? "text-main-text" : "text-muted-text group-hover/nav:text-main-text"
+        )}
+      >
+        <Icon size={16} weight={isActive ? "fill" : "regular"} />
+      </span>
+      <span
+        className="overflow-hidden whitespace-nowrap text-[12px] font-medium transition-[max-width,opacity] duration-300 ease-out-expo"
+        style={{ maxWidth: isExpanded ? "12rem" : "0rem", opacity: isExpanded ? 1 : 0 }}
+      >
         {item.name}
       </span>
     </Link>

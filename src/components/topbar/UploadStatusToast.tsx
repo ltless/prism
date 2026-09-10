@@ -63,7 +63,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
             initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 8, opacity: 0 }}
-            className="bg-primary text-primary-foreground text-[10px] font-medium px-2.5 py-1 rounded shadow-sm flex items-center gap-1.5"
+            className="bg-primary text-primary-foreground text-[10px] font-medium px-2.5 py-1 rounded-md shadow-sm flex items-center gap-1.5"
           >
             <div className="w-1 h-1 bg-white/80 rounded-full animate-pulse" />
             {waitingCount} queued
@@ -71,12 +71,12 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
         )}
 
         <div className={cn(
-          "w-full p-2.5 rounded border shadow-elevated flex flex-col gap-2 bg-panel-bg overflow-hidden relative",
+          "w-full p-2.5 rounded-md border shadow-elevated flex flex-col gap-2 bg-panel-bg overflow-hidden relative",
           borderClass
         )}>
           <div className="flex items-start gap-2.5">
             <div className={cn(
-              "w-8 h-8 rounded flex items-center justify-center flex-shrink-0",
+              "w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0",
               iconBgClass
             )}>
               {isUploading ? <Spinner size={16} weight="bold" className="animate-spin" /> : uploadResult?.success ? <CheckCircle size={16} weight="fill" /> : <Warning size={16} weight="fill" />}
@@ -90,7 +90,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
               </p>
             </div>
             {!isUploading && (
-              <button type="button" onClick={onDismiss} aria-label="Dismiss" className="p-1 hover:bg-surface-bg rounded text-muted-text cursor-pointer self-start -mt-0.5">
+              <button type="button" onClick={onDismiss} aria-label="Dismiss" className="p-1 hover:bg-surface-bg rounded-md text-muted-text cursor-pointer self-start -mt-0.5">
                 <X size={10} weight="light" />
               </button>
             )}

@@ -20,7 +20,7 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "rounded border border-main-border/30 bg-panel-bg overflow-hidden",
+        "rounded-lg border border-main-border bg-panel-bg overflow-hidden",
         !compact && "shadow-card",
         className,
       )}

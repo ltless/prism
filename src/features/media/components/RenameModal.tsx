@@ -104,7 +104,7 @@ export function RenameModal({ isOpen, onClose, onRename, initialTitle }: RenameM
  type="text"
  value={title}
  onChange={(e) => setTitle(e.target.value)}
-  className="w-full bg-surface-bg border border-main-border focus:border-primary rounded px-3 py-2 text-xs text-main-text outline-none transition-colors font-medium"
+  className="w-full bg-surface-bg border border-main-border focus:border-primary rounded-md px-3 py-2 text-xs text-main-text outline-none transition-colors font-medium"
  />
  </div>
 

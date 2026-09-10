@@ -192,7 +192,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                   return (
                     <m.div key={folder.id} variants={itemVariants}>
                       <div
-                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md"
                         style={{ backgroundColor: `${color}08`, color }}
                       >
                         <div className="w-5 h-5 flex items-center justify-center shrink-0" style={{ color }}>
@@ -210,7 +210,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                           onBlur={commitRename}
                           placeholder="Folder name"
                           aria-label="Folder name"
-                          className="flex-1 bg-transparent border border-main-border/40 rounded px-1.5 py-0.5 text-[11px] text-main-text outline-none focus:border-primary/50 transition-colors"
+                          className="flex-1 bg-transparent border border-main-border/40 rounded-md px-1.5 py-0.5 text-[11px] text-main-text outline-none focus:border-primary/50 transition-colors"
                         />
                       </div>
                     </m.div>
@@ -225,7 +225,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                       onDragLeave={() => onDragOver(null)}
                       onDrop={(e) => handleDrop(e, folder.id)}
                       className={cn(
-                        "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded transition-colors duration-150 cursor-pointer min-w-0",
+                        "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors duration-150 cursor-pointer min-w-0",
                         (isSelected || isOver)
                           ? ""
                           : "text-muted-text hover:bg-surface-bg"
@@ -250,7 +250,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                         type="button"
                         aria-label={`Rename ${folder.name}`}
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(folder); }}
-                        className="p-0.5 rounded text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer"
+                        className="p-0.5 rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer"
                       >
                         <Pencil size={10} weight="light" />
                       </button>
@@ -258,7 +258,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                         type="button"
                         aria-label={`Delete ${folder.name}`}
                         onClick={(e) => handleDelete(folder.id, e)}
-                        className="p-0.5 rounded text-muted-text hover:text-rose-500 hover:bg-surface-bg cursor-pointer"
+                        className="p-0.5 rounded-md text-muted-text hover:text-rose-500 hover:bg-surface-bg cursor-pointer"
                       >
                         <Trash size={10} weight="light" />
                       </button>

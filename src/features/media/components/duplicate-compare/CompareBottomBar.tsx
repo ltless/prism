@@ -157,12 +157,12 @@ export function CompareBottomBar({ item, score, isBest, showInfo, items, scores,
                 unoptimized
               />
               {idx === bestIndex && (
-                <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-primary rounded text-[11px] font-medium text-primary-foreground">
+                <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-primary rounded-md text-[11px] font-medium text-primary-foreground">
                   Best
                 </div>
               )}
               <div className={cn(
-                "absolute bottom-0.5 right-0.5 px-1 py-0.5 rounded text-[11px] font-medium text-white",
+                "absolute bottom-0.5 right-0.5 px-1 py-0.5 rounded-md text-[11px] font-medium text-white",
                 thumbScore.total > 0.7 ? "bg-emerald-500/80" : thumbScore.total > 0.4 ? "bg-amber-500/80" : "bg-rose-500/80"
               )}>
                 {(thumbScore.total * 100).toFixed(0)}

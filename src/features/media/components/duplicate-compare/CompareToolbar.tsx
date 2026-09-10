@@ -31,7 +31,7 @@ export function CompareToolbar({ activeIndex, totalItems, isBest, zoom, showInfo
           {activeIndex + 1}<span className="text-white/40">/{totalItems}</span>
         </span>
         {isBest && (
-          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-primary/80 rounded">
+          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-primary/80 rounded-md">
             <Sparkle size={9} weight="fill" className="text-white" />
             <span className="text-[11px] font-medium text-white">Best</span>
           </div>

@@ -96,49 +96,46 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 	}
 	offset := (page - 1) * limit
 
-	var total int
+	// ponytail: still OFFSET-based; all current callers use page 1 so deep-page
+	// cost is moot. Switch to keyset (created_at < $last) when a UI pages deeply.
 	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status`
+	// Total is computed in the same query via a window function — one round
+	// trip and one scan instead of a separate COUNT(*) query per request.
+	const totalCol = "__total"
 
+	var total int
 	if dedup {
-		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause)
-		if err := tdb.QueryRow(countQuery, args...).Scan(&total); err != nil {
-			return nil, fmt.Errorf("count dedup: %w", err)
-	}
-		query := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
+		query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, whereClause, limit, offset)
+		) ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
 
 		rows, err := tdb.Query(query, args...)
 		if err != nil {
 			return nil, fmt.Errorf("query media dedup: %w", err)
-	}
+		}
 		defer rows.Close()
 
 		var items []MediaItem
 		for rows.Next() {
-			item, err := scanMediaItem(rows)
+			item, t, err := scanMediaItemWithTotal(rows, totalCol)
 			if err != nil {
 				return nil, fmt.Errorf("scan media: %w", err)
 			}
+			total = t
 			items = append(items, *item)
-	}
+		}
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("rows iteration: %w", err)
-	}
+		}
 		if items == nil {
 			items = []MediaItem{}
-	}
+		}
 		return &ListResponse{Items: items, Total: total}, nil
 	}
 
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media WHERE %s", whereClause)
-	if err := tdb.QueryRow(countQuery, args...).Scan(&total); err != nil {
-		return nil, fmt.Errorf("count media: %w", err)
-	}
-
-	query := fmt.Sprintf(`SELECT %s FROM media WHERE %s ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, whereClause, limit, offset)
+	query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE %s ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
 
 	rows, err := tdb.Query(query, args...)
 	if err != nil {
@@ -148,10 +145,11 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 
 	var items []MediaItem
 	for rows.Next() {
-		item, err := scanMediaItem(rows)
+		item, t, err := scanMediaItemWithTotal(rows, totalCol)
 		if err != nil {
 			return nil, fmt.Errorf("scan media: %w", err)
-	}
+		}
+		total = t
 		items = append(items, *item)
 	}
 	if err := rows.Err(); err != nil {
@@ -249,6 +247,66 @@ func scanMediaItemRow(row rowScanner) (*MediaItem, error) {
 
 func scanMediaItem(rows *sql.Rows) (*MediaItem, error) {
 	return scanMediaItemRow(rows)
+}
+
+// scanMediaItemWithTotal scans a row that carries an extra trailing COUNT(*)
+// OVER() column (aliased totalCol) — see List.
+func scanMediaItemWithTotal(rows *sql.Rows, totalCol string) (*MediaItem, int, error) {
+	var item MediaItem
+	var fav, trashBool, vaultBool bool
+	var capturedAt, updatedAt, createdAt sql.NullInt64
+	var meta, transcodeStatus sql.NullString
+	var width, height, duration sql.NullInt64
+	var folderID sql.NullString
+	var total int
+
+	err := rows.Scan(
+		&item.ID, &item.Title, &item.FilePath, &item.MimeType, &item.Size,
+		&width, &height, &item.Hash,
+		&folderID, &fav, &trashBool, &vaultBool,
+		&capturedAt, &updatedAt, &createdAt,
+		&meta, &duration, &transcodeStatus,
+		&total,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	item.IsFavorite = fav
+	item.IsTrash = trashBool
+	item.IsVault = vaultBool
+	if folderID.Valid {
+		item.FolderID = &folderID.String
+	}
+	if capturedAt.Valid {
+		item.CapturedAt = &capturedAt.Int64
+	}
+	if updatedAt.Valid {
+		item.UpdatedAt = &updatedAt.Int64
+	}
+	if createdAt.Valid {
+		item.CreatedAt = &createdAt.Int64
+	}
+	if meta.Valid {
+		item.Metadata = &meta.String
+	}
+	if width.Valid {
+		w := int(width.Int64)
+		item.Width = &w
+	}
+	if height.Valid {
+		h := int(height.Int64)
+		item.Height = &h
+	}
+	if duration.Valid {
+		d := int(duration.Int64)
+		item.Duration = &d
+	}
+	if transcodeStatus.Valid {
+		item.TranscodeStatus = &transcodeStatus.String
+	}
+
+	return &item, total, nil
 }
 
 func sanitizeTitle(s string) string {

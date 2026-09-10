@@ -176,86 +176,33 @@ func (h *Handler) Upload(c echo.Context) error {
 
 	isVideo := len(mimeType) >= 5 && mimeType[:5] == "video"
 
-	var width, height *int
-	var capturedAt *int64
-	var metadataJSON *string
-	var duration *int
-	var transcodeStatus *string
-
-	if !isVideo {
-		// Read back from disk for metadata extraction (images only; bounded by
-		// AllowedExtensions so max ~200MB but realistically <50MB).
-		data, err := os.ReadFile(mediaPath)
-		if err == nil {
-			meta, err := mw.ExtractImageMetadata(data)
-			if err == nil {
-				width = &meta.Width
-				height = &meta.Height
-				capturedAt = meta.CapturedAt
-				if len(meta.ExifData) > 0 || len(meta.Palette) > 0 {
-					if len(meta.Palette) > 0 {
-						if meta.ExifData == nil {
-							meta.ExifData = make(map[string]interface{})
-						}
-						meta.ExifData["palette"] = meta.Palette
-					}
-					if b, err := json.Marshal(meta.ExifData); err == nil {
-						s := sanitizeMetadata(string(b))
-						metadataJSON = &s
-					}
-				}
-			} else {
-				log.Printf("Metadata extraction failed: %v", err)
-			}
-		}
-	} else {
-		meta, err := mw.ExtractVideoMetadata(mediaPath)
-		if err == nil {
-			width = &meta.Width
-			height = &meta.Height
-			duration = &meta.Duration
-			if meta.Width > 0 && meta.Height > 0 {
-				md := map[string]interface{}{
-					"codec":  meta.Codec,
-					"width":  meta.Width,
-					"height": meta.Height,
-				}
-				if b, err := json.Marshal(md); err == nil {
-					s := sanitizeMetadata(string(b))
-					metadataJSON = &s
-				}
-			}
-		} else {
-			log.Printf("Video metadata extraction failed: %v", err)
-		}
-		pending := "pending"
-		transcodeStatus = &pending
-	}
-
-	item, isDup, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, size, width, height, capturedAt, metadataJSON, duration, transcodeStatus)
+	// ponytail: EXIF + thumbnail generation moved off the request path — the
+	// client already tolerates late metadata (UI polls / refreshes, thumbnail
+	// 404s fall back to placeholder until it appears). If users need instant
+	// thumbs, move only thumbnail generation back inline.
+	item, isDup, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, size, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		log.Printf("MediaCreate error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	if isDup {
 		_ = h.storage.DeleteFile(claims.UserID, filename)
-		ts := "skipped"
-		if transcodeStatus != nil {
-			ts = *transcodeStatus
-		}
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"success":         true,
 			"isDuplicate":     true,
 			"filename":        filename,
 			"mediaId":         "",
 			"isVideo":         isVideo,
-			"transcodeStatus": ts,
+			"transcodeStatus": "skipped",
 		})
 	}
 
-	ts := "skipped"
-	if transcodeStatus != nil {
-		ts = *transcodeStatus
+	ts := "pending"
+	if isVideo {
+		go h.processVideoMetadataAsync(claims.UserID, item.ID, mediaPath)
+	} else {
+		ts = "async"
+		go h.processImageMetadataAsync(claims.UserID, item.ID, mediaPath)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":         true,
@@ -265,6 +212,89 @@ func (h *Handler) Upload(c echo.Context) error {
 		"isVideo":         isVideo,
 		"transcodeStatus": ts,
 	})
+}
+
+// processImageMetadataAsync generates the thumbnail and extracts EXIF off the
+// request path. Failures are logged and skipped — the media row exists and the
+// grid falls back to the placeholder until the thumbnail lands.
+func (h *Handler) processImageMetadataAsync(userID, mediaID, mediaPath string) {
+	if err := h.storage.GenerateThumbnailForFile(userID, mediaPath); err != nil {
+		log.Printf("async thumbnail: %v", err)
+	}
+
+	data, err := os.ReadFile(mediaPath)
+	if err != nil {
+		log.Printf("async metadata read: %v", err)
+		return
+	}
+	meta, err := mw.ExtractImageMetadata(data)
+	if err != nil {
+		log.Printf("async metadata extract: %v", err)
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if meta.Width > 0 {
+		updates["width"] = meta.Width
+		updates["height"] = meta.Height
+	}
+	if meta.CapturedAt != nil {
+		updates["captured_at"] = *meta.CapturedAt
+	}
+	if len(meta.ExifData) > 0 || len(meta.Palette) > 0 {
+		if len(meta.Palette) > 0 {
+			if meta.ExifData == nil {
+				meta.ExifData = make(map[string]interface{})
+			}
+			meta.ExifData["palette"] = meta.Palette
+		}
+		if b, err := json.Marshal(meta.ExifData); err == nil {
+			updates["metadata"] = sanitizeMetadata(string(b))
+		}
+	}
+	if len(updates) > 0 {
+		if err := h.svc.Update(userID, mediaID, updates); err != nil {
+			log.Printf("async metadata update: %v", err)
+		}
+	}
+}
+
+// processVideoMetadataAsync extracts video metadata + thumbnail, then marks the
+// transcode queue status via the existing Update path.
+func (h *Handler) processVideoMetadataAsync(userID, mediaID, mediaPath string) {
+	if err := h.storage.GenerateThumbnailForFile(userID, mediaPath); err != nil {
+		log.Printf("async video thumbnail: %v", err)
+	}
+
+	updates := map[string]interface{}{}
+	meta, err := mw.ExtractVideoMetadata(mediaPath)
+	if err == nil && meta.Width > 0 && meta.Height > 0 {
+		updates["width"] = meta.Width
+		updates["height"] = meta.Height
+		updates["duration"] = meta.Duration
+		md := map[string]interface{}{
+			"codec":  meta.Codec,
+			"width":  meta.Width,
+			"height": meta.Height,
+		}
+		if b, err := json.Marshal(md); err == nil {
+			updates["metadata"] = sanitizeMetadata(string(b))
+		}
+	} else if err != nil {
+		log.Printf("async video metadata extract: %v", err)
+	}
+
+	if len(updates) > 0 {
+		if err := h.svc.Update(userID, mediaID, updates); err != nil {
+			log.Printf("async video metadata update: %v", err)
+		}
+	}
+	// Mark transcode done so BatchTranscodeStatus polling settles
+	// (frontend polls while status = "pending").
+	done := "done"
+	if err := h.svc.Update(userID, mediaID, map[string]interface{}{"transcode_status": done}); err != nil {
+		log.Printf("async transcode status update: %v", err)
+	}
 }
 
 func (h *Handler) Delete(c echo.Context) error {

@@ -180,6 +180,8 @@ export function DuplicateList({ groups, folderMap = EMPTY_FOLDER_MAP }: { groups
   className="object-cover"
   unoptimized
   priority={idx === 0}
+  loading={idx === 0 ? "eager" : "lazy"}
+  decoding="async"
   onError={() => setImgErrors(prev => new Set(prev).add(item.id))}
   onLoad={() => setImgErrors(prev => { const n = new Set(prev); n.delete(item.id); return n; })}
   />

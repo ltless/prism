@@ -52,7 +52,7 @@ export async function moveMediaToFolderAction(mediaIds: string[], folderId: stri
   if (mediaIds.length === 0) return { success: true as const };
   return safeAction("MoveMediaToFolderAction", async () => {
     await goFetch("/api/v1/media/bulk/move", {
-      method: "POST",
+      method: "PUT",
       body: { media_ids: mediaIds, folder_id: folderId },
     });
     revalidatePath("/dashboard");

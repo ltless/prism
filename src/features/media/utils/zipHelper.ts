@@ -165,7 +165,14 @@ export async function downloadBatchAsZip(items: MediaItem[]): Promise<void> {
  }
  };
 
- const results = await Promise.all(partItems.map(fetchItem));
+ // Run fetch tasks with bounded concurrency to keep RAM and sockets in check.
+ const CONCURRENCY = 4;
+ const results: (ZipEntry | null)[] = [];
+ for (let i = 0; i < partItems.length; i += CONCURRENCY) {
+ const chunk = partItems.slice(i, i + CONCURRENCY);
+ const chunkResults = await Promise.all(chunk.map(fetchItem));
+ results.push(...chunkResults);
+ }
  const validEntries = results.filter((r): r is ZipEntry => r !== null);
 
  if (validEntries.length === 0) continue;

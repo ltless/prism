@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef, memo } from "react";
 import type { AdjustmentState } from "../state/editorState";
-import { applyAdjustments, hasActiveAdjustments } from "../engine/AdjustmentEngine";
+import { applyAdjustmentsAsync } from "../engine/workerClient";
+import { hasActiveAdjustments } from "../engine/AdjustmentEngine";
 
 interface CanvasRendererProps {
   /** URL of the image to render */
@@ -73,10 +74,6 @@ export const CanvasRenderer = memo(forwardRef<CanvasRendererHandle, CanvasRender
       height: number;
     } | null>(null);
 
-    // Reusable working ImageData handed to the engine. The engine mutates it
-    // in place, so we reset it from the cache each frame (working.data.set).
-    // Zero per-frame allocation during a drag once the cache is seeded.
-    const workingImageDataRef = useRef<ImageData | null>(null);
 
     // Compute display dimensions (downscaled) given original size
     const computeDisplayDims = (natW: number, natH: number) => {
@@ -103,6 +100,10 @@ export const CanvasRenderer = memo(forwardRef<CanvasRendererHandle, CanvasRender
     //      miss (image load / maxPreviewSize change) rebuilds via getImageData.
     //   3. The working ImageData is reused across frames (no per-frame alloc)
     //      and reset from the cache each render.
+    // Latest-render-wins: a render started while a previous async render is
+    // still in flight must not clobber the canvas with stale pixels.
+    const renderSeqRef = useRef(0);
+
     const render = () => {
       const canvas = canvasRef.current;
       const img = imgRef.current;
@@ -135,30 +136,27 @@ export const CanvasRenderer = memo(forwardRef<CanvasRendererHandle, CanvasRender
       // drawImage already produced the final frame.
       if (!adjustments || !hasActiveAdjustments(adjustments)) return;
 
+      const seq = ++renderSeqRef.current;
+      const commit = (adjusted: Uint8ClampedArray) => {
+        if (seq !== renderSeqRef.current) return; // stale render
+        if (canvas.width !== dw || canvas.height !== dh) return; // canvas resized meanwhile
+        ctx.putImageData(new ImageData(adjusted as Uint8ClampedArray<ArrayBuffer>, dw, dh), 0, 0);
+      };
+
       const cache = originalImageDataRef.current;
       if (cache && cache.width === dw && cache.height === dh) {
-        // Cache hit: reset working buffer from cache, then run the engine.
-        let working = workingImageDataRef.current;
-        if (!working || working.width !== dw || working.height !== dh) {
-          working = new ImageData(dw, dh);
-          workingImageDataRef.current = working;
-        }
-        working.data.set(cache.data);
-        const adjusted = applyAdjustments(adjustments, working, isDragging);
-        ctx.putImageData(adjusted, 0, 0);
+        // Cache hit: run the engine on the cached pixels in the worker.
+        applyAdjustmentsAsync(adjustments, cache.data, dw, dh, !!isDragging).then(commit);
       } else {
         // Cache miss (image load / maxPreviewSize change): read back once,
-        // seed the cache with a copy, and use the freshly-read buffer as the
-        // working ImageData for this frame.
+        // seed the cache, and run the engine on the freshly-read buffer.
         const src = ctx.getImageData(0, 0, dw, dh);
         originalImageDataRef.current = {
           data: new Uint8ClampedArray(src.data),
           width: dw,
           height: dh,
         };
-        workingImageDataRef.current = src;
-        const adjusted = applyAdjustments(adjustments, src, isDragging);
-        ctx.putImageData(adjusted, 0, 0);
+        applyAdjustmentsAsync(adjustments, src.data, dw, dh, !!isDragging).then(commit);
       }
     };
 
@@ -170,7 +168,6 @@ export const CanvasRenderer = memo(forwardRef<CanvasRendererHandle, CanvasRender
       // Invalidate the pixel cache — the new image has different pixels even
       // if its display dims happen to match the previous one.
       originalImageDataRef.current = null;
-      workingImageDataRef.current = null;
 
       // Clear canvas before loading starts to avoid showing old images
       const canvas = canvasRef.current;

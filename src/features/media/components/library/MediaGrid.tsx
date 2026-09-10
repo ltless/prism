@@ -51,7 +51,12 @@ interface MediaGridProps {
 export const MediaGrid = memo(function MediaGrid({
  items, selectedIds, clipboardIds, isCut, folders, onItemClick, onItemSelect, onDelete, scrollRef
 }: MediaGridProps) {
- const allSelectedIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
+  const allSelectedIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
+  // Thumbnail URLs of selected items (for the multi-drag ghost stack), independent of which card starts the drag.
+  const selectedThumbs = useMemo(
+    () => items.filter(i => selectedIds.has(i.id)).map(i => `/api/v1/media/files/${i.filePath}?thumb=1`),
+    [items, selectedIds]
+  );
  const cols = useColumnCount();
  const fallbackRef = useRef<HTMLDivElement>(null);
  const parentRef = scrollRef ?? fallbackRef;
@@ -116,7 +121,8 @@ export const MediaGrid = memo(function MediaGrid({
          priority={index === 0}
          isSelected={selected}
          isCut={clipboardIds.has(item.id) && isCut}
-         allSelectedIds={allSelectedIds}
+          allSelectedIds={allSelectedIds}
+          selectedThumbs={selectedThumbs}
          onSelect={(shift, ctrl) => onItemSelect(item.id, shift, ctrl)}
          onDelete={onDelete}
          folders={folders}

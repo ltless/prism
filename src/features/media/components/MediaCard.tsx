@@ -13,6 +13,7 @@ import { useTranscodePolling } from "../hooks/useTranscodePolling";
 import { formatDuration } from "@/core/utils/format";
 import { useMediaCardActions } from "../hooks/useMediaCardActions";
 import { RenameModal } from "./RenameModal";
+import { buildDragStack } from "../utils/dragGhost";
 
 function handleDragEnd(e: React.DragEvent) {
   (e.target as HTMLElement).classList.remove("opacity-40");
@@ -25,6 +26,7 @@ export const MediaCard = memo(function MediaCard({
   onSelect,
   onDelete,
   allSelectedIds = [],
+  selectedThumbs = [],
   folders = [],
   priority = false
 }: {
@@ -34,6 +36,7 @@ export const MediaCard = memo(function MediaCard({
   onSelect?: (isShift: boolean, isCtrl: boolean) => void;
   onDelete?: (id: string) => void;
   allSelectedIds?: string[];
+  selectedThumbs?: string[];
   folders?: FolderType[];
   priority?: boolean;
 }) {
@@ -112,35 +115,34 @@ export const MediaCard = memo(function MediaCard({
  { label: "Relocate to Trash", icon: Trash, onClick: () => handleDelete(), variant: "danger" as const }
  ];
 
- const handleDragStart = (e: React.DragEvent) => {
- const idsToMove = isSelected ? allSelectedIds : [item.id];
+  const handleDragStart = (e: React.DragEvent) => {
+    const idsToMove = isSelected ? allSelectedIds : [item.id];
 
- e.dataTransfer.setData("application/prism-media-ids", JSON.stringify(idsToMove));
- e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/prism-media-ids", JSON.stringify(idsToMove));
+    e.dataTransfer.effectAllowed = "move";
 
- // Create a compact ghost preview
- const ghost = document.createElement("div");
- ghost.style.position = "absolute";
- ghost.style.top = "-1000px";
+    const ghost = document.createElement("div");
+    ghost.style.position = "absolute";
+    ghost.style.top = "-1000px";
 
- if (idsToMove.length > 1) {
- ghost.className = "bg-primary text-white px-3 py-1.5 rounded-full text-xs shadow-2xl border border-white/20 ";
- ghost.innerText = `${idsToMove.length} Items Selected`;
- } else {
- ghost.className = "w-16 h-16 rounded-xl border border-white/20 shadow-2xl overflow-hidden bg-black/40";
- const img = document.createElement("img");
- img.src = imageUrl;
- img.className = "w-full h-full object-cover opacity-80";
- ghost.appendChild(img);
- }
+    if (idsToMove.length > 1) {
+      const others = selectedThumbs.filter(t => t !== imageUrl).slice(0, 2);
+      ghost.appendChild(buildDragStack(imageUrl, others, idsToMove.length));
+    } else {
+      ghost.className = "w-16 h-16 rounded-xl border border-white/20 shadow-2xl overflow-hidden bg-black/40";
+      const img = document.createElement("img");
+      img.src = imageUrl;
+      img.className = "w-full h-full object-cover opacity-80";
+      ghost.appendChild(img);
+    }
 
- document.body.appendChild(ghost);
- // Center the ghost image on the cursor
- const xOffset = idsToMove.length > 1 ? 40 : 32;
- const yOffset = idsToMove.length > 1 ? 15 : 32;
- e.dataTransfer.setDragImage(ghost, xOffset, yOffset);
- setTimeout(() => ghost.remove(), 0);
- };
+    document.body.appendChild(ghost);
+    // Center the ghost image on the cursor
+    const xOffset = idsToMove.length > 1 ? 48 : 32;
+    const yOffset = idsToMove.length > 1 ? 48 : 32;
+    e.dataTransfer.setDragImage(ghost, xOffset, yOffset);
+    setTimeout(() => ghost.remove(), 0);
+  };
 
  return (
  <>
@@ -178,6 +180,8 @@ export const MediaCard = memo(function MediaCard({
   alt={item.title}
   fill
   priority={priority}
+  loading={priority ? "eager" : "lazy"}
+  decoding="async"
   sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
   onError={() => setImgError(true)}
   onLoad={() => setImgLoaded(true)}

@@ -92,29 +92,30 @@ func (s *Storage) SaveFileFromReader(userID string, src io.Reader, filename stri
 		return "", "", "", fmt.Errorf("rename file: %w", err)
 	}
 
-	ext := strings.ToLower(filepath.Ext(filename))
-	thumbPath := ""
-	hash := strings.TrimSuffix(filename, ext)
+	// Thumbnails are generated async by the upload handler (off the request
+	// path) — see Handler.processImageMetadataAsync.
+	return filename, mediaPath, "", nil
+}
+
+// GenerateThumbnailForFile creates the thumbnail for a stored media file,
+// dispatching by extension. Called off the request path.
+func (s *Storage) GenerateThumbnailForFile(userID, mediaPath string) error {
+	ext := strings.ToLower(filepath.Ext(mediaPath))
+	hash := strings.TrimSuffix(filepath.Base(mediaPath), ext)
 	tp := filepath.Join(s.thumbDir(userID), hash+".jpg")
+
+	if err := os.MkdirAll(filepath.Dir(tp), 0755); err != nil {
+		return fmt.Errorf("create thumb dir: %w", err)
+	}
 
 	imageExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
 	videoExts := map[string]bool{".mp4": true, ".mov": true, ".webm": true}
-
 	if imageExts[ext] {
-		if err := os.MkdirAll(filepath.Dir(tp), 0755); err == nil {
-			if err := generateThumbnailFromFile(mediaPath, tp); err == nil {
-				thumbPath = tp
-			}
-		}
+		return generateThumbnailFromFile(mediaPath, tp)
 	} else if videoExts[ext] {
-		if err := os.MkdirAll(filepath.Dir(tp), 0755); err == nil {
-			if err := GenerateVideoThumbnail(mediaPath, tp); err == nil {
-				thumbPath = tp
-			}
-		}
+		return GenerateVideoThumbnail(mediaPath, tp)
 	}
-
-	return filename, mediaPath, thumbPath, nil
+	return fmt.Errorf("unsupported thumbnail ext: %s", ext)
 }
 
 func generateThumbnailFromFile(path, outputPath string) error {

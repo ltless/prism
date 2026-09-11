@@ -97,6 +97,34 @@ func (s *Storage) SaveFileFromReader(userID string, src io.Reader, filename stri
 	return filename, mediaPath, "", nil
 }
 
+// SaveProfileImage stores a profile/cover picture under the user's
+// .profile/ directory (outside the media library). ext must already be
+// validated via ValidateUpload. Returns the media-relative path (e.g.
+// ".profile/profile_ab12cd.jpg") suitable for users.image/cover_image.
+func (s *Storage) SaveProfileImage(userID string, data []byte, ext string) (string, error) {
+	mediaDir := s.mediaDir(userID)
+	profileDir := filepath.Join(mediaDir, ".profile")
+	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		return "", fmt.Errorf("create profile dir: %w", err)
+	}
+	filename := "profile_" + uuid.New().String()[:8] + ext
+	relPath := filepath.Join(".profile", filename)
+
+	// Path-traversal guard: same invariant as ServeFile (absPath under mediaDir).
+	absPath, err := filepath.Abs(filepath.Join(mediaDir, relPath))
+	if err != nil {
+		return "", fmt.Errorf("resolve profile path: %w", err)
+	}
+	absDir, err := filepath.Abs(mediaDir)
+	if err != nil || !strings.HasPrefix(absPath, absDir+string(filepath.Separator)) {
+		return "", fmt.Errorf("invalid profile path")
+	}
+	if err := os.WriteFile(absPath, data, 0644); err != nil {
+		return "", fmt.Errorf("write profile image: %w", err)
+	}
+	return relPath, nil
+}
+
 // GenerateThumbnailForFile creates the thumbnail for a stored media file,
 // dispatching by extension. Called off the request path.
 func (s *Storage) GenerateThumbnailForFile(userID, mediaPath string) error {

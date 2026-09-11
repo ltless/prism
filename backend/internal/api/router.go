@@ -21,11 +21,13 @@ import (
 func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, cfg *config.Config) *echo.Echo {
 	e := echo.New()
 
-	// Only trust X-Forwarded-For when explicitly behind a known proxy. Default
-	// (no IPExtractor) uses the socket peer address so attackers cannot spoof
-	// the header to bypass rate limits or audit logs.
+	// Only trust X-Forwarded-For when explicitly behind a known proxy.
+	// Otherwise force the socket peer address — Echo's default RealIP() reads
+	// the XFF header, which would let attackers rotate it to bypass rate limits.
 	if cfg.TrustProxy {
 		e.IPExtractor = echo.ExtractIPFromXFFHeader()
+	} else {
+		e.IPExtractor = echo.ExtractIPDirect()
 	}
 
 	e.Use(appmw.QuietLogger())
@@ -38,12 +40,13 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	e.Use(rl.Middleware())
 
 	authSvc := auth.NewService(global.DB, jwt, cfg.InviteCode, cfg.RequireInvite)
+	authSvc.SetClaimsValidator()
 	authH := auth.NewHandler(authSvc)
 
 	mediaStorage := mediaS.NewStorage(cfg.StoragePath)
 	mediaSvc := mediaH.NewService(tenantPool, configH.NewService(global))
 	mediaSvc.SetGlobalDB(global)
-	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage)
+	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage, cfg.NukeToken)
 
 	folderSvc := folderH.NewService(tenantPool)
 	folderHandler := folderH.NewHandler(folderSvc)
@@ -109,8 +112,9 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	configG.PUT("/storage-default", configHandler.UpdateStorageDefault, auth.RequireAdmin)
 
 	usersSvc := userH.NewService(global, tenantPool)
-	usersHandler := userH.NewHandler(usersSvc)
+	usersHandler := userH.NewHandler(usersSvc, mediaStorage)
 	usersG := protected.Group("/users")
+	usersG.POST("/me/profile-image", usersHandler.UploadProfileImage)
 	usersG.GET("/me", usersHandler.GetProfile)
 	usersG.PUT("/me", usersHandler.UpdateProfile)
 	usersG.PUT("/me/storage-limit", usersHandler.UpdateStorageLimit, auth.RequireAdmin)

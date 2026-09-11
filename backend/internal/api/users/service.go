@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/ltless/prism/internal/db"
+	"github.com/ltless/prism/internal/vault"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -108,20 +109,18 @@ func (s *Service) SetVaultPin(userID, pin string) error {
 }
 
 func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
-	var stored string
-	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = $1", userID).Scan(&stored)
-	if err == sql.ErrNoRows {
-		return false, fmt.Errorf("user not found")
-	}
+	hasPin, ok, err := vault.Verify(s.global.DB, userID, pin)
 	if err != nil {
-		return false, fmt.Errorf("query vault_pin: %w", err)
+		return false, fmt.Errorf("verify vault pin: %w", err)
 	}
-	if stored == "" {
+	if !hasPin {
 		return false, nil
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(stored), []byte(pin)); err != nil {
+	if !ok {
+		vault.RecordFailure(userID)
 		return false, nil
 	}
+	vault.Reset(userID)
 	return true, nil
 }
 

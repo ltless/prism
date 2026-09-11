@@ -15,8 +15,13 @@ CREATE TABLE IF NOT EXISTS users (
     preferences TEXT,
     has_completed_setup BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    password_changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Idempotent add-column for DBs created before password_changed_at existed.
+-- (CREATE TABLE IF NOT EXISTS does not alter existing tables.)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS app_config (
     id TEXT PRIMARY KEY DEFAULT 'global',

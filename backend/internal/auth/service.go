@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -20,6 +21,10 @@ var (
 	ErrInviteRequired     = errors.New("invite code required")
 	ErrInviteInvalid      = errors.New("invalid invite code")
 )
+
+// dummyPasswordHash is a valid bcrypt hash used to equalise login timing for
+// unknown usernames (see Login).
+const dummyPasswordHash = "$2a$10$a4Ehgp16FtY2HONYvsq5Qu4p36RkDxc7D/c1OMA3/vgxjNgBQsymu"
 
 type LoginRequest struct {
 	Username string `json:"username" validate:"required,min=3,max=50"`
@@ -47,6 +52,7 @@ type userRow struct {
 	Image             sql.NullString
 	CoverImage        sql.NullString
 	HasCompletedSetup bool
+	PwdChangedAt      time.Time
 }
 
 type Service struct {
@@ -74,11 +80,15 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 
 	var user userRow
 	err := s.db.QueryRow(
-		"SELECT id, username, password_hash, role FROM users WHERE username = $1",
+		"SELECT id, username, password_hash, role, password_changed_at FROM users WHERE username = $1",
 		req.Username,
-	).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Role)
+	).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Role, &user.PwdChangedAt)
 
 	if err == sql.ErrNoRows {
+		// Run a dummy bcrypt comparison so a non-existent user takes the same
+		// time as a wrong-password attempt — otherwise response timing leaks
+		// which usernames exist.
+		_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(req.Password))
 		return nil, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -89,7 +99,7 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 		return nil, ErrInvalidCredentials
 	}
 
-	token, err := s.jwt.Generate(user.ID, user.Username, user.Role)
+	token, err := s.jwt.Generate(user.ID, user.Username, user.Role, user.PwdChangedAt.Unix())
 	if err != nil {
 		return nil, fmt.Errorf("generate token: %w", err)
 	}
@@ -138,17 +148,17 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 
 	id := uuid.New().String()
 	_, err = s.db.Exec(
-	"INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, 'user')",
+		"INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, 'user')",
 		id, req.Username, string(hash),
 	)
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return nil, ErrUsernameTaken
-	}
+		}
 		return nil, fmt.Errorf("insert user: %w", err)
 	}
 
-	token, err := s.jwt.Generate(id, req.Username, "user")
+	token, err := s.jwt.Generate(id, req.Username, "user", time.Now().Unix())
 	if err != nil {
 		return nil, fmt.Errorf("generate token: %w", err)
 	}
@@ -218,8 +228,39 @@ func (s *Service) ChangePassword(userID, oldPassword, newPassword string) error 
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	_, err = s.db.Exec("UPDATE users SET password_hash = $1 WHERE id = $2", string(newHash), userID)
+	now := time.Now().UTC()
+	// Bumping password_changed_at revokes every previously issued token.
+	_, err = s.db.Exec(
+		"UPDATE users SET password_hash = $1, password_changed_at = $2 WHERE id = $3",
+		string(newHash), now, userID,
+	)
 	return err
+}
+
+// SetClaimsValidator wires the JWT revocation check into the manager:
+// a token is rejected when it was issued before the user's last password
+// change. PwdChangedAt == 0 means a token from before this feature existed —
+// accept it; it expires naturally and any new password change revokes it.
+func (s *Service) SetClaimsValidator() {
+	s.jwt.SetClaimsValidator(func(claims *Claims) error {
+		if claims.PwdChangedAt == 0 {
+			return nil
+		}
+		var changedAt time.Time
+		err := s.db.QueryRow(
+			"SELECT password_changed_at FROM users WHERE id = $1", claims.UserID,
+		).Scan(&changedAt)
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("user not found")
+		}
+		if err != nil {
+			return fmt.Errorf("query pwd_changed_at: %w", err)
+		}
+		if claims.PwdChangedAt < changedAt.Unix() {
+			return fmt.Errorf("password changed after token issue")
+		}
+		return nil
+	})
 }
 
 func isUniqueConstraintErr(err error) bool {

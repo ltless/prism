@@ -3,12 +3,7 @@
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { safeAction } from "@/core/utils/action";
-import { goFetch } from "@/lib/api";
-import { getUserPaths } from "@/core/utils/paths";
-import path from "path";
-import fs from "fs/promises";
-import crypto from "crypto";
-import { detectImageMime, extensionForMime } from "@/core/utils/fileMagic";
+import { goFetch, goFetchUpload } from "@/lib/api";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,32}$/;
@@ -24,34 +19,16 @@ export async function updateProfileImageAction(formData: FormData, type: "image"
     if (!file) throw new Error("No file uploaded");
     if (file.size > MAX_FILE_SIZE_BYTES) throw new Error("File too large (max 5MB)");
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const uploadBody = new FormData();
+    uploadBody.append("file", file);
+    uploadBody.append("type", type);
 
-    const detectedMime = detectImageMime(buffer);
-    if (!detectedMime) throw new Error("File content does not match an allowed image type");
-    const ext = extensionForMime(detectedMime);
-    if (!ext) throw new Error("Unsupported image type");
-
-    const { mediaDir } = await getUserPaths(userId);
-    const profileDir = path.join(mediaDir, ".profile");
-    await fs.mkdir(profileDir, { recursive: true });
-
-    const filename = `${type}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
-    const filePath = path.join(".profile", filename);
-    const absolutePath = path.join(mediaDir, filePath);
-
-    await fs.writeFile(absolutePath, buffer);
-
-    const goKey = type === "coverImage" ? "cover_image" : type;
-    await goFetch("/api/v1/users/me", {
-      method: "PUT",
-      body: { [goKey]: filePath },
-    });
+    const result = await goFetchUpload<{ path: string }>("/api/v1/users/me/profile-image", uploadBody);
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/profile");
 
-    return { path: filePath };
+    return { path: result.path };
   });
 }
 

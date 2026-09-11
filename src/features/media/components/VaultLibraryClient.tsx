@@ -5,6 +5,7 @@ import { Lock, WarningCircle, Gear } from "@phosphor-icons/react";
 import { m, AnimatePresence } from "motion/react";
 import { PinInput } from "@/features/settings/components/PinInput";
 import { verifyVaultPinAction } from "@/features/profile/services/profileActions";
+import { VaultPinProvider } from "../context/VaultPinContext";
 import MediaLibraryClient from "./MediaLibraryClient";
 import type { MediaItem, Folder } from "../types";
 import { toast } from "sonner";
@@ -117,15 +118,18 @@ export default function VaultLibraryClient({
  );
  }
 
- // Case 2: Unlocked State -> render media library
- if (isUnlocked) {
- return (
-  <MediaLibraryClient
-  initialItems={initialItems}
-  folders={folders}
-  />
- );
- }
+  // Case 2: Unlocked State -> render media library. The verified PIN is
+  // provided so un-vault actions can satisfy the server-side check.
+  if (isUnlocked) {
+    return (
+      <VaultPinProvider pin={pin}>
+        <MediaLibraryClient
+          initialItems={initialItems}
+          folders={folders}
+        />
+      </VaultPinProvider>
+    );
+  }
 
  // Case 3: Locked State -> show numeric padlock PIN prompt
  return (

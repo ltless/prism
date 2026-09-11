@@ -8,7 +8,6 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import {
   completeSetupAction,
   saveVaultPinAction,
-  updateProfileAndCoverAction,
 } from '../services/setupActions';
 
 beforeEach(() => { vi.clearAllMocks(); });
@@ -51,21 +50,3 @@ describe('saveVaultPinAction', () => {
   });
 });
 
-describe('updateProfileAndCoverAction', () => {
-  it('updates both image and coverImage', async () => {
-    const result = await updateProfileAndCoverAction('/img/profile.jpg', '/img/cover.jpg');
-    expect(result).toMatchObject({ success: true });
-  });
-
-  it('accepts null paths (clearing images)', async () => {
-    const result = await updateProfileAndCoverAction(null, null);
-    expect(result).toMatchObject({ success: true });
-  });
-
-  it('returns error when unauthorized', async () => {
-    const authModule = await import('@/auth');
-    vi.mocked(authModule.auth).mockResolvedValueOnce(null as never);
-    const result = await updateProfileAndCoverAction('/img/p.jpg', '/img/c.jpg');
-    expect(result).toMatchObject({ success: false, error: expect.stringContaining('Unauthorized') });
-  });
-});

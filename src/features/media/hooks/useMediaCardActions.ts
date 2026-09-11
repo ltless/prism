@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { moveToTrashAction } from "../services/mediaTrashActions";
 import { toggleFavoriteAction } from "../services/mediaFavoriteActions";
 import { toggleVaultAction } from "../services/mediaVaultActions";
+import { useVaultPin } from "../context/VaultPinContext";
 import { renameMediaAction } from "../services/mediaCrud";
 import { moveMediaToFolderAction } from "../services/mediaFolderActions";
 import { downloadUrl } from "@/core/utils/download";
@@ -11,6 +12,7 @@ import type { MediaItem } from "../types";
 
 export function useMediaCardActions(item: MediaItem, onDelete?: (id: string) => void) {
   const router = useRouter();
+  const vaultPin = useVaultPin();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFav, setIsFav] = useState(item.isFavorite ?? false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -70,7 +72,7 @@ export function useMediaCardActions(item: MediaItem, onDelete?: (id: string) => 
 
   const handleToggleVault = async () => {
     const isMovingToVault = !item.isVault;
-    const result = await toggleVaultAction(item.id);
+    const result = await toggleVaultAction(item.id, isMovingToVault ? undefined : (vaultPin ?? undefined));
     if (!result.success) {
       toast.error(result.error || "Failed to update Vault status");
       return;

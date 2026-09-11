@@ -14,7 +14,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (username: string, password: string) => Promise<{ error?: string }>;
-  register: (username: string, password: string) => Promise<{ error?: string; success?: boolean }>;
+  register: (username: string, password: string, inviteCode?: string) => Promise<{ error?: string; success?: boolean }>;
   logout: () => void;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
@@ -86,9 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
         body: JSON.stringify({ username, password }),
       });
-      if (!res.ok) throw new Error(`Login failed: ${res.status}`);
-      const data = await res.json();
-      if (!res.ok) return { error: data.message || "Invalid credentials." };
+      const data = await res.json().catch(() => null);
+      if (!res.ok) return { error: data?.message || "Invalid username or password." };
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
       await refreshProfile();
       return {};
@@ -97,17 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshProfile]);
 
-  const register = useCallback(async (username: string, password: string) => {
+  const register = useCallback(async (username: string, password: string, inviteCode?: string) => {
     try {
       const res = await fetch("/api/v1/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, invite_code: inviteCode || undefined }),
       });
-      if (!res.ok) throw new Error(`Registration failed: ${res.status}`);
-      const data = await res.json();
-      if (!res.ok) return { error: data.message || "Registration failed." };
+      const data = await res.json().catch(() => null);
+      if (!res.ok) return { error: data?.message || `Registration failed: ${res.status}` };
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
       await refreshProfile();
       return { success: true };

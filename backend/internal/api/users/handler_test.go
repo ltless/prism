@@ -32,7 +32,7 @@ func setupUsersHandler(t *testing.T) (*echo.Echo, *Handler, string) {
 	t.Helper()
 	gdb := setupUsersHandlerDB(t)
 	svc := NewService(gdb, nil)
-	h := NewHandler(svc)
+	h := NewHandler(svc, nil)
 
 	jwt := auth.NewJWTManager("test-secret")
 	token, _ := jwt.Generate("user-1", "testuser", "admin")

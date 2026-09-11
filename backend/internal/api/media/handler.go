@@ -3,7 +3,9 @@ package media
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +18,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
 	mw "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/vault"
 )
 
 // controlCharRe matches raw control bytes (0x00-0x1F, 0x7F) and their JSON
@@ -34,12 +37,13 @@ func sanitizeMetadata(s string) string {
 const maxUploadSize = 200 << 20 // 200MB
 
 type Handler struct {
-	svc     *Service
-	storage *mw.Storage
+	svc       *Service
+	storage   *mw.Storage
+	nukeToken string
 }
 
-func NewHandler(svc *Service, storage *mw.Storage) *Handler {
-	return &Handler{svc: svc, storage: storage}
+func NewHandler(svc *Service, storage *mw.Storage, nukeToken string) *Handler {
+	return &Handler{svc: svc, storage: storage, nukeToken: nukeToken}
 }
 
 func (h *Handler) List(c echo.Context) error {
@@ -150,6 +154,14 @@ func (h *Handler) Upload(c echo.Context) error {
 			"isVideo":         false,
 			"transcodeStatus": "skipped",
 		})
+	}
+
+	if err := h.svc.CheckStorageQuota(claims.UserID, size); err != nil {
+		if errors.Is(err, ErrQuotaExceeded) {
+			return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "storage quota exceeded")
+		}
+		log.Printf("CheckStorageQuota error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 
 	tmpFile, err := os.Open(tmpPath)
@@ -327,6 +339,10 @@ func (h *Handler) Update(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
 
+	if err := h.requireVaultUnlock(c, claims, body); err != nil {
+		return err
+	}
+
 	updates := make(map[string]interface{})
 	if title, ok := body["title"]; ok {
 		if s, ok := title.(string); ok {
@@ -356,6 +372,40 @@ func (h *Handler) Update(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+// requireVaultUnlock enforces the vault PIN when a request tries to move
+// media OUT of the vault (is_vault:false). It reads the pin field from the
+// body map and removes it so it never reaches the SQL update.
+func (h *Handler) requireVaultUnlock(c echo.Context, claims *auth.Claims, body map[string]interface{}) error {
+	v, ok := body["is_vault"]
+	if !ok {
+		return nil
+	}
+	b, isBool := v.(bool)
+	if !isBool || b {
+		return nil
+	}
+	pin, _ := body["pin"].(string)
+	delete(body, "pin")
+	return h.checkVaultPin(c, claims, pin)
+}
+
+// checkVaultPin validates the vault PIN with shared lockout accounting.
+func (h *Handler) checkVaultPin(c echo.Context, claims *auth.Claims, pin string) error {
+	if locked, retry := vault.Locked(claims.UserID); locked {
+		c.Response().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+		return echo.NewHTTPError(http.StatusTooManyRequests, "too many failed attempts, try again later")
+	}
+	allowed, err := h.svc.VaultUnlockAllowed(claims.UserID, pin)
+	if err != nil {
+		log.Printf("VaultUnlockAllowed error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	if !allowed {
+		return echo.NewHTTPError(http.StatusForbidden, "invalid vault pin")
+	}
+	return nil
 }
 
 const maxBulkMoveIDs = 500
@@ -493,12 +543,20 @@ func (h *Handler) BulkVault(c echo.Context) error {
 	var body struct {
 		MediaIDs []string `json:"media_ids"`
 		IsVault  bool     `json:"is_vault"`
+		Pin      string   `json:"pin"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
+	}
+	// Moving media out of the vault is a protected operation: require the
+	// vault PIN server-side (the UI lock alone is not a security boundary).
+	if !body.IsVault {
+		if err := h.checkVaultPin(c, claims, body.Pin); err != nil {
+			return err
+		}
 	}
 	val := 0
 	if body.IsVault {
@@ -572,6 +630,10 @@ func (h *Handler) UpdateByHash(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
 
+	if err := h.requireVaultUnlock(c, claims, body); err != nil {
+		return err
+	}
+
 	if err := h.svc.UpdateByHash(claims.UserID, hash, body); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -627,6 +689,17 @@ func (h *Handler) Nuke(c echo.Context) error {
 	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
 		return err
+	}
+
+	// Server-side confirmation gate: the frontend validates the token too,
+	// but it must never be the only line of defense for a destructive op.
+	// No token configured = feature disabled.
+	if h.nukeToken == "" {
+		return echo.NewHTTPError(http.StatusNotFound, "not found")
+	}
+	provided := c.Request().Header.Get("X-Nuke-Token")
+	if subtle.ConstantTimeCompare([]byte(provided), []byte(h.nukeToken)) != 1 {
+		return echo.NewHTTPError(http.StatusForbidden, "invalid confirmation token")
 	}
 
 	if _, err := h.svc.DeleteAll(claims.UserID); err != nil {
@@ -708,13 +781,18 @@ func (h *Handler) Dashboard(c echo.Context) error {
 
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	// Library (root) view shows only unfiled media. An absent folder_id param
+	// means "no folder" — the service maps an empty-string FolderID to
+	// folder_id IS NULL. Without this, filed photos leak into the library.
 	folderID := c.QueryParam("folder_id")
-	favorites := c.QueryParam("is_favorite") == "true"
-
+	unfiled := ""
 	var fID *string
-	if folderID != "" {
+	if folderID == "" {
+		fID = &unfiled
+	} else {
 		fID = &folderID
 	}
+	favorites := c.QueryParam("is_favorite") == "true"
 
 	params := DashboardParams{
 		FolderID:   fID,
@@ -776,6 +854,9 @@ func (h *Handler) SaveEditor(c echo.Context) error {
 	}
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if err := h.storage.ValidateUpload(data, ext); err != nil {
+		return echo.NewHTTPError(http.StatusUnsupportedMediaType, err.Error())
+	}
 	mimeType := header.Header.Get("Content-Type")
 	if mimeType == "" {
 		mimeType = "image/" + strings.TrimPrefix(ext, ".")
@@ -836,6 +917,22 @@ func (h *Handler) SaveEditor(c echo.Context) error {
 			"mediaId":  item.ID,
 			"filePath": newFilePath,
 			"isNew":    false,
+		})
+	}
+
+	// Reuse the existing file when the content already exists (same hash) —
+	// Create would return a nil item for a duplicate and double-store bytes.
+	dup, err := h.svc.FindByHash(claims.UserID, hash)
+	if err != nil {
+		log.Printf("FindByHash error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	if dup != nil {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success":  true,
+			"mediaId":  dup.ID,
+			"filePath": dup.FilePath,
+			"isNew":   false,
 		})
 	}
 

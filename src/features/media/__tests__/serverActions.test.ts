@@ -87,7 +87,7 @@ describe("server actions", () => {
       const result = await moveMediaToFolderAction(["id-1"], "folder-1");
       expect(result).toEqual({ success: true });
       expect(mockedGoFetch).toHaveBeenCalledWith("/api/v1/media/bulk/move", {
-        method: "POST",
+        method: "PUT",
         body: { media_ids: ["id-1"], folder_id: "folder-1" },
       });
     });

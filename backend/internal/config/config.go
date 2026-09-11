@@ -19,6 +19,7 @@ type Config struct {
 	TrustProxy        bool
 	InviteCode        string
 	RequireInvite     bool
+	NukeToken         string
 }
 
 func Load() (*Config, error) {
@@ -41,6 +42,7 @@ func Load() (*Config, error) {
 		TrustProxy:    getEnv("TRUST_PROXY", "false") == "true",
 		InviteCode:    os.Getenv("REGISTRATION_INVITE_CODE"),
 		RequireInvite: getEnv("REQUIRE_INVITE", "true") == "true",
+		NukeToken:     os.Getenv("NUKE_CONFIRMATION_TOKEN"),
 	}
 
 	return cfg, nil

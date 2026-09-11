@@ -3,6 +3,7 @@ package media
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -10,7 +11,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/db"
+	"github.com/ltless/prism/internal/vault"
 )
+
+// ErrQuotaExceeded is returned by CheckStorageQuota when an upload would push
+// the user's total usage past their configured storage_limit.
+var ErrQuotaExceeded = errors.New("storage quota exceeded")
 
 type MediaItem struct {
 	ID              string   `json:"id"`
@@ -50,6 +56,56 @@ func NewService(pool *db.TenantPool, checker config.ActiveChecker) *Service {
 
 func (s *Service) SetGlobalDB(g *db.GlobalDB) {
 	s.globalDB = g
+}
+
+// VaultUnlockAllowed reports whether userID may move media out of the vault.
+// If no vault PIN is configured the operation is allowed; otherwise the PIN
+// must match. Failed attempts share the lockout counter with the PIN verify
+// endpoint.
+func (s *Service) VaultUnlockAllowed(userID, pin string) (bool, error) {
+	if s.globalDB == nil {
+		return false, errors.New("global db not configured")
+	}
+	hasPin, ok, err := vault.Verify(s.globalDB.DB, userID, pin)
+	if err != nil {
+		return false, fmt.Errorf("verify vault pin: %w", err)
+	}
+	if !hasPin {
+		return true, nil
+	}
+	if !ok {
+		vault.RecordFailure(userID)
+		return false, nil
+	}
+	vault.Reset(userID)
+	return true, nil
+}
+
+// CheckStorageQuota returns ErrQuotaExceeded when adding incoming bytes would
+// exceed the user's storage_limit. A nil/NULL/zero limit means unlimited.
+func (s *Service) CheckStorageQuota(userID string, incoming int64) error {
+	if s.globalDB == nil || incoming <= 0 {
+		return nil
+	}
+	var limit sql.NullInt64
+	if err := s.globalDB.DB.QueryRow("SELECT storage_limit FROM users WHERE id = $1", userID).Scan(&limit); err != nil {
+		return fmt.Errorf("query storage limit: %w", err)
+	}
+	if !limit.Valid || limit.Int64 <= 0 {
+		return nil
+	}
+	tdb, err := s.pool.Get(userID)
+	if err != nil {
+		return fmt.Errorf("get tenant db: %w", err)
+	}
+	var used int64
+	if err := tdb.QueryRow("SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", userID).Scan(&used); err != nil {
+		return fmt.Errorf("query storage usage: %w", err)
+	}
+	if used+incoming > limit.Int64 {
+		return ErrQuotaExceeded
+	}
+	return nil
 }
 
 func (s *Service) List(userID string, folderID *string, favorites, trash, vault, dedup bool, search string, page, limit int) (*ListResponse, error) {
@@ -109,7 +165,7 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 	if dedup {
 		query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
+		) ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
 
 		rows, err := tdb.Query(query, args...)
 		if err != nil {
@@ -135,7 +191,7 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 		return &ListResponse{Items: items, Total: total}, nil
 	}
 
-	query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE %s ORDER BY created_at DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
+	query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE %s ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
 
 	rows, err := tdb.Query(query, args...)
 	if err != nil {
@@ -851,7 +907,7 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 	query := fmt.Sprintf(`SELECT id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status
-		FROM media WHERE %s ORDER BY created_at DESC`, whereClause)
+		FROM media WHERE %s ORDER BY created_at DESC, id DESC`, whereClause)
 
 	rows, err := tdb.Query(query, args...)
 	if err != nil {
@@ -1057,7 +1113,7 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 
 		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC`, selectCols, whereClause)
+	) ORDER BY created_at DESC, id DESC`, selectCols, whereClause)
 
 		rows, err := tdb.Query(q, args...)
 		if err != nil {
@@ -1079,7 +1135,7 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 
 		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC`, selectCols, whereClause)
+	) ORDER BY created_at DESC, id DESC`, selectCols, whereClause)
 
 		rows, err := tdb.Query(q, args...)
 		if err != nil {
@@ -1171,7 +1227,7 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 	rows, err := tdb.Query(fmt.Sprintf(
 	`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE AND hash IN (
 			SELECT hash FROM media WHERE user_id = $1 AND is_trash = FALSE GROUP BY hash HAVING COUNT(*) > 1
-	) ORDER BY hash ASC, created_at DESC`, selectCols), userID)
+	) ORDER BY hash ASC, created_at DESC, id DESC`, selectCols), userID)
 	if err != nil {
 		return nil, fmt.Errorf("query exact dupes: %w", err)
 	}

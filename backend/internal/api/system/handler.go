@@ -78,13 +78,24 @@ func (h *Handler) CreateLog(c echo.Context) error {
 	if !validLevels[body.Level] {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid level")
 	}
-	if body.Message == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "message required")
+	if body.Message == "" || len(body.Message) > 4096 {
+		return echo.NewHTTPError(http.StatusBadRequest, "message required (max 4096 chars)")
+	}
+	if body.Meta != nil && len(*body.Meta) > 4096 {
+		return echo.NewHTTPError(http.StatusBadRequest, "meta too long (max 4096 chars)")
+	}
+	if body.Source != nil && len(*body.Source) > 256 {
+		return echo.NewHTTPError(http.StatusBadRequest, "source too long (max 256 chars)")
 	}
 	ts := body.Timestamp
 	if ts == nil {
 		now := time.Now().UTC().Format(time.RFC3339)
 		ts = &now
+	}
+	// Validate timestamp is a real RFC3339 value — the column is text, so
+	// unvalidated input would let arbitrary strings into the DB.
+	if _, err := time.Parse(time.RFC3339, *ts); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp (RFC3339 required)")
 	}
 	if err := h.svc.CreateLogEntry(claims.UserID, body.Level, body.Message, body.Source, body.Meta, *ts); err != nil {
 		log.Printf("CreateLog error: %v", err)

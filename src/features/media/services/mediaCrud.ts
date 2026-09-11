@@ -27,7 +27,12 @@ export async function nukeLibraryAction(confirmToken?: string) {
     return { success: false, error: "Invalid confirmation token" };
   }
   return safeAction("nukeLibrary", async () => {
-    await goFetch("/api/v1/media/nuke", { method: "POST" });
+    // Server-side (Next) check passed — Go independently validates the same
+    // token so the endpoint cannot be hit with a bare authenticated request.
+    await goFetch("/api/v1/media/nuke", {
+      method: "POST",
+      headers: { "X-Nuke-Token": expected },
+    });
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/duplicates");
     revalidatePath("/dashboard/trash");

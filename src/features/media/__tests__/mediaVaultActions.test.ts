@@ -38,6 +38,18 @@ describe("vault actions", () => {
       expect(result).toEqual({ success: true, isVault: false });
     });
 
+    it("sends pin when un-vaulting", async () => {
+      mockedGoFetch
+        .mockResolvedValueOnce({ isVault: true })
+        .mockResolvedValueOnce({ success: true });
+
+      await toggleVaultAction("test-id", "123456");
+      expect(mockedGoFetch).toHaveBeenNthCalledWith(2, "/api/v1/media/bulk/vault", {
+        method: "POST",
+        body: { media_ids: ["test-id"], is_vault: false, pin: "123456" },
+      });
+    });
+
     it("returns error when item not found", async () => {
       mockedGoFetch.mockRejectedValueOnce(new Error("Not found"));
       const result = await toggleVaultAction("nonexistent");

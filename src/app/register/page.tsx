@@ -22,6 +22,7 @@ export default function RegisterPage() {
     const username = formData.get("username") as string;
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirmPassword") as string;
+    const inviteCode = (formData.get("inviteCode") as string).trim();
 
     try {
       if (!username || !password || !confirmPassword) {
@@ -39,7 +40,7 @@ export default function RegisterPage() {
         return;
       }
 
-      const result = await register(username, password);
+      const result = await register(username, password, inviteCode || undefined);
 
       if (result?.error) {
         setError(result.error);
@@ -108,7 +109,7 @@ export default function RegisterPage() {
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="inviteCode" className="text-[11px] font-medium text-muted-text">
-                Invite code <span className="text-muted-text/40">(optional)</span>
+                Invite code
               </label>
               <input
                 id="inviteCode"

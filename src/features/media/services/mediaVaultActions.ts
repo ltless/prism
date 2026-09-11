@@ -8,13 +8,13 @@ interface MediaItem {
   isVault: boolean;
 }
 
-export async function toggleVaultAction(id: string) {
+export async function toggleVaultAction(id: string, pin?: string) {
   return safeAction("ToggleVaultAction", async () => {
     const item = await goFetch<MediaItem>(`/api/v1/media/${id}`);
     const newVal = !item.isVault;
     await goFetch("/api/v1/media/bulk/vault", {
       method: "POST",
-      body: { media_ids: [id], is_vault: newVal },
+      body: { media_ids: [id], is_vault: newVal, ...(newVal ? {} : { pin }) },
     });
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/vault");
@@ -22,11 +22,11 @@ export async function toggleVaultAction(id: string) {
   });
 }
 
-export async function bulkSetVaultAction(ids: string[], isVault: boolean) {
+export async function bulkSetVaultAction(ids: string[], isVault: boolean, pin?: string) {
   return safeAction("BulkSetVaultAction", async () => {
     await goFetch("/api/v1/media/bulk/vault", {
       method: "POST",
-      body: { media_ids: ids, is_vault: isVault },
+      body: { media_ids: ids, is_vault: isVault, ...(isVault ? {} : { pin }) },
     });
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/vault");

@@ -2,6 +2,7 @@
 
 import { useMemo, memo, useState, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { m } from "motion/react";
 import { Check } from "@phosphor-icons/react";
 import { MediaCard } from "../MediaCard";
 import { MediaItem, Folder } from "../../types";
@@ -105,17 +106,19 @@ export const MediaGrid = memo(function MediaGrid({
     >
      {items.slice(row.index * cols, row.index * cols + cols).map((item, i) => {
       const index = row.index * cols + i;
-      const selected = selectedIds.has(item.id);
-      return (
-       <div
-        key={item.id}
-        role="button"
-        tabIndex={0}
-        onClick={(e) => onItemClick(item, e)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onItemClick(item, e as unknown as React.MouseEvent); }}
-        data-media-id={item.id}
-        className="relative group"
-       >
+       const selected = selectedIds.has(item.id);
+       return (
+        <m.div
+         key={item.id}
+         role="button"
+         tabIndex={0}
+         onClick={(e) => onItemClick(item, e)}
+         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onItemClick(item, e as unknown as React.MouseEvent); }}
+         data-media-id={item.id}
+         className="relative group"
+         layout
+         transition={{ type: "spring", stiffness: 500, damping: 40 }}
+        >
         <MediaCard
          item={item}
          priority={index === 0}
@@ -132,7 +135,7 @@ export const MediaGrid = memo(function MediaGrid({
           <Check size={12} weight="bold" className="text-primary-foreground" />
          </div>
         )}
-       </div>
+       </m.div>
       );
      })}
     </div>

@@ -344,3 +344,52 @@ func TestService_SanitizeTitle_Applied(t *testing.T) {
 		t.Fatalf("expected sanitized title, got: %s", item.Title)
 	}
 }
+
+// Regression: the library (root) view must show only unfiled media — a photo
+// moved into a folder disappears from the library, not stays in both places.
+func TestService_GetDashboard_RootViewExcludesFiledMedia(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+
+	unfiled, _, err := svc.Create("test-user", "", "unfiled.jpg", "Unfiled", "image/jpeg", "h-unfiled", 100, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create unfiled: %v", err)
+	}
+	tdb, err := pool.Get("test-user")
+	if err != nil {
+		t.Fatalf("get tenant db: %v", err)
+	}
+	if _, err := tdb.Exec(`INSERT INTO folders (id, user_id, name) VALUES ($1, $2, $3)`, "folder-1", "test-user", "Folder One"); err != nil {
+		t.Fatalf("insert folder: %v", err)
+	}
+	filed, _, err := svc.Create("test-user", "folder-1", "filed.jpg", "Filed", "image/jpeg", "h-filed", 100, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create filed: %v", err)
+	}
+	_ = unfiled
+
+	// Root view: empty-string folder id means folder_id IS NULL.
+	root := strPtr("")
+	resp, err := svc.GetDashboard("test-user", DashboardParams{FolderID: root})
+	if err != nil {
+		t.Fatalf("GetDashboard root: %v", err)
+	}
+	if resp.Total != 1 {
+		t.Fatalf("root view: expected 1 unfiled item, got %d", resp.Total)
+	}
+	for _, it := range resp.Items {
+		if it.ID == filed.ID {
+			t.Fatal("root view leaked a filed media item")
+		}
+	}
+
+	// Folder view still returns the filed item.
+	folder := "folder-1"
+	resp, err = svc.GetDashboard("test-user", DashboardParams{FolderID: &folder})
+	if err != nil {
+		t.Fatalf("GetDashboard folder: %v", err)
+	}
+	if resp.Total != 1 || resp.Items[0].ID != filed.ID {
+		t.Fatalf("folder view: expected the filed item, got %+v", resp.Items)
+	}
+}

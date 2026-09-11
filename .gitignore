@@ -8,7 +8,9 @@ next-env.d.ts
 *.db-shm
 *.db-wal
 backend/server
+backend/prism-server
 AGENTS.md
+outputs/
 *.tsbuildinfo
 /docs/
 

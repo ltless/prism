@@ -2,21 +2,86 @@ package users
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
+	mw "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/vault"
 )
 
 const maxPreferencesSize = 10 * 1024 // 10KB
+const maxProfileImageSize = 5 * 1024 * 1024 // 5MB
 
 type Handler struct {
-	svc *Service
+	svc     *Service
+	storage *mw.Storage
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, storage *mw.Storage) *Handler {
+	return &Handler{svc: svc, storage: storage}
+}
+
+// UploadProfileImage accepts a multipart file + type ("image"|"coverImage"),
+// validates it, stores it under the user's .profile/ dir and points
+// users.image / users.cover_image at it. All file writes go through the Go
+// storage layer — Next.js never touches the filesystem.
+func (h *Handler) UploadProfileImage(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	kind := c.FormValue("type")
+	if kind != "image" && kind != "coverImage" {
+		return echo.NewHTTPError(http.StatusBadRequest, "type must be image or coverImage")
+	}
+
+	file, header, err := c.Request().FormFile("file")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "no file uploaded")
+	}
+	defer file.Close()
+
+	if c.Request().ContentLength > maxProfileImageSize {
+		return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 5MB)")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxProfileImageSize+1))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "read failed")
+	}
+	if len(data) > maxProfileImageSize {
+		return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 5MB)")
+	}
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if err := h.storage.ValidateUpload(data, ext); err != nil {
+		return echo.NewHTTPError(http.StatusUnsupportedMediaType, err.Error())
+	}
+
+	relPath, err := h.storage.SaveProfileImage(claims.UserID, data, ext)
+	if err != nil {
+		log.Printf("SaveProfileImage error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
+	}
+
+	var imageErr error
+	if kind == "image" {
+		imageErr = h.svc.UpdateProfile(claims.UserID, &relPath, nil, nil)
+	} else {
+		imageErr = h.svc.UpdateProfile(claims.UserID, nil, &relPath, nil)
+	}
+	if imageErr != nil {
+		log.Printf("UpdateProfile error: %v", imageErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, "update failed")
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"path": relPath})
 }
 
 func (h *Handler) GetProfile(c echo.Context) error {
@@ -117,6 +182,10 @@ func (h *Handler) VerifyVaultPin(c echo.Context) error {
 	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if locked, retry := vault.Locked(claims.UserID); locked {
+		c.Response().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+		return echo.NewHTTPError(http.StatusTooManyRequests, "too many failed attempts, try again later")
 	}
 	ok, err := h.svc.VerifyVaultPin(claims.UserID, body.Pin)
 	if err != nil {

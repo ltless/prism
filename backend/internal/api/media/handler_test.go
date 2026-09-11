@@ -27,7 +27,7 @@ func setupMediaHandler(t *testing.T) (*echo.Echo, *Handler, string, *auth.JWTMan
 
 	storage := mw.NewStorage(t.TempDir())
 	svc := NewService(pool, nil)
-	handler := NewHandler(svc, storage)
+	handler := NewHandler(svc, storage, "test-nuke-token")
 
 	e := echo.New()
 	e.Use(jwt.Middleware)
@@ -93,7 +93,7 @@ func TestHandler_CreateAndGet(t *testing.T) {
 	token, _ := jwt.Generate("test-user", "testuser", "admin")
 
 	svc := NewService(sharedPool, nil)
-	h := NewHandler(svc, storage)
+	h := NewHandler(svc, storage, "test-nuke-token")
 	e := echo.New()
 	e.Use(jwt.Middleware)
 	e.POST("/api/v1/media", h.Upload)
@@ -224,5 +224,46 @@ func TestHandler_ServeFile_Unauthorized(t *testing.T) {
 	rec := testRequest(e, "GET", "/api/v1/media/files/test.jpg", "", "", "")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestHandler_Nuke_WrongToken(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.POST("/api/v1/media/nuke", h.Nuke)
+
+	req := httptest.NewRequest("POST", "/api/v1/media/nuke", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Nuke-Token", "wrong-token")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rec.Code)
+	}
+}
+
+func TestHandler_Nuke_MissingToken(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.POST("/api/v1/media/nuke", h.Nuke)
+
+	req := httptest.NewRequest("POST", "/api/v1/media/nuke", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rec.Code)
+	}
+}
+
+func TestHandler_Nuke_Valid(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.POST("/api/v1/media/nuke", h.Nuke)
+
+	req := httptest.NewRequest("POST", "/api/v1/media/nuke", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Nuke-Token", "test-nuke-token")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 }

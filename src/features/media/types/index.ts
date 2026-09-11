@@ -50,10 +50,17 @@ export interface MediaItem {
   transcodeStatus?: string | null;
 }
 
+export interface SmartFolderFilter {
+  categories: string[];
+  minScore: number;
+}
+
 export interface Folder {
- id: string;
- name: string;
- color?: string | null;
- parentId?: string | null;
+  id: string;
+  name: string;
+  color?: string | null;
+  parentId?: string | null;
   createdAt?: Date | null;
+  folderType?: "regular" | "smart";
+  smartFilter?: SmartFolderFilter;
 }

@@ -34,10 +34,21 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   ]);
 
   const allFolders = (folderRes.items ?? []).map(mapFolder);
+  const smartFilter = allFolders.find(f => f.id === activeFolderId)?.smartFilter;
+
+  let itemsRes = dashRes;
+  if (smartFilter) {
+    const smartParams = new URLSearchParams({
+      smart: "true",
+      minScore: String(smartFilter.minScore),
+      categories: smartFilter.categories.join(","),
+    });
+    itemsRes = await goFetch<DashboardResponse>(`/api/v1/media/dashboard?${smartParams}`);
+  }
 
   return (
     <MediaLibraryClient
-      initialItems={(dashRes.items ?? []).map(mapMedia)}
+      initialItems={(itemsRes.items ?? []).map(mapMedia)}
       folders={allFolders}
     />
   );

@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { goFetch } from "@/lib/api";
 import { safeAction } from "@/core/utils/action";
 import { FOLDER_COLORS } from "@/core/constants";
+import { SMART_CATEGORIES } from "../utils/smartCategories";
 
-export async function createFolderAction(name: string, color: string = "zinc") {
+export async function createFolderAction(name: string, color: string = "zinc", smart?: { categories: string[]; minScore: number }) {
   return safeAction("CreateFolderAction", async () => {
     const trimmedName = name.trim();
     if (trimmedName.length === 0 || trimmedName.length > 100) {
@@ -14,9 +15,17 @@ export async function createFolderAction(name: string, color: string = "zinc") {
     if (!(color in FOLDER_COLORS)) {
       throw new Error("Invalid folder color");
     }
+    const body: Record<string, unknown> = { name: trimmedName, color, folder_type: "regular" };
+    if (smart && smart.categories.length > 0) {
+      const valid = smart.categories.filter(c => (SMART_CATEGORIES as readonly string[]).includes(c));
+      if (valid.length === 0) throw new Error("No valid categories selected");
+      const minScore = Math.min(Math.max(smart.minScore, 0), 1);
+      body.folder_type = "smart";
+      body.filter_query = JSON.stringify({ categories: valid, minScore });
+    }
     await goFetch("/api/v1/folders", {
       method: "POST",
-      body: { name: trimmedName, color, folder_type: "regular" },
+      body,
     });
     revalidatePath("/dashboard");
     return {};

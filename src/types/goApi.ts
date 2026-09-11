@@ -4,6 +4,7 @@ export type GoFolder = {
   color: string;
   folder_type: string;
   parent_id: string | null;
+  filter_query?: string | null;
   created_at: number;
   updated_at?: number;
 };
@@ -13,12 +14,28 @@ export type FolderListResponse = { items: GoFolder[] };
 import type { Folder, MediaItem } from "@/features/media/types";
 
 export function mapFolder(f: GoFolder): Folder {
+  let smartFilter: Folder["smartFilter"] = undefined;
+  if (f.folder_type === "smart" && f.filter_query) {
+    try {
+      const parsed = JSON.parse(f.filter_query) as { categories?: string[]; minScore?: number };
+      if (Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+        smartFilter = {
+          categories: parsed.categories,
+          minScore: typeof parsed.minScore === "number" ? parsed.minScore : 0,
+        };
+      }
+    } catch {
+      smartFilter = undefined;
+    }
+  }
   return {
     id: f.id,
     name: f.name,
     color: f.color || null,
     parentId: f.parent_id,
     createdAt: f.created_at ? new Date(f.created_at * 1000) : null,
+    folderType: f.folder_type === "smart" ? "smart" : "regular",
+    smartFilter,
   };
 }
 

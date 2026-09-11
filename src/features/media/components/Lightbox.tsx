@@ -8,6 +8,7 @@ import { VideoPlayer } from "./VideoPlayer";
 import { useRouter } from "next/navigation";
 import { ImageEditor } from "./lightbox/ImageEditor";
 import { useTranscodePolling } from "../hooks/useTranscodePolling";
+import { useSlideshow } from "../hooks/useSlideshow";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
 import { LightboxInfoPanel } from "./lightbox/LightboxInfoPanel";
 import { LightboxControls } from "./lightbox/LightboxControls";
@@ -132,6 +133,12 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
 
   const hasCounter = currentIndex !== undefined && totalItems !== undefined;
 
+  // Slideshow: photos only, stops at the end of the list (no wrap-around).
+  const slideshowEnabled = !isVideo && !!onNext && hasCounter
+    ? currentIndex! < totalItems! - 1
+    : false;
+  const [isSlideshow, toggleSlideshow] = useSlideshow(slideshowEnabled, onNext ?? (() => {}));
+
   return (
     <m.div
       initial={{ opacity: 0 }}
@@ -229,6 +236,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
                 onInfoToggle={() => setIsInfoOpen(v => !v)}
                 onPrev={onPrev}
                 onNext={onNext}
+                slideshow={!isVideo && onNext && hasCounter ? { isPlaying: isSlideshow, onToggle: toggleSlideshow } : undefined}
               />
             </div>
 

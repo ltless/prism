@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, FloppyDisk, Spinner, Folder } from "@phosphor-icons/react";
+import { X, FloppyDisk, Spinner, Folder, Sparkle } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import { createFolderAction } from "../services/mediaFolderActions";
+import { SMART_CATEGORIES } from "../utils/smartCategories";
 import { toast } from "sonner";
 import { useFocusTrap } from "@/shared/hooks/useFocusTrap";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
@@ -19,6 +20,8 @@ const COLORS = [
   { id: 'violet', hex: '#8b5cf6' },
 ];
 
+const MIN_SCORE = 0.6;
+
 interface FolderModalProps {
   onClose: () => void;
 }
@@ -27,6 +30,8 @@ export function FolderModal({ onClose }: FolderModalProps) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] = useState("zinc");
+  const [isSmart, setIsSmart] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -39,24 +44,33 @@ export function FolderModal({ onClose }: FolderModalProps) {
     nameInputRef.current?.focus();
   }, []);
 
+  const toggleCategory = (cat: string) => {
+    setCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+  };
+
   const handleSave = async () => {
     if (!name.trim()) { setError("Folder name is required"); return; }
+    if (isSmart && categories.length === 0) { setError("Select at least one category"); return; }
 
- setIsSaving(true);
- setError("");
+    setIsSaving(true);
+    setError("");
 
- try {
- const result = await createFolderAction(name.trim(), selectedColor);
- if (!result.success) {
- setError(result.error || "Failed to create folder");
- return;
- }
- toast.success("Folder created");
- router.refresh();
- onClose();
- } finally {
- setIsSaving(false);
- }
+    try {
+      const result = await createFolderAction(
+        name.trim(),
+        selectedColor,
+        isSmart ? { categories, minScore: MIN_SCORE } : undefined,
+      );
+      if (!result.success) {
+        setError(result.error || "Failed to create folder");
+        return;
+      }
+      toast.success(isSmart ? "Smart folder created" : "Folder created");
+      router.refresh();
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -111,6 +125,47 @@ export function FolderModal({ onClose }: FolderModalProps) {
               ))}
             </div>
           </div>
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => { setIsSmart(v => !v); if (!isSmart) setCategories([]); }}
+              aria-pressed={isSmart}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-colors duration-300 ease-out-expo cursor-pointer",
+                isSmart ? "border-primary/50 bg-primary/5" : "border-main-border/60 hover:bg-surface-bg/60"
+              )}
+            >
+              <Sparkle size={14} weight="fill" className={isSmart ? "text-primary" : "text-muted-text"} />
+              <span className={cn("text-[11px] font-semibold flex-1", isSmart ? "text-main-text" : "text-muted-text")}>
+                Smart Folder
+              </span>
+              <span className={cn("text-[10px] font-bold uppercase tracking-wide", isSmart ? "text-primary" : "text-muted-text/50")}>
+                {isSmart ? "ON" : "OFF"}
+              </span>
+            </button>
+            <p className={cn("text-[10px] text-muted-text px-1 leading-relaxed", !isSmart && "hidden")}>
+              Auto-fills from AI tags. Minimum confidence {(MIN_SCORE * 100).toFixed(0)}%.
+            </p>
+            <div className={cn("flex flex-wrap gap-2", !isSmart && "hidden")} role="group" aria-label="Smart folder categories">
+              {SMART_CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => toggleCategory(cat)}
+                  aria-pressed={categories.includes(cat)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full border text-[10px] font-semibold capitalize transition-colors duration-300 ease-out-expo cursor-pointer",
+                    categories.includes(cat)
+                      ? "border-primary/50 bg-primary/10 text-primary"
+                      : "border-main-border/60 text-muted-text hover:text-main-text"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="p-6 pt-0 flex gap-3">
@@ -128,7 +183,7 @@ export function FolderModal({ onClose }: FolderModalProps) {
             className="flex-[2] py-2 bg-primary text-primary-foreground rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-opacity duration-300 ease-out-expo cursor-pointer"
           >
             {isSaving ? <Spinner size={13} weight="bold" className="animate-spin" /> : <FloppyDisk size={13} weight="light" />}
-            Create Folder
+            {isSmart ? "Create Smart Folder" : "Create Folder"}
           </button>
         </div>
       </div>

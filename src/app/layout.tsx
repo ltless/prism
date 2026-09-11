@@ -14,13 +14,27 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
- title: "Prism v2 // Private Media Intelligence",
- description: "Advanced local-first media management and intelligence platform.",
+  title: "Prism v2 // Private Media Intelligence",
+  description: "Advanced local-first media management and intelligence platform.",
+  applicationName: "Prism",
+  appleWebApp: {
+    capable: true,
+    title: "Prism",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#09090B" },
+    { media: "(prefers-color-scheme: light)", color: "#FAFAFA" },
+  ],
 };
 
 import { Providers } from "@/components/Providers";

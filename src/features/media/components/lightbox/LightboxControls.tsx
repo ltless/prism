@@ -1,7 +1,7 @@
 "use client";
 
 import { m, AnimatePresence } from "motion/react";
-import { X, Download, CaretLeft, CaretRight, Info } from "@phosphor-icons/react";
+import { X, Download, CaretLeft, CaretRight, Info, Play, Pause } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 
 interface NavArrowProps {
@@ -46,9 +46,10 @@ interface TopBarProps {
   onClose: () => void;
   onEdit: () => void;
   onInfoToggle: () => void;
+  slideshow?: { isPlaying: boolean; onToggle: () => void };
 }
 
-function TopBar({ visible, title, mediaUrl, isInfoOpen, hasCounter, currentIndex, totalItems, onClose, onEdit, onInfoToggle }: TopBarProps) {
+function TopBar({ visible, title, mediaUrl, isInfoOpen, hasCounter, currentIndex, totalItems, onClose, onEdit, onInfoToggle, slideshow }: TopBarProps) {
   return (
     <AnimatePresence>
       {visible ? (
@@ -72,6 +73,17 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, hasCounter, currentIndex
             </div>
           </div>
           <div className="flex items-center gap-1.5 pointer-events-auto">
+            {slideshow && (
+              <button
+                type="button"
+                onClick={slideshow.onToggle}
+                aria-label={slideshow.isPlaying ? "Pause slideshow" : "Play slideshow"}
+                aria-pressed={slideshow.isPlaying}
+                className={cn("p-2.5 rounded-md transition-colors cursor-pointer", slideshow.isPlaying ? "bg-white text-black" : "text-white hover:bg-white/15")}
+              >
+                {slideshow.isPlaying ? <Pause size={18} weight="fill" /> : <Play size={18} weight="fill" />}
+              </button>
+            )}
             <button type="button" onClick={onEdit} aria-label="Edit" className="px-3 py-2 hover:bg-white/15 rounded-md text-xs text-white transition-colors cursor-pointer border border-white/10">
               Edit
             </button>
@@ -105,11 +117,12 @@ interface LightboxControlsProps {
   onInfoToggle: () => void;
   onPrev?: () => void;
   onNext?: () => void;
+  slideshow?: { isPlaying: boolean; onToggle: () => void };
 }
 
 export function LightboxControls({
   view, counter, title, mediaUrl, isInfoOpen,
-  onClose, onEdit, onInfoToggle, onPrev, onNext,
+  onClose, onEdit, onInfoToggle, onPrev, onNext, slideshow,
 }: LightboxControlsProps) {
   return (
     <>
@@ -126,6 +139,7 @@ export function LightboxControls({
         onClose={onClose}
         onEdit={onEdit}
         onInfoToggle={onInfoToggle}
+        slideshow={slideshow}
       />
     </>
   );

@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Folder, Trash, Pencil } from "@phosphor-icons/react";
+import { Folder, Trash, Pencil, Sparkle } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import { FOLDER_COLORS } from "@/core/constants";
 import type { Folder as FolderType } from "@/features/media/types";
@@ -147,15 +147,17 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
         {folders.map(folder => {
           const color = FOLDER_COLORS[folder.color || 'zinc'];
           const isSelected = activeFolderId === folder.id;
-          const isOver = dragOverFolderId === folder.id;
+          const isOver = dragOverFolderId === folder.id && !folder.smartFilter;
+          const isSmart = !!folder.smartFilter;
           return (
             <Link
               key={folder.id}
               href={`/dashboard?f=${folder.id}`}
-              onDragOver={(e) => { e.preventDefault(); onDragOver(folder.id); }}
+              onDragOver={(e) => { if (isSmart) return; e.preventDefault(); onDragOver(folder.id); }}
               onDragLeave={() => onDragOver(null)}
-              onDrop={(e) => handleDrop(e, folder.id)}
-              title={folder.name}
+              onDrop={(e) => { if (isSmart) return; handleDrop(e, folder.id); }}
+              title={isSmart ? `${folder.name} (smart)` : folder.name}
+              aria-label={isSmart ? `${folder.name} (smart folder)` : folder.name}
               className={cn(
                 "w-1.5 h-1.5 rounded-full transition-transform duration-200",
                 (isSelected || isOver) && "scale-150"
@@ -185,7 +187,8 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
               folders.map(folder => {
                 const color = FOLDER_COLORS[folder.color || 'zinc'];
                 const isSelected = activeFolderId === folder.id;
-                const isOver = dragOverFolderId === folder.id;
+                const isSmart = !!folder.smartFilter;
+                const isOver = dragOverFolderId === folder.id && !isSmart;
                 const isEditing = editingFolderId === folder.id;
 
                 if (isEditing) {
@@ -196,7 +199,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                         style={{ backgroundColor: `${color}08`, color }}
                       >
                         <div className="w-5 h-5 flex items-center justify-center shrink-0" style={{ color }}>
-                          <Folder size={12} weight="fill" />
+                          {isSmart ? <Sparkle size={12} weight="fill" /> : <Folder size={12} weight="fill" />}
                         </div>
                         <input
                           autoFocus
@@ -221,9 +224,11 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                   <m.div key={folder.id} variants={itemVariants} className="group relative flex items-center">
                     <Link
                       href={`/dashboard?f=${folder.id}`}
-                      onDragOver={(e) => { e.preventDefault(); onDragOver(folder.id); }}
+                      onDragOver={(e) => { if (isSmart) return; e.preventDefault(); onDragOver(folder.id); }}
                       onDragLeave={() => onDragOver(null)}
-                      onDrop={(e) => handleDrop(e, folder.id)}
+                      onDrop={(e) => { if (isSmart) return; handleDrop(e, folder.id); }}
+                      aria-label={isSmart ? `${folder.name} (smart folder)` : folder.name}
+                      title={isSmart ? `${folder.name} (smart folder)` : folder.name}
                       className={cn(
                         "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors duration-150 cursor-pointer min-w-0",
                         (isSelected || isOver)
@@ -239,7 +244,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                         className="w-5 h-5 flex items-center justify-center transition-colors duration-150 shrink-0"
                         style={{ color }}
                       >
-                        <Folder size={12} weight={(isSelected || isOver) ? "fill" : "light"} />
+                        {isSmart ? <Sparkle size={12} weight={(isSelected || isOver) ? "fill" : "light"} /> : <Folder size={12} weight={(isSelected || isOver) ? "fill" : "light"} />}
                       </div>
                       <span className="text-[11px] font-medium truncate flex-1">
                         {folder.name}

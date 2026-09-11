@@ -87,23 +87,23 @@ export const MediaCard = memo(function MediaCard({
  const handleMouseEnter = () => setIsHovered(true);
  const handleMouseLeave = () => { setIsHovered(false); setIsTapped(false); };
 
- const menuItems = [
- { label: "Rename", icon: Pencil, onClick: () => setRenameModalOpen(true) },
- { label: isFav ? "Remove from Favorites" : "Add to Favorites", icon: Heart, onClick: () => handleToggleFavorite() },
- {
- label: "Relocate to Folder",
- icon: FolderSimple,
- onClick: () => { },
- divider: true,
- subItems: [
- { label: "Root Directory", icon: Folder, onClick: () => handleMoveToFolder(null) },
- ...folders.map(f => ({
- label: f.name,
- icon: Folder,
- onClick: () => handleMoveToFolder(f.id)
- }))
- ]
- },
+  const menuItems = [
+    { label: "Rename", icon: Pencil, onClick: () => setRenameModalOpen(true) },
+    { label: isFav ? "Remove from Favorites" : "Add to Favorites", icon: Heart, onClick: () => handleToggleFavorite() },
+    {
+      label: "Relocate to Folder",
+      icon: FolderSimple,
+      onClick: () => { },
+      divider: true,
+      subItems: [
+        { label: "Root Directory", icon: Folder, onClick: () => handleMoveToFolder(null) },
+        ...folders.filter(f => !f.smartFilter).map(f => ({
+          label: f.name,
+          icon: Folder,
+          onClick: () => handleMoveToFolder(f.id)
+        }))
+      ]
+    },
  {
  label: item.isVault ? "Move out of Vault" : "Move to Vault",
  icon: item.isVault ? LockOpen : Lock,

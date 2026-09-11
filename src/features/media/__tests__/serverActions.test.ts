@@ -62,6 +62,40 @@ describe("server actions", () => {
         body: { name: "Photos", color: "blue", folder_type: "regular" },
       });
     });
+
+    it("creates smart folder with filter_query", async () => {
+      mockedGoFetch.mockResolvedValueOnce({ id: "folder-2" });
+      const result = await createFolderAction("Nature picks", "emerald", { categories: ["nature", "outdoor"], minScore: 0.6 });
+      expect(result).toEqual({ success: true });
+      expect(mockedGoFetch).toHaveBeenCalledWith("/api/v1/folders", {
+        method: "POST",
+        body: {
+          name: "Nature picks",
+          color: "emerald",
+          folder_type: "smart",
+          filter_query: JSON.stringify({ categories: ["nature", "outdoor"], minScore: 0.6 }),
+        },
+      });
+    });
+
+    it("rejects smart folder with no valid categories", async () => {
+      const result = await createFolderAction("Bad", "blue", { categories: ["not-a-cat"], minScore: 0.6 });
+      expect(result.success).toBe(false);
+      expect(mockedGoFetch).not.toHaveBeenCalled();
+    });
+
+    it("clamps minScore into [0,1]", async () => {
+      mockedGoFetch.mockResolvedValueOnce({ id: "folder-3" });
+      await createFolderAction("Clamped", "blue", { categories: ["food"], minScore: 5 });
+      const body = mockedGoFetch.mock.calls[0][1]?.body as { filter_query: string };
+      expect(JSON.parse(body.filter_query).minScore).toBe(1);
+    });
+
+    it("rejects empty name", async () => {
+      const result = await createFolderAction("   ", "blue");
+      expect(result.success).toBe(false);
+      expect(mockedGoFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe("deleteFolderAction", () => {

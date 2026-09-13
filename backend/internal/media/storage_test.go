@@ -1,6 +1,7 @@
 package media
 
 import (
+	"encoding/binary"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -82,13 +83,15 @@ func TestValidateUpload_WebP_Invalid(t *testing.T) {
 
 func TestValidateUpload_MP4(t *testing.T) {
 	s := NewStorage(t.TempDir())
-	// Minimal MP4: ftyp box
-	data := []byte{
-		0x00, 0x00, 0x00, 0x18, // box size
-		0x66, 0x74, 0x79, 0x70, // "ftyp"
-	}
-	if err := s.ValidateUpload(data, ".mp4"); err != nil {
-		t.Fatalf("expected valid .mp4, got: %v", err)
+	// MP4s from real devices have varying ftyp box sizes — all valid.
+	sizes := []uint32{0x14, 0x18, 0x1C, 0x20, 0x24}
+	for _, size := range sizes {
+		data := make([]byte, 8)
+		binary.BigEndian.PutUint32(data[0:4], size)
+		copy(data[4:8], "ftyp")
+		if err := s.ValidateUpload(data, ".mp4"); err != nil {
+			t.Fatalf("expected valid .mp4 with ftyp size 0x%X, got: %v", size, err)
+		}
 	}
 }
 
@@ -101,6 +104,41 @@ func TestValidateUpload_MP4_Invalid(t *testing.T) {
 	}
 	if err := s.ValidateUpload(data, ".mp4"); err == nil {
 		t.Fatal("expected error for invalid MP4")
+	}
+}
+
+func TestValidateUpload_MP4_ImplausibleBoxSize(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	for _, size := range []uint32{0, 4, 7, 65, 0xFFFFFFFF} {
+		data := make([]byte, 8)
+		binary.BigEndian.PutUint32(data[0:4], size)
+		copy(data[4:8], "ftyp")
+		if err := s.ValidateUpload(data, ".mp4"); err == nil {
+			t.Fatalf("expected error for implausible ftyp box size %d", size)
+		}
+	}
+}
+
+func TestValidateUpload_MOV_VaryingBoxSize(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// iPhone MOV files commonly use 0x14 or 0x18; other cameras differ.
+	sizes := []uint32{0x14, 0x18, 0x1C, 0x20}
+	for _, size := range sizes {
+		data := make([]byte, 8)
+		binary.BigEndian.PutUint32(data[0:4], size)
+		copy(data[4:8], "ftyp")
+		if err := s.ValidateUpload(data, ".mov"); err != nil {
+			t.Fatalf("expected valid .mov with ftyp size 0x%X, got: %v", size, err)
+		}
+	}
+}
+
+func TestValidateUpload_MOV_Invalid(t *testing.T) {
+	s := NewStorage(t.TempDir())
+	// plausible size but not an ftyp box
+	data := []byte{0x00, 0x00, 0x00, 0x14, 'f', 'r', 'e', 'e'}
+	if err := s.ValidateUpload(data, ".mov"); err == nil {
+		t.Fatal("expected error for invalid MOV")
 	}
 }
 

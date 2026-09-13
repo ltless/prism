@@ -2,6 +2,7 @@ package media
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -368,14 +369,14 @@ var AllowedExtensions = map[string]bool{
 
 // magicSignatures maps extension → required leading bytes.
 // Empty signature means "no magic check" (e.g. heic/heif are complex).
+// mp4/mov are NOT here: their leading 4 bytes are the ftyp box size, which
+// varies per camera/phone. They are validated structurally in ValidateUpload.
 var magicSignatures = map[string][]byte{
 	".jpg":  {0xFF, 0xD8, 0xFF},
 	".jpeg": {0xFF, 0xD8, 0xFF},
 	".png":  {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A},
 	".gif":  {0x47, 0x49, 0x46, 0x38},
 	".webp": {0x52, 0x49, 0x46, 0x46}, // "RIFF"; further check at offset 8 == "WEBP"
-	".mp4":  {0x00, 0x00, 0x00, 0x18}, // ftyp box (size 0x18); check "ftyp" at offset 4
-	".mov":  {0x00, 0x00, 0x00, 0x14}, // ftyp box; check "ftyp" at offset 4
 	".webm": {0x1A, 0x45, 0xDF, 0xA3}, // EBML
 }
 
@@ -385,6 +386,23 @@ func (s *Storage) ValidateUpload(data []byte, ext string) error {
 	ext = strings.ToLower(ext)
 	if !AllowedExtensions[ext] {
 		return fmt.Errorf("file type %s not allowed", ext)
+	}
+	if ext == ".mp4" || ext == ".mov" {
+		// ISO BMFF: leading 4 bytes are the box size (big-endian uint32) —
+		// varies per device, so don't hardcode it. Sanity-check the range
+		// (8..64 covers ftyp with major brand + minor + a few compat brands)
+		// and confirm the box type at offset 4 is "ftyp".
+		if len(data) < 8 {
+			return fmt.Errorf("file too small to validate")
+		}
+		size := binary.BigEndian.Uint32(data[0:4])
+		if size < 8 || size > 64 {
+			return fmt.Errorf("implausible %s box size", ext)
+		}
+		if !bytes.Equal(data[4:8], []byte("ftyp")) {
+			return fmt.Errorf("file content does not match extension %s", ext)
+		}
+		return nil
 	}
 	sig, ok := magicSignatures[ext]
 	if !ok || len(sig) == 0 {
@@ -399,10 +417,6 @@ func (s *Storage) ValidateUpload(data []byte, ext string) error {
 	// WebP: confirm "WEBP" at offset 8.
 	if ext == ".webp" && len(data) >= 12 && !bytes.Equal(data[8:12], []byte("WEBP")) {
 		return fmt.Errorf("invalid webp file")
-	}
-	// MP4/MOV: confirm "ftyp" at offset 4.
-	if (ext == ".mp4" || ext == ".mov") && len(data) >= 8 && !bytes.Equal(data[4:8], []byte("ftyp")) {
-		return fmt.Errorf("invalid %s file", ext)
 	}
 	return nil
 }

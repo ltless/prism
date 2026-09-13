@@ -76,7 +76,9 @@ func (h *Handler) Update(c echo.Context) error {
 		return err
 	}
 
-	var body map[string]interface{}
+	var body struct {
+		Theme string `json:"theme"`
+	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}

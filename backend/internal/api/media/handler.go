@@ -7,18 +7,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/auth"
+	mw "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/vault"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"github.com/labstack/echo/v4"
-	"github.com/ltless/prism/internal/auth"
-	mw "github.com/ltless/prism/internal/media"
-	"github.com/ltless/prism/internal/vault"
 )
 
 // controlCharRe matches raw control bytes (0x00-0x1F, 0x7F) and their JSON
@@ -90,6 +91,56 @@ func (h *Handler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, item)
 }
 
+// streamedUpload is the result of streaming an upload body to a temp file:
+// content hash, byte size, and the temp path (caller must remove it).
+type streamedUpload struct {
+	hash     string
+	filename string
+	size     int64
+	tmpPath  string
+}
+
+// streamUploadToTemp validates magic bytes and streams the multipart file to
+// a temp file while hashing it — bounded memory, single pass.
+func (h *Handler) streamUploadToTemp(file multipart.File, header *multipart.FileHeader) (*streamedUpload, error) {
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+
+	// Stream to temp file while hashing; only the first 512 bytes are kept
+	// in memory for magic-byte validation.
+	headBuf := make([]byte, 512)
+	n, err := io.ReadFull(file, headBuf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "read file failed")
+	}
+	head := headBuf[:n]
+
+	if err := h.storage.ValidateUpload(head, ext); err != nil {
+		return nil, echo.NewHTTPError(http.StatusUnsupportedMediaType, err.Error())
+	}
+
+	tmp, err := os.CreateTemp("", "prism-upload-*")
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
+	}
+	tmpPath := tmp.Name()
+
+	hasher := sha256.New()
+	size, err := io.Copy(tmp, io.TeeReader(io.MultiReader(bytes.NewReader(head), io.LimitReader(file, maxUploadSize+1-int64(n))), hasher))
+	if err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "save failed")
+	}
+	tmp.Close()
+	if size > maxUploadSize {
+		os.Remove(tmpPath)
+		return nil, echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 200MB)")
+	}
+
+	hash := fmt.Sprintf("%x", hasher.Sum(nil))
+	return &streamedUpload{hash: hash, filename: hash + ext, size: size, tmpPath: tmpPath}, nil
+}
+
 func (h *Handler) Upload(c echo.Context) error {
 	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
@@ -106,57 +157,33 @@ func (h *Handler) Upload(c echo.Context) error {
 	}
 	defer file.Close()
 
-	ext := strings.ToLower(filepath.Ext(header.Filename))
-
-	// Stream to temp file while hashing; only the first 512 bytes are kept
-	// in memory for magic-byte validation.
-	headBuf := make([]byte, 512)
-	n, err := io.ReadFull(file, headBuf)
-	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return echo.NewHTTPError(http.StatusInternalServerError, "read file failed")
-	}
-	head := headBuf[:n]
-
-	if err := h.storage.ValidateUpload(head, ext); err != nil {
-		return echo.NewHTTPError(http.StatusUnsupportedMediaType, err.Error())
-	}
-
-	tmp, err := os.CreateTemp("", "prism-upload-*")
+	up, err := h.streamUploadToTemp(file, header)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
+		return err
 	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-
-	hasher := sha256.New()
-	size, err := io.Copy(tmp, io.TeeReader(io.MultiReader(bytes.NewReader(head), io.LimitReader(file, maxUploadSize+1-int64(n))), hasher))
-	if err != nil {
-		tmp.Close()
-		return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
-	}
-	tmp.Close()
-	if size > maxUploadSize {
-		return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 200MB)")
-	}
-
-	hash := fmt.Sprintf("%x", hasher.Sum(nil))
-	filename := hash + ext
+	defer os.Remove(up.tmpPath)
 
 	// Skip the write entirely if the hash is already in the DB. The UNIQUE
 	// constraint on hash is the final authority; this is an optimisation that
-	// avoids orphan files on disk.
-	if exists, err := h.svc.HashExists(claims.UserID, hash); err == nil && exists {
+	// avoids orphan files on disk. A HashExists failure must not be treated as
+	// "not a duplicate" — fail the request instead of risking a double write.
+	exists, err := h.svc.HashExists(claims.UserID, up.hash)
+	if err != nil {
+		log.Printf("HashExists error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	if exists {
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"success":         true,
 			"isDuplicate":     true,
-			"filename":        filename,
+			"filename":        up.filename,
 			"mediaId":         "",
 			"isVideo":         false,
 			"transcodeStatus": "skipped",
 		})
 	}
 
-	if err := h.svc.CheckStorageQuota(claims.UserID, size); err != nil {
+	if err := h.svc.CheckStorageQuota(claims.UserID, up.size); err != nil {
 		if errors.Is(err, ErrQuotaExceeded) {
 			return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "storage quota exceeded")
 		}
@@ -164,13 +191,13 @@ func (h *Handler) Upload(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 
-	tmpFile, err := os.Open(tmpPath)
+	tmpFile, err := os.Open(up.tmpPath)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
 	}
 	defer tmpFile.Close()
 
-	_, mediaPath, _, err := h.storage.SaveFileFromReader(claims.UserID, tmpFile, filename)
+	_, mediaPath, _, err := h.storage.SaveFileFromReader(claims.UserID, tmpFile, up.filename)
 	if err != nil {
 		log.Printf("SaveFile error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -192,34 +219,34 @@ func (h *Handler) Upload(c echo.Context) error {
 	// client already tolerates late metadata (UI polls / refreshes, thumbnail
 	// 404s fall back to placeholder until it appears). If users need instant
 	// thumbs, move only thumbnail generation back inline.
-	item, isDup, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, size, nil, nil, nil, nil, nil, nil)
+	item, isDup, err := h.svc.Create(claims.UserID, "", up.filename, title, mimeType, up.hash, up.size, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		log.Printf("MediaCreate error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	if isDup {
-		_ = h.storage.DeleteFile(claims.UserID, filename)
+		_ = h.storage.DeleteFile(claims.UserID, up.filename)
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"success":         true,
 			"isDuplicate":     true,
-			"filename":        filename,
+			"filename":        up.filename,
 			"mediaId":         "",
 			"isVideo":         isVideo,
 			"transcodeStatus": "skipped",
 		})
 	}
 
-	ts := "pending"
+	ts := "async"
 	if isVideo {
+		ts = "pending"
 		go h.processVideoMetadataAsync(claims.UserID, item.ID, mediaPath)
 	} else {
-		ts = "async"
 		go h.processImageMetadataAsync(claims.UserID, item.ID, mediaPath)
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":         true,
 		"isDuplicate":     false,
-		"filename":        filename,
+		"filename":        up.filename,
 		"mediaId":         item.ID,
 		"isVideo":         isVideo,
 		"transcodeStatus": ts,
@@ -326,6 +353,18 @@ func (h *Handler) Delete(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
+// mediaUpdateBody is the validated PATCH /media/:id payload. Pointer fields
+// distinguish "absent" (nil) from "present but null/zero" — maps cannot.
+type mediaUpdateBody struct {
+	Title    *string          `json:"title"`
+	Metadata *json.RawMessage `json:"metadata"`
+	FolderID *string          `json:"folder_id"`
+	Favorite *bool            `json:"is_favorite"`
+	Trash    *bool            `json:"is_trash"`
+	Vault    *bool            `json:"is_vault"`
+	Pin      string           `json:"pin"`
+}
+
 func (h *Handler) Update(c echo.Context) error {
 	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
@@ -334,34 +373,19 @@ func (h *Handler) Update(c echo.Context) error {
 
 	id := c.Param("id")
 
-	var body map[string]interface{}
+	var body mediaUpdateBody
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
 
-	if err := h.requireVaultUnlock(c, claims, body); err != nil {
-		return err
+	// Vault gate: leaving the vault requires the PIN regardless of transport.
+	if body.Vault != nil && !*body.Vault {
+		if err := h.checkVaultPin(c, claims, body.Pin); err != nil {
+			return err
+		}
 	}
 
-	updates := make(map[string]interface{})
-	if title, ok := body["title"]; ok {
-		if s, ok := title.(string); ok {
-			updates["title"] = sanitizeTitle(s)
-		}
-	}
-	if metadata, ok := body["metadata"]; ok {
-		updates["metadata"] = metadata
-	}
-	if folderID, ok := body["folder_id"]; ok {
-		updates["folder_id"] = folderID
-	}
-	for _, field := range []string{"is_favorite", "is_trash", "is_vault"} {
-		if v, ok := body[field]; ok {
-			if b, ok := v.(bool); ok {
-				updates[field] = boolToInt(b)
-			}
-		}
-	}
+	updates := updateMapFrom(body)
 
 	if len(updates) == 0 {
 		return echo.NewHTTPError(http.StatusBadRequest, "no fields to update")
@@ -375,20 +399,38 @@ func (h *Handler) Update(c echo.Context) error {
 }
 
 // requireVaultUnlock enforces the vault PIN when a request tries to move
-// media OUT of the vault (is_vault:false). It reads the pin field from the
-// body map and removes it so it never reaches the SQL update.
-func (h *Handler) requireVaultUnlock(c echo.Context, claims *auth.Claims, body map[string]interface{}) error {
-	v, ok := body["is_vault"]
-	if !ok {
+// media OUT of the vault (is_vault:false). The pin never reaches the SQL
+// update — updateMapFrom omits it.
+func (h *Handler) requireVaultUnlock(c echo.Context, claims *auth.Claims, body mediaUpdateBody) error {
+	if body.Vault == nil || *body.Vault {
 		return nil
 	}
-	b, isBool := v.(bool)
-	if !isBool || b {
-		return nil
+	return h.checkVaultPin(c, claims, body.Pin)
+}
+
+// updateMapFrom converts the typed request body into the update map consumed
+// by Service.Update/UpdateByHash. Only explicitly-provided fields are set.
+func updateMapFrom(body mediaUpdateBody) map[string]interface{} {
+	updates := make(map[string]interface{})
+	if body.Title != nil {
+		updates["title"] = sanitizeTitle(*body.Title)
 	}
-	pin, _ := body["pin"].(string)
-	delete(body, "pin")
-	return h.checkVaultPin(c, claims, pin)
+	if body.Metadata != nil {
+		updates["metadata"] = string(*body.Metadata)
+	}
+	if body.FolderID != nil {
+		updates["folder_id"] = *body.FolderID
+	}
+	if body.Favorite != nil {
+		updates["is_favorite"] = boolToInt(*body.Favorite)
+	}
+	if body.Trash != nil {
+		updates["is_trash"] = boolToInt(*body.Trash)
+	}
+	if body.Vault != nil {
+		updates["is_vault"] = boolToInt(*body.Vault)
+	}
+	return updates
 }
 
 // checkVaultPin validates the vault PIN with shared lockout accounting.
@@ -461,8 +503,8 @@ func (h *Handler) BulkFavorite(c echo.Context) error {
 		return err
 	}
 	var body struct {
-		MediaIDs    []string `json:"media_ids"`
-		IsFavorite  bool     `json:"is_favorite"`
+		MediaIDs   []string `json:"media_ids"`
+		IsFavorite bool     `json:"is_favorite"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
@@ -625,7 +667,7 @@ func (h *Handler) UpdateByHash(c echo.Context) error {
 
 	hash := c.Param("hash")
 
-	var body map[string]interface{}
+	var body mediaUpdateBody
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
@@ -634,7 +676,7 @@ func (h *Handler) UpdateByHash(c echo.Context) error {
 		return err
 	}
 
-	if err := h.svc.UpdateByHash(claims.UserID, hash, body); err != nil {
+	if err := h.svc.UpdateByHash(claims.UserID, hash, updateMapFrom(body)); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 
@@ -648,9 +690,9 @@ func (h *Handler) Search(c echo.Context) error {
 	}
 
 	params := SearchParams{
-		Query:    c.QueryParam("q"),
-		Page:     parseInt(c.QueryParam("page")),
-		Limit:    parseInt(c.QueryParam("limit")),
+		Query: c.QueryParam("q"),
+		Page:  parseInt(c.QueryParam("page")),
+		Limit: parseInt(c.QueryParam("limit")),
 	}
 
 	folderID := c.QueryParam("folder_id")
@@ -833,29 +875,41 @@ func (h *Handler) Duplicates(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func (h *Handler) SaveEditor(c echo.Context) error {
-	claims, err := auth.GetClaimsOrErr(c)
-	if err != nil {
-		return err
-	}
+// editorUpload is the parsed/validated payload of a save-editor request.
+type editorUpload struct {
+	item     *MediaItem
+	data     []byte
+	mimeType string
+	hash     string
+	filename string
+	width    int
+	height   int
+	palette  []string
+}
 
-	mediaID := c.Param("id")
-	overwrite := c.FormValue("overwrite") == "true"
-
+// readEditorUpload validates the multipart body, the size cap, magic bytes,
+// and extracts image geometry — everything shared by overwrite and copy paths.
+func (h *Handler) readEditorUpload(c echo.Context, claims *auth.Claims, mediaID string) (*editorUpload, error) {
 	file, header, err := c.Request().FormFile("file")
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "no file uploaded")
+		return nil, echo.NewHTTPError(http.StatusBadRequest, "no file uploaded")
 	}
 	defer file.Close()
 
-	data, err := io.ReadAll(file)
+	// Belt-and-suspenders with the 70MB route BodyLimit: cap the read too so
+	// bypassed/absent Content-Length can't balloon server memory.
+	const maxEditorImageSize = 70 << 20
+	data, err := io.ReadAll(io.LimitReader(file, maxEditorImageSize+1))
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "read failed")
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "read failed")
+	}
+	if len(data) > maxEditorImageSize {
+		return nil, echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 70MB)")
 	}
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	if err := h.storage.ValidateUpload(data, ext); err != nil {
-		return echo.NewHTTPError(http.StatusUnsupportedMediaType, err.Error())
+		return nil, echo.NewHTTPError(http.StatusUnsupportedMediaType, err.Error())
 	}
 	mimeType := header.Header.Get("Content-Type")
 	if mimeType == "" {
@@ -864,65 +918,74 @@ func (h *Handler) SaveEditor(c echo.Context) error {
 
 	item, err := h.svc.Get(claims.UserID, mediaID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "media not found")
+		return nil, echo.NewHTTPError(http.StatusNotFound, "media not found")
 	}
 
-	hash := fmt.Sprintf("%x", sha256.Sum256(data))
-	filename := hash + ext
+	up := &editorUpload{
+		item:     item,
+		data:     data,
+		mimeType: mimeType,
+		hash:     fmt.Sprintf("%x", sha256.Sum256(data)),
+		filename: "",
+	}
+	up.filename = up.hash + ext
 
-	var width, height int
-	var palette []string
-	meta, err := mw.ExtractImageMetadata(data)
-	if err == nil {
-		width = meta.Width
-		height = meta.Height
-		palette = meta.Palette
+	if meta, err := mw.ExtractImageMetadata(data); err == nil {
+		up.width, up.height, up.palette = meta.Width, meta.Height, meta.Palette
+	}
+	return up, nil
+}
+
+// saveEditorOverwrite rewrites the source media row in place, reusing the
+// stored bytes when the edited output hash-matches another record.
+func (h *Handler) saveEditorOverwrite(c echo.Context, claims *auth.Claims, up *editorUpload) error {
+	item := up.item
+
+	otherShared, err := h.svc.IsSharedPath(claims.UserID, item.FilePath, item.ID)
+	if err != nil {
+		log.Printf("IsSharedPath error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 
-	if overwrite {
-		otherShared, err := h.svc.IsSharedPath(claims.UserID, item.FilePath, item.ID)
-		if err != nil {
-			log.Printf("IsSharedPath error: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
-		}
-		dup, err := h.svc.FindByHash(claims.UserID, hash)
-		if err != nil {
-			log.Printf("FindByHash error: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
-		}
-
-		newFilePath := filename
-		if dup != nil && dup.ID != item.ID {
-			newFilePath = dup.FilePath
-		} else {
-			_, _, _, err := h.storage.SaveFileFromBytes(claims.UserID, data, filename)
-			if err != nil {
-				log.Printf("SaveFile error: %v", err)
-				return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
-			}
-		}
-
-		metaJSON := buildEditorMetadata(item.Metadata, palette)
-		if err := h.svc.SaveEditorOverwrite(claims.UserID, item.ID, newFilePath, hash, width, height, int64(len(data)), mimeType, metaJSON); err != nil {
-			log.Printf("SaveEditorOverwrite error: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "update failed")
-		}
-
-		if newFilePath != item.FilePath && !otherShared {
-			h.storage.DeleteFile(claims.UserID, item.FilePath)
-		}
-
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"success":  true,
-			"mediaId":  item.ID,
-			"filePath": newFilePath,
-			"isNew":    false,
-		})
+	newFilePath := up.filename
+	if dup, err := h.svc.FindByHash(claims.UserID, up.hash); err != nil {
+		log.Printf("FindByHash error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	} else if dup != nil && dup.ID != item.ID {
+		newFilePath = dup.FilePath
+	} else if _, _, _, err := h.storage.SaveFileFromBytes(claims.UserID, up.data, up.filename); err != nil {
+		log.Printf("SaveFile error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
 	}
 
+	metaJSON, err := buildEditorMetadata(item.Metadata, up.palette)
+	if err != nil {
+		log.Printf("buildEditorMetadata error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "stored metadata unreadable")
+	}
+	if err := h.svc.SaveEditorOverwrite(claims.UserID, item.ID, newFilePath, up.hash, up.width, up.height, int64(len(up.data)), up.mimeType, metaJSON); err != nil {
+		log.Printf("SaveEditorOverwrite error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "update failed")
+	}
+
+	if newFilePath != item.FilePath && !otherShared {
+		h.storage.DeleteFile(claims.UserID, item.FilePath)
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"success":  true,
+		"mediaId":  item.ID,
+		"filePath": newFilePath,
+		"isNew":    false,
+	})
+}
+
+// saveEditorAsCopy stores the edited output as a new media record, reusing
+// existing bytes when the hash already exists.
+func (h *Handler) saveEditorAsCopy(c echo.Context, claims *auth.Claims, up *editorUpload) error {
 	// Reuse the existing file when the content already exists (same hash) —
 	// Create would return a nil item for a duplicate and double-store bytes.
-	dup, err := h.svc.FindByHash(claims.UserID, hash)
+	dup, err := h.svc.FindByHash(claims.UserID, up.hash)
 	if err != nil {
 		log.Printf("FindByHash error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -932,23 +995,26 @@ func (h *Handler) SaveEditor(c echo.Context) error {
 			"success":  true,
 			"mediaId":  dup.ID,
 			"filePath": dup.FilePath,
-			"isNew":   false,
+			"isNew":    false,
 		})
 	}
 
-	_, _, _, err = h.storage.SaveFileFromBytes(claims.UserID, data, filename)
-	if err != nil {
+	if _, _, _, err := h.storage.SaveFileFromBytes(claims.UserID, up.data, up.filename); err != nil {
 		log.Printf("SaveFile error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "save failed")
 	}
 
-	title := "Copy of " + item.Title
-	metaJSON := buildEditorMetadata(nil, palette)
+	metaJSON, err := buildEditorMetadata(nil, up.palette)
+	if err != nil {
+		log.Printf("buildEditorMetadata error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "metadata build failed")
+	}
 	var md *string
 	if metaJSON != "" {
 		md = &metaJSON
 	}
-	newItem, _, err := h.svc.Create(claims.UserID, "", filename, title, mimeType, hash, int64(len(data)), &width, &height, nil, md, nil, nil)
+
+	newItem, _, err := h.svc.Create(claims.UserID, "", up.filename, "Copy of "+up.item.Title, up.mimeType, up.hash, int64(len(up.data)), &up.width, &up.height, nil, md, nil, nil)
 	if err != nil {
 		log.Printf("Create error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "create failed")
@@ -957,27 +1023,48 @@ func (h *Handler) SaveEditor(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":  true,
 		"mediaId":  newItem.ID,
-		"filePath": filename,
+		"filePath": up.filename,
 		"isNew":    true,
 	})
 }
 
-func buildEditorMetadata(existingMeta *string, palette []string) string {
+func (h *Handler) SaveEditor(c echo.Context) error {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
+		return err
+	}
+
+	up, err := h.readEditorUpload(c, claims, c.Param("id"))
+	if err != nil {
+		return err
+	}
+
+	if c.FormValue("overwrite") == "true" {
+		return h.saveEditorOverwrite(c, claims, up)
+	}
+	return h.saveEditorAsCopy(c, claims, up)
+}
+
+func buildEditorMetadata(existingMeta *string, palette []string) (string, error) {
 	md := make(map[string]interface{})
 	if existingMeta != nil && *existingMeta != "" {
-		json.Unmarshal([]byte(*existingMeta), &md)
+		// Corrupt stored JSON must not silently erase the user's metadata —
+		// fail the save instead of writing an empty object over it.
+		if err := json.Unmarshal([]byte(*existingMeta), &md); err != nil {
+			return "", fmt.Errorf("parse existing metadata: %w", err)
+		}
 	}
 	if len(palette) > 0 {
 		md["palette"] = palette
 	}
 	if len(md) == 0 {
-		return ""
+		return "", nil
 	}
 	b, err := json.Marshal(md)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("marshal metadata: %w", err)
 	}
-	return string(b)
+	return string(b), nil
 }
 
 func parseInt(s string) int {

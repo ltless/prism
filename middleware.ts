@@ -19,6 +19,17 @@ const RATE_LIMITS = [
 
 const ipCounters = new Map<string, { count: number; resetAt: number }>();
 
+// Mirror of the Go rate limiter's TRUST_PROXY rule (backend/internal/middleware/ratelimit.go):
+// only honor X-Forwarded-For when the operator opted in — otherwise attackers
+// rotate the header to mint unlimited rate-limit keys.
+function clientIp(request: NextRequest): string {
+  const xff = request.headers.get("x-forwarded-for");
+  if (process.env.TRUST_PROXY === "true" && xff) {
+    return xff.split(",")[0].trim();
+  }
+  return request.headers.get("x-real-ip") ?? "anonymous";
+}
+
 function getRateLimitConfig(pathname: string) {
   return RATE_LIMITS.find((r) => pathname.startsWith(r.prefix));
 }
@@ -93,19 +104,21 @@ export function middleware(request: NextRequest) {
   // rate limit — 10000 per minute per endpoint. basically "please don't spam".
   const rlConfig = getRateLimitConfig(pathname);
   if (rlConfig) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ip = (request as any).ip
-      || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || request.headers.get("x-real-ip")
-      || "anonymous";
-
-    const key = `${rlConfig.prefix}:${ip}`;
+    const key = `${rlConfig.prefix}:${clientIp(request)}`;
     const now = Date.now();
 
+    // Sweep expired entries, then hard-evict the soonest-expiring if still
+    // over cap — expired-only sweeps let a live-key flood grow the Map forever.
     if (ipCounters.size > 1000) {
       for (const [k, v] of ipCounters.entries()) {
         if (now > v.resetAt) {
           ipCounters.delete(k);
+        }
+      }
+      if (ipCounters.size > 1000) {
+        const oldest = [...ipCounters.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt);
+        for (let i = 0; i < 100 && ipCounters.size > 900; i++) {
+          ipCounters.delete(oldest[i][0]);
         }
       }
     }

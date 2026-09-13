@@ -91,9 +91,6 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: 
   return (
   <LayoutGroup>
   <div className="flex flex-col h-full w-full relative select-none overflow-hidden">
- <div className="sticky top-0 z-30 bg-app-bg px-6 pt-4 pb-1">
-  <LibraryHeader selectedCount={selectedIds.size} onClearSelection={() => setSelectedIds(new Set())} />
- </div>
 
  <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
  <UploadZone className="flex-1 flex flex-col h-full">
@@ -170,6 +167,8 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: 
   )}
   </div>
  </UploadZone>
+
+ <LibraryHeader selectedCount={selectedIds.size} onClearSelection={() => setSelectedIds(new Set())} />
  </div>
 
  <BulkActionBar

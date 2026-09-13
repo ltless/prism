@@ -266,8 +266,11 @@ func parseTIFF(data []byte) (map[string]interface{}, *int64) {
 		return 0
 	}
 
+	// Cap the IFD chain: real TIFFs have a handful of IFDs, but crafted EXIF
+	// can make offsets point backwards (A→B→A) and loop forever. 4 IFDs is
+	// the legal maximum structure (IFD0 → Exif → GPS → Interop + IFD1).
 	nextIFD := parseIFD(ifdOffset)
-	for nextIFD > 0 && nextIFD < len(data) {
+	for hops := 0; nextIFD > 0 && nextIFD < len(data) && hops < 4; hops++ {
 		nextIFD = parseIFD(nextIFD)
 	}
 

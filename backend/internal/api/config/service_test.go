@@ -17,7 +17,9 @@ func TestConfigService_Update_EmptyBody(t *testing.T) {
 	gdb := setupConfigTestDB(t)
 	svc := NewService(gdb)
 
-	err := svc.Update(map[string]interface{}{})
+	err := svc.Update(struct {
+		Theme string `json:"theme"`
+	}{})
 	if err != nil {
 		t.Fatalf("Update with empty body: %v", err)
 	}
@@ -27,7 +29,9 @@ func TestConfigService_Update_UnrelatedKey(t *testing.T) {
 	gdb := setupConfigTestDB(t)
 	svc := NewService(gdb)
 
-	err := svc.Update(map[string]interface{}{"unrelated": "value"})
+	err := svc.Update(struct {
+		Theme string `json:"theme"`
+	}{})
 	if err != nil {
 		t.Fatalf("Update unrelated key: %v", err)
 	}

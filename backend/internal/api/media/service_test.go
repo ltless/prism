@@ -2,6 +2,7 @@ package media
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
@@ -22,7 +23,7 @@ func setupTenantDB(t *testing.T) *db.TenantPool {
 	return db.NewTenantPool(sqlDB)
 }
 
-func intPtr(v int) *int { return &v }
+func intPtr(v int) *int       { return &v }
 func strPtr(v string) *string { return &v }
 
 func TestService_List_Empty(t *testing.T) {
@@ -391,5 +392,70 @@ func TestService_GetDashboard_RootViewExcludesFiledMedia(t *testing.T) {
 	}
 	if resp.Total != 1 || resp.Items[0].ID != filed.ID {
 		t.Fatalf("folder view: expected the filed item, got %+v", resp.Items)
+	}
+}
+
+// Regression: Search used to ignore Page/Limit and return the whole library.
+func TestService_Search_Pagination(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+	for i := 0; i < 5; i++ {
+		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i), "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
+	}
+
+	// limit 2 on page 1 → 2 items, total 5
+	resp, err := svc.Search("test-user", SearchParams{Query: "Item", Page: 1, Limit: 2})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items with limit 2, got %d", len(resp.Items))
+	}
+
+	// default limit (unset) must clamp to 100, not unbounded
+	resp, err = svc.Search("test-user", SearchParams{Query: "Item"})
+	if err != nil {
+		t.Fatalf("Search defaults: %v", err)
+	}
+	if len(resp.Items) != 5 {
+		t.Fatalf("expected 5 items with default limit, got %d", len(resp.Items))
+	}
+}
+
+// Regression: GetDashboard used to SELECT the whole library with no LIMIT.
+func TestService_GetDashboard_Pagination(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+	for i := 0; i < 5; i++ {
+		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i), "image/jpeg", fmt.Sprintf("hd%d", i), 100, nil, nil, nil, nil, nil, nil)
+	}
+
+	resp, err := svc.GetDashboard("test-user", DashboardParams{Limit: 2, Page: 1})
+	if err != nil {
+		t.Fatalf("GetDashboard: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items with limit 2, got %d", len(resp.Items))
+	}
+	if resp.Total != 5 {
+		t.Fatalf("expected total 5, got %d", resp.Total)
+	}
+}
+
+// Regression: buildEditorMetadata used to silently drop the user's stored
+// metadata when the stored JSON was corrupt.
+func TestBuildEditorMetadata_CorruptExisting(t *testing.T) {
+	corrupt := "{not valid json"
+	if _, err := buildEditorMetadata(&corrupt, nil); err == nil {
+		t.Fatal("expected error for corrupt existing metadata")
+	}
+
+	good := `{"rating":5}`
+	out, err := buildEditorMetadata(&good, []string{"#ffffff"})
+	if err != nil {
+		t.Fatalf("valid metadata: %v", err)
+	}
+	if out == "" || !strings.Contains(out, "rating") || !strings.Contains(out, "palette") {
+		t.Fatalf("expected merged metadata, got %q", out)
 	}
 }

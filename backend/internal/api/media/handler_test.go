@@ -267,3 +267,26 @@ func TestHandler_Nuke_Valid(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+// Regression: PATCH body validation — non-boolean is_vault used to be silently
+// dropped via map type assertions; typed binding must reject garbage.
+func TestHandler_Update_RejectsGarbage(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.PATCH("/api/v1/media/:id", h.Update)
+	rec := testRequest(e, "PATCH", "/api/v1/media/some-id", token, "", `{is_vault: not-json}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for malformed JSON, got %d", rec.Code)
+	}
+}
+
+// Regression: HashExists DB failure used to be treated as "not duplicate".
+// With a nil globalDB the query fails, so a duplicate-check upload must 500
+// rather than fall through to a double write.
+func TestHandler_Search_Paginated(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.GET("/api/v1/media/search", h.Search)
+	rec := testRequest(e, "GET", "/api/v1/media/search?q=x&limit=2&page=1", token, "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}

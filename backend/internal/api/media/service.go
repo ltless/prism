@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"strings"
-	"time"
 	"github.com/google/uuid"
 	"github.com/ltless/prism/internal/api/config"
 	"github.com/ltless/prism/internal/db"
 	"github.com/ltless/prism/internal/vault"
+	"log"
+	"strings"
+	"time"
 )
 
 // ErrQuotaExceeded is returned by CheckStorageQuota when an upload would push
@@ -19,24 +19,24 @@ import (
 var ErrQuotaExceeded = errors.New("storage quota exceeded")
 
 type MediaItem struct {
-	ID              string   `json:"id"`
-	Title           string   `json:"title"`
-	FilePath        string   `json:"filePath"`
-	MimeType        string   `json:"mimeType"`
-	Size            int64    `json:"size"`
-	Width           *int     `json:"width"`
-	Height          *int     `json:"height"`
-	Hash            string   `json:"hash"`
-	FolderID        *string  `json:"folderId"`
-	IsFavorite      bool     `json:"isFavorite"`
-	IsTrash         bool     `json:"isTrash"`
-	IsVault         bool     `json:"isVault"`
-	CapturedAt      *int64   `json:"capturedAt"`
-	UpdatedAt       *int64   `json:"updatedAt"`
-	CreatedAt       *int64   `json:"createdAt"`
-	Metadata        *string  `json:"metadata"`
-	Duration        *int     `json:"duration"`
-	TranscodeStatus *string  `json:"transcodeStatus"`
+	ID              string  `json:"id"`
+	Title           string  `json:"title"`
+	FilePath        string  `json:"filePath"`
+	MimeType        string  `json:"mimeType"`
+	Size            int64   `json:"size"`
+	Width           *int    `json:"width"`
+	Height          *int    `json:"height"`
+	Hash            string  `json:"hash"`
+	FolderID        *string `json:"folderId"`
+	IsFavorite      bool    `json:"isFavorite"`
+	IsTrash         bool    `json:"isTrash"`
+	IsVault         bool    `json:"isVault"`
+	CapturedAt      *int64  `json:"capturedAt"`
+	UpdatedAt       *int64  `json:"updatedAt"`
+	CreatedAt       *int64  `json:"createdAt"`
+	Metadata        *string `json:"metadata"`
+	Duration        *int    `json:"duration"`
+	TranscodeStatus *string `json:"transcodeStatus"`
 }
 
 type ListResponse struct {
@@ -45,9 +45,9 @@ type ListResponse struct {
 }
 
 type Service struct {
-	pool    *db.TenantPool
-	checker config.ActiveChecker
-	globalDB      *db.GlobalDB
+	pool     *db.TenantPool
+	checker  config.ActiveChecker
+	globalDB *db.GlobalDB
 }
 
 func NewService(pool *db.TenantPool, checker config.ActiveChecker) *Service {
@@ -136,8 +136,8 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 	}
 	if search != "" {
 		where = append(where, fmt.Sprintf("title ILIKE $%d ESCAPE '\\'", argIdx))
-	escaped := strings.ReplaceAll(search, "%", "\\%")
-	escaped = strings.ReplaceAll(escaped, "_", "\\_")
+		escaped := strings.ReplaceAll(search, "%", "\\%")
+		escaped = strings.ReplaceAll(escaped, "_", "\\_")
 		args = append(args, "%"+escaped+"%")
 		argIdx++
 	}
@@ -254,11 +254,11 @@ func scanMediaItemRow(row rowScanner) (*MediaItem, error) {
 	var folderID sql.NullString
 
 	err := row.Scan(
-	&item.ID, &item.Title, &item.FilePath, &item.MimeType, &item.Size,
-	&width, &height, &item.Hash,
-	&folderID, &fav, &trashBool, &vaultBool,
-	&capturedAt, &updatedAt, &createdAt,
-	&meta, &duration, &transcodeStatus,
+		&item.ID, &item.Title, &item.FilePath, &item.MimeType, &item.Size,
+		&width, &height, &item.Hash,
+		&folderID, &fav, &trashBool, &vaultBool,
+		&capturedAt, &updatedAt, &createdAt,
+		&meta, &duration, &transcodeStatus,
 	)
 	if err != nil {
 		return nil, err
@@ -371,17 +371,17 @@ func sanitizeTitle(s string) string {
 	for _, r := range s {
 		if r == '<' {
 			b.WriteString("&lt;")
-	} else if r == '>' {
+		} else if r == '>' {
 			b.WriteString("&gt;")
-	} else if r == '&' {
+		} else if r == '&' {
 			b.WriteString("&amp;")
-	} else if r == '"' {
+		} else if r == '"' {
 			b.WriteString("&quot;")
-	} else if r == '\'' {
+		} else if r == '\'' {
 			b.WriteString("&#39;")
-	} else {
+		} else {
 			b.WriteRune(r)
-	}
+		}
 	}
 	return b.String()
 }
@@ -402,7 +402,7 @@ func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash strin
 	}
 
 	res, err := tdb.Exec(
-	`INSERT INTO media (id, user_id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
+		`INSERT INTO media (id, user_id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT DO NOTHING`,
 		id, userID, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now, now,
@@ -419,13 +419,13 @@ func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash strin
 	return &MediaItem{
 		ID:              id,
 		Title:           title,
-	FilePath:        filePath,
+		FilePath:        filePath,
 		MimeType:        mimeType,
 		Size:            size,
-	Hash:            hash,
+		Hash:            hash,
 		FolderID:        fID,
 		Duration:        duration,
-	TranscodeStatus: transcodeStatus,
+		TranscodeStatus: transcodeStatus,
 	}, false, nil
 }
 
@@ -450,7 +450,7 @@ func (s *Service) SaveEditorOverwrite(userID, mediaID, filePath, hash string, wi
 	}
 	now := time.Now().Unix()
 	_, err = tdb.Exec(
-	`UPDATE media SET file_path = $1, hash = $2, width = $3, height = $4, size = $5, mime_type = $6, metadata = $7, updated_at = $8 WHERE user_id = $9 AND id = $10`,
+		`UPDATE media SET file_path = $1, hash = $2, width = $3, height = $4, size = $5, mime_type = $6, metadata = $7, updated_at = $8 WHERE user_id = $9 AND id = $10`,
 		filePath, hash, width, height, size, mimeType, metadata, now, userID, mediaID,
 	)
 	return err
@@ -468,7 +468,7 @@ func (s *Service) Update(userID, id string, updates map[string]interface{}) erro
 	for k, v := range updates {
 		if !allowedUpdateColumns[k] {
 			continue
-	}
+		}
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", k, argIdx))
 		args = append(args, v)
 		argIdx++
@@ -535,7 +535,7 @@ func (s *Service) BulkMove(userID string, mediaIDs []string, folderID *string) e
 	args := make([]interface{}, 0, len(mediaIDs)+3)
 	args = append(args, folderID, now, userID) // $1, $2, $3
 	for i, id := range mediaIDs {
-	placeholders[i] = fmt.Sprintf("$%d", i+4)
+		placeholders[i] = fmt.Sprintf("$%d", i+4)
 		args = append(args, id)
 	}
 	query := fmt.Sprintf("UPDATE media SET folder_id = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", strings.Join(placeholders, ","))
@@ -554,7 +554,7 @@ func (s *Service) BulkSetField(userID string, mediaIDs []string, field string, v
 	args := make([]interface{}, 0, len(mediaIDs)+3)
 	args = append(args, boolVal, now, userID) // $1, $2, $3
 	for i, id := range mediaIDs {
-	placeholders[i] = fmt.Sprintf("$%d", i+4)
+		placeholders[i] = fmt.Sprintf("$%d", i+4)
 		args = append(args, id)
 	}
 	query := fmt.Sprintf("UPDATE media SET %s = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", field, strings.Join(placeholders, ","))
@@ -584,7 +584,7 @@ func (s *Service) EmptyTrash(userID string) ([]TrashedItem, error) {
 		var item TrashedItem
 		if err := rows.Scan(&item.ID, &item.FilePath); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-	}
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -614,7 +614,7 @@ func (s *Service) ResolveDuplicate(userID, keepID string, deleteIDs []string) er
 	deleteArgs := []interface{}{userID}
 	placeholders := make([]string, len(deleteIDs))
 	for i, id := range deleteIDs {
-	placeholders[i] = fmt.Sprintf("$%d", i+2)
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
 		deleteArgs = append(deleteArgs, id)
 	}
 	query := fmt.Sprintf("DELETE FROM media WHERE user_id = $1 AND id IN (%s)", strings.Join(placeholders, ","))
@@ -658,7 +658,7 @@ func (s *Service) DeleteAll(userID string) ([]TrashedItem, error) {
 		var item TrashedItem
 		if err := rows.Scan(&item.ID, &item.FilePath); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-	}
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -696,7 +696,7 @@ func (s *Service) AutoCleanup(userID string, olderThan *int64) ([]TrashedItem, e
 		var item TrashedItem
 		if err := rows.Scan(&item.ID, &item.FilePath); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-	}
+		}
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -739,7 +739,7 @@ func (s *Service) UpdateByHash(userID, hash string, updates map[string]interface
 	for k, v := range updates {
 		if !allowedUpdateColumns[k] {
 			continue
-	}
+		}
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", k, argIdx))
 		args = append(args, v)
 		argIdx++
@@ -887,9 +887,12 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 	}
 	dedupQuery := fmt.Sprintf("SELECT MIN(id) FROM media WHERE %s GROUP BY hash", strings.Join(dedupBase, " AND "))
 	// Merge dedup args after main args — dedup is a subquery, needs its own param range.
+	// Rewrite $1..$(dedupIdx-1) to continue after the main args. The loop must
+	// cover ALL dedup placeholders ($1 included — user_id), else the subquery
+	// reuses main-query parameter numbers and Postgres sees an arg count mismatch.
 	dedupOffset := len(args)
 	rewrittenDedup := dedupQuery
-	for i := dedupIdx - 2; i >= 1; i-- {
+	for i := dedupIdx - 1; i >= 1; i-- {
 		old := fmt.Sprintf("$%d", i)
 		new := fmt.Sprintf("$%d", dedupOffset+i)
 		rewrittenDedup = strings.Replace(rewrittenDedup, old, new, 1)
@@ -904,10 +907,19 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		return nil, fmt.Errorf("count search: %w", err)
 	}
 
+	// Clamp pagination the same way List does — Search without LIMIT returns
+	// the whole library in one payload.
+	if params.Limit <= 0 || params.Limit > 200 {
+		params.Limit = 100
+	}
+	if params.Page < 1 {
+		params.Page = 1
+	}
+
 	query := fmt.Sprintf(`SELECT id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status
-		FROM media WHERE %s ORDER BY created_at DESC, id DESC`, whereClause)
+		FROM media WHERE %s ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, whereClause, params.Limit, (params.Page-1)*params.Limit)
 
 	rows, err := tdb.Query(query, args...)
 	if err != nil {
@@ -920,7 +932,7 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		item, err := scanMediaItem(rows)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
-	}
+		}
 		items = append(items, *item)
 	}
 	if err := rows.Err(); err != nil {
@@ -946,7 +958,7 @@ func (s *Service) BatchTranscodeStatus(userID string, ids []string) (map[string]
 	}
 
 	if len(ids) > 200 {
-	ids = ids[:200]
+		ids = ids[:200]
 	}
 	if len(ids) == 0 {
 		return map[string]TranscodeStatusResult{}, nil
@@ -955,12 +967,12 @@ func (s *Service) BatchTranscodeStatus(userID string, ids []string) (map[string]
 	placeholders := make([]string, len(ids))
 	args := []interface{}{userID} // $1
 	for i, id := range ids {
-	placeholders[i] = fmt.Sprintf("$%d", i+2)
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
 		args = append(args, id)
 	}
 
 	rows, err := tdb.Query(
-	`SELECT id, transcode_status, duration FROM media WHERE user_id = $1 AND id IN (`+strings.Join(placeholders, ",")+`)`,
+		`SELECT id, transcode_status, duration FROM media WHERE user_id = $1 AND id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
 	if err != nil {
@@ -975,15 +987,15 @@ func (s *Service) BatchTranscodeStatus(userID string, ids []string) (map[string]
 		var dur sql.NullInt64
 		if err := rows.Scan(&id, &ts, &dur); err != nil {
 			continue
-	}
+		}
 		r := TranscodeStatusResult{}
 		if ts.Valid {
 			r.Status = &ts.String
-	}
+		}
 		if dur.Valid {
 			d := int(dur.Int64)
 			r.Duration = &d
-	}
+		}
 		statuses[id] = r
 	}
 	if err := rows.Err(); err != nil {
@@ -1039,6 +1051,16 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 
+	// Clamp pagination like List does — the dashboard used to SELECT the whole
+	// library with no LIMIT on every login.
+	if params.Limit <= 0 || params.Limit > 200 {
+		params.Limit = 100
+	}
+	if params.Page < 1 {
+		params.Page = 1
+	}
+	offset := (params.Page - 1) * params.Limit
+
 	where := []string{"user_id = $1", "is_trash = FALSE", "is_vault = FALSE"}
 	args := []interface{}{userID}
 	argIdx := 2
@@ -1046,112 +1068,27 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	if params.FolderID != nil && len(params.Categories) == 0 {
 		if *params.FolderID == "" {
 			where = append(where, "folder_id IS NULL")
-	} else {
+		} else {
 			where = append(where, fmt.Sprintf("folder_id = $%d", argIdx))
 			args = append(args, *params.FolderID)
 			argIdx++
-	}
+		}
 	}
 	if params.IsFavorite {
 		where = append(where, "is_favorite = TRUE")
 	}
 
-	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
-		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
-		metadata, duration, transcode_status`
-
 	var items []MediaItem
 	var total int
 
 	if len(params.Categories) > 0 {
-	// Smart folder: find media IDs matching categories/score in media_tags
-		tagArgs := []interface{}{userID} // $1 = user_id
-		catPlaceholders := make([]string, len(params.Categories))
-		for i, cat := range params.Categories {
-			catPlaceholders[i] = fmt.Sprintf("$%d", i+2)
-			tagArgs = append(tagArgs, cat)
-	}
-		minScoreIdx := len(params.Categories) + 2
-		tagArgs = append(tagArgs, params.MinScore)
-
-		matchingIDs, err := tdb.Query(
-			fmt.Sprintf(`SELECT DISTINCT media_id FROM media_tags
-			WHERE user_id = $1 AND category IN (%s) AND score >= $%d`,
-				strings.Join(catPlaceholders, ","), minScoreIdx),
-			tagArgs...,
-	)
-		if err != nil {
-			return nil, fmt.Errorf("query smart folder: %w", err)
-	}
-		defer matchingIDs.Close()
-
-		var idList []string
-		for matchingIDs.Next() {
-			var id string
-			if err := matchingIDs.Scan(&id); err == nil {
-				idList = append(idList, id)
-			}
-	}
-		if err := matchingIDs.Err(); err != nil {
-			return nil, fmt.Errorf("rows: %w", err)
-	}
-
-		if len(idList) == 0 {
-			return &DashboardResponse{Items: []MediaItem{}, Total: 0, FolderCounts: map[string]int{}}, nil
-	}
-
-		idPlaceholders := make([]string, len(idList))
-		for i, id := range idList {
-			idPlaceholders[i] = fmt.Sprintf("$%d", argIdx)
-			args = append(args, id)
-			argIdx++
-	}
-		where = append(where, "id IN ("+strings.Join(idPlaceholders, ",")+")")
-		whereClause := strings.Join(where, " AND ")
-
-		tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
-
-		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
-			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC, id DESC`, selectCols, whereClause)
-
-		rows, err := tdb.Query(q, args...)
-		if err != nil {
-			return nil, fmt.Errorf("query smart media: %w", err)
-	}
-		defer rows.Close()
-
-		for rows.Next() {
-			item, err := scanMediaItem(rows)
-			if err != nil {
-				return nil, fmt.Errorf("scan: %w", err)
-			}
-			items = append(items, *item)
-	}
+		items, total, err = s.querySmartFolderMedia(tdb, userID, params, where, args, argIdx, offset)
 	} else {
-		whereClause := strings.Join(where, " AND ")
-
-		tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
-
-		q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
-			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC, id DESC`, selectCols, whereClause)
-
-		rows, err := tdb.Query(q, args...)
-		if err != nil {
-			return nil, fmt.Errorf("query media: %w", err)
+		items, total, err = s.queryDedupedMedia(tdb, where, args, params.Limit, offset)
 	}
-		defer rows.Close()
-
-		for rows.Next() {
-			item, err := scanMediaItem(rows)
-			if err != nil {
-				return nil, fmt.Errorf("scan: %w", err)
-			}
-			items = append(items, *item)
+	if err != nil {
+		return nil, err
 	}
-	}
-
 	if items == nil {
 		items = []MediaItem{}
 	}
@@ -1165,11 +1102,124 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	return &DashboardResponse{Items: items, Total: total, FolderCounts: folderCounts}, nil
 }
 
+const dashboardSelectCols = `id, title, file_path, mime_type, size, width, height, hash,
+	folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
+	metadata, duration, transcode_status`
+
+// queryDedupedMedia returns one row per hash (earliest id) for the plain
+// (non-smart) dashboard view.
+func (s *Service) queryDedupedMedia(tdb *db.TenantDB, where []string, args []interface{}, limit, offset int) ([]MediaItem, int, error) {
+	whereClause := strings.Join(where, " AND ")
+
+	var total int
+	tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
+
+	q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
+		SELECT MIN(id) FROM media WHERE %s GROUP BY hash
+	) ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, dashboardSelectCols, whereClause, limit, offset)
+
+	items, err := scanMediaRows(tdb, q, args)
+	return items, total, err
+}
+
+// querySmartFolderMedia intersects category/score-matching tag IDs with the
+// base dashboard filters, then returns deduped, offset-paged media.
+func (s *Service) querySmartFolderMedia(tdb *db.TenantDB, userID string, params DashboardParams, where []string, args []interface{}, argIdx, offset int) ([]MediaItem, int, error) {
+	tagArgs := []interface{}{userID} // $1 = user_id
+	catPlaceholders := make([]string, len(params.Categories))
+	for i, cat := range params.Categories {
+		catPlaceholders[i] = fmt.Sprintf("$%d", i+2)
+		tagArgs = append(tagArgs, cat)
+	}
+	minScoreIdx := len(params.Categories) + 2
+	tagArgs = append(tagArgs, params.MinScore)
+
+	matchingIDs, err := tdb.Query(
+		fmt.Sprintf(`SELECT DISTINCT media_id FROM media_tags
+		WHERE user_id = $1 AND category IN (%s) AND score >= $%d`,
+			strings.Join(catPlaceholders, ","), minScoreIdx),
+		tagArgs...,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query smart folder: %w", err)
+	}
+	defer matchingIDs.Close()
+
+	idList, err := scanStringIDs(matchingIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(idList) == 0 {
+		return []MediaItem{}, 0, nil
+	}
+
+	for _, id := range idList {
+		args = append(args, id)
+	}
+	// placeholders for the appended ids continue after the base args
+	ph := make([]string, len(idList))
+	for i := range idList {
+		ph[i] = fmt.Sprintf("$%d", argIdx+i)
+	}
+	where = append(where, "id IN ("+strings.Join(ph, ",")+")")
+	whereClause := strings.Join(where, " AND ")
+
+	var total int
+	tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
+
+	q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
+		SELECT MIN(id) FROM media WHERE %s GROUP BY hash
+	) ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, dashboardSelectCols, whereClause, params.Limit, offset)
+
+	items, err := scanMediaRows(tdb, q, args)
+	return items, total, err
+}
+
+// scanMediaRows runs a media SELECT and scans all rows into MediaItems.
+func scanMediaRows(tdb *db.TenantDB, q string, args []interface{}) ([]MediaItem, error) {
+	rows, err := tdb.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query media: %w", err)
+	}
+	defer rows.Close()
+
+	var items []MediaItem
+	for rows.Next() {
+		item, err := scanMediaItem(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows: %w", err)
+	}
+	if items == nil {
+		items = []MediaItem{}
+	}
+	return items, nil
+}
+
+// scanStringIDs drains a single-column string rows cursor.
+func scanStringIDs(rows *sql.Rows) ([]string, error) {
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows: %w", err)
+	}
+	return ids, nil
+}
+
 func computeFolderCounts(tdb *db.TenantDB, userID string) (map[string]int, error) {
 	folderCounts := map[string]int{}
 
 	rows, err := tdb.Query(
-	`SELECT f.id, COUNT(DISTINCT m.id) FROM folders f
+		`SELECT f.id, COUNT(DISTINCT m.id) FROM folders f
 		LEFT JOIN media m ON m.folder_id = f.id AND m.is_trash = FALSE AND m.is_vault = FALSE AND m.user_id = $1
 		WHERE f.user_id = $1
 		GROUP BY f.id`,
@@ -1185,13 +1235,13 @@ func computeFolderCounts(tdb *db.TenantDB, userID string) (map[string]int, error
 		var count int
 		if err := rows.Scan(&folderID, &count); err == nil {
 			folderCounts[folderID] = count
-	}
+		}
 	}
 
 	// Inbox count (media with no folder, excluding smart-tagged items)
 	var inbox int
 	tdb.QueryRow(
-	`SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE user_id = $1 AND is_trash = FALSE AND is_vault = FALSE AND folder_id IS NULL GROUP BY hash)`,
+		`SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE user_id = $1 AND is_trash = FALSE AND is_vault = FALSE AND folder_id IS NULL GROUP BY hash)`,
 		userID,
 	).Scan(&inbox)
 	folderCounts["__inbox__"] = inbox
@@ -1212,6 +1262,12 @@ type DuplicatesResponse struct {
 
 const nearDuplicateThreshold = 0.95
 const maxNearDuplicates = 1000
+const maxExactDuplicateRows = 1000
+
+type embeddedItem struct {
+	item      MediaItem
+	embedding []float64
+}
 
 func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 	tdb, err := s.pool.Get(userID)
@@ -1223,13 +1279,32 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status`
 
-	// 1. Exact duplicates
-	rows, err := tdb.Query(fmt.Sprintf(
-	`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE AND hash IN (
-			SELECT hash FROM media WHERE user_id = $1 AND is_trash = FALSE GROUP BY hash HAVING COUNT(*) > 1
-	) ORDER BY hash ASC, created_at DESC, id DESC`, selectCols), userID)
+	exactGroups, exactHashes, err := s.queryExactDuplicates(tdb, userID, selectCols)
 	if err != nil {
-		return nil, fmt.Errorf("query exact dupes: %w", err)
+		return nil, err
+	}
+
+	withEmb, err := s.queryEmbeddedItems(tdb, userID, selectCols)
+	if err != nil {
+		return nil, err
+	}
+	nearGroups := clusterNearDuplicates(withEmb, exactHashes)
+
+	groups := append(exactGroups, nearGroups...)
+	if groups == nil {
+		groups = []DuplicateGroup{}
+	}
+	return &DuplicatesResponse{Groups: groups}, nil
+}
+
+// queryExactDuplicates returns groups of media sharing a content hash.
+func (s *Service) queryExactDuplicates(tdb *db.TenantDB, userID, selectCols string) ([]DuplicateGroup, map[string]bool, error) {
+	rows, err := tdb.Query(fmt.Sprintf(
+		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE AND hash IN (
+			SELECT hash FROM media WHERE user_id = $1 AND is_trash = FALSE GROUP BY hash HAVING COUNT(*) > 1
+		) ORDER BY hash ASC, created_at DESC, id DESC LIMIT %d`, selectCols, maxExactDuplicateRows), userID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("query exact dupes: %w", err)
 	}
 	defer rows.Close()
 
@@ -1238,111 +1313,109 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 	for rows.Next() {
 		item, err := scanMediaItem(rows)
 		if err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
-	}
+			return nil, nil, fmt.Errorf("scan: %w", err)
+		}
 		if _, ok := groupMap[item.Hash]; !ok {
 			hashOrder = append(hashOrder, item.Hash)
-	}
+		}
 		groupMap[item.Hash] = append(groupMap[item.Hash], *item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows: %w", err)
+		return nil, nil, fmt.Errorf("rows: %w", err)
 	}
 
-	var exactGroups []DuplicateGroup
+	var groups []DuplicateGroup
 	exactHashes := map[string]bool{}
 	for _, hash := range hashOrder {
-		exactGroups = append(exactGroups, DuplicateGroup{
+		groups = append(groups, DuplicateGroup{
 			ID:              "exact-" + hash[:min(8, len(hash))],
 			Hash:            hash,
 			Items:           groupMap[hash],
 			IsNearDuplicate: false,
-	})
+		})
 		exactHashes[hash] = true
 	}
+	return groups, exactHashes, nil
+}
 
-	// 2. Near-duplicates via cosine similarity on embeddings
+// queryEmbeddedItems loads all non-trash media carrying an AI embedding.
+func (s *Service) queryEmbeddedItems(tdb *db.TenantDB, userID, selectCols string) ([]embeddedItem, error) {
 	allRows, err := tdb.Query(fmt.Sprintf(
-	`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE`, selectCols), userID)
+		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE`, selectCols), userID)
 	if err != nil {
 		return nil, fmt.Errorf("query all media: %w", err)
 	}
 	defer allRows.Close()
 
-	type embeddedItem struct {
-		item      MediaItem
-	embedding []float64
-	}
 	var withEmb []embeddedItem
 	for allRows.Next() {
 		item, err := scanMediaItem(allRows)
-		if err != nil {
+		if err != nil || item.Metadata == nil {
 			continue
-	}
-		if item.Metadata == nil {
-			continue
-	}
+		}
 		var meta struct {
 			Embedding []float64 `json:"embedding"`
-	}
-		if err := json.Unmarshal([]byte(*item.Metadata), &meta); err != nil {
+		}
+		if err := json.Unmarshal([]byte(*item.Metadata), &meta); err != nil || len(meta.Embedding) == 0 {
 			continue
+		}
+		withEmb = append(withEmb, embeddedItem{item: *item, embedding: meta.Embedding})
 	}
-		if len(meta.Embedding) > 0 {
-			withEmb = append(withEmb, embeddedItem{item: *item, embedding: meta.Embedding})
+	return withEmb, nil
+}
+
+// clusterNearDuplicates groups embedded items by cosine similarity, skipping
+// items over the cap and clusters already covered by exact-hash groups.
+func clusterNearDuplicates(withEmb []embeddedItem, exactHashes map[string]bool) []DuplicateGroup {
+	if len(withEmb) < 2 {
+		return nil
 	}
+	if len(withEmb) > maxNearDuplicates {
+		log.Printf("Near-duplicate detection skipped: %d embedded items exceed limit of %d", len(withEmb), maxNearDuplicates)
+		return nil
 	}
 
 	var nearGroups []DuplicateGroup
-	if len(withEmb) >= 2 {
-		if len(withEmb) > maxNearDuplicates {
-			log.Printf("Near-duplicate detection skipped: %d embedded items exceed limit of %d", len(withEmb), maxNearDuplicates)
-	} else {
-			visited := map[string]bool{}
-			for i := 0; i < len(withEmb); i++ {
-				a := withEmb[i]
-				if visited[a.item.ID] {
-					continue
-				}
-				cluster := []MediaItem{a.item}
-				for j := i + 1; j < len(withEmb); j++ {
-					b := withEmb[j]
-					if visited[b.item.ID] {
-						continue
-					}
-					if cosineSim(a.embedding, b.embedding) >= nearDuplicateThreshold {
-						cluster = append(cluster, b.item)
-						visited[b.item.ID] = true
-					}
-				}
-				if len(cluster) > 1 {
-					visited[a.item.ID] = true
-					alreadyExact := false
-					for _, it := range cluster {
-						if exactHashes[it.Hash] {
-							alreadyExact = true
-							break
-						}
-					}
-					if !alreadyExact {
-						hash := a.item.Hash
-						nearGroups = append(nearGroups, DuplicateGroup{
-							ID:              fmt.Sprintf("near-%s-%d", hash[:min(8, len(hash))], len(nearGroups)),
-							Hash:            hash,
-							Items:           cluster,
-							IsNearDuplicate: true,
-						})
-					}
-				}
+	visited := map[string]bool{}
+	for i := 0; i < len(withEmb); i++ {
+		a := withEmb[i]
+		if visited[a.item.ID] {
+			continue
+		}
+		cluster := []MediaItem{a.item}
+		for j := i + 1; j < len(withEmb); j++ {
+			b := withEmb[j]
+			if visited[b.item.ID] {
+				continue
 			}
+			if cosineSim(a.embedding, b.embedding) >= nearDuplicateThreshold {
+				cluster = append(cluster, b.item)
+				visited[b.item.ID] = true
+			}
+		}
+		if len(cluster) > 1 {
+			visited[a.item.ID] = true
+			if !clusterHasExactHash(cluster, exactHashes) {
+				hash := a.item.Hash
+				nearGroups = append(nearGroups, DuplicateGroup{
+					ID:              fmt.Sprintf("near-%s-%d", hash[:min(8, len(hash))], len(nearGroups)),
+					Hash:            hash,
+					Items:           cluster,
+					IsNearDuplicate: true,
+				})
+			}
+		}
 	}
-	}
+	return nearGroups
+}
 
-	groups := append(exactGroups, nearGroups...)
-	if groups == nil {
-		groups = []DuplicateGroup{}
+func clusterHasExactHash(cluster []MediaItem, exactHashes map[string]bool) bool {
+	for _, it := range cluster {
+		if exactHashes[it.Hash] {
+			return true
+		}
 	}
-	return &DuplicatesResponse{Groups: groups}, nil
+	return false
 }
 
 func cosineSim(a, b []float64) float64 {

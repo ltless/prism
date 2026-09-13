@@ -29,7 +29,9 @@ func (s *Service) Get() (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
 }
 
-func (s *Service) Update(body map[string]interface{}) error {
+func (s *Service) Update(body struct {
+	Theme string `json:"theme"`
+}) error {
 	return nil
 }
 

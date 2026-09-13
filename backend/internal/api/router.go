@@ -90,7 +90,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	mediaG.GET("/dashboard", mediaHandler.Dashboard)
 	mediaG.GET("/duplicates", mediaHandler.Duplicates)
 	mediaG.GET("/search", mediaHandler.Search)
-	mediaG.POST("/:id/save-editor", mediaHandler.SaveEditor)
+	mediaG.POST("/:id/save-editor", mediaHandler.SaveEditor, echomw.BodyLimit("70MB"))
 	mediaG.PATCH("/hash/:hash", mediaHandler.UpdateByHash)
 	mediaG.POST("/nuke", mediaHandler.Nuke)
 	mediaG.POST("/auto-cleanup", mediaHandler.AutoCleanup)

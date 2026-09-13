@@ -31,6 +31,13 @@ interface MeResponse {
   has_completed_setup?: boolean;
 }
 
+interface LoginResponse {
+  message?: string;
+  user_id?: string;
+  username?: string;
+  role?: string;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,8 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json().catch(() => null);
+      const data: LoginResponse | null = await res.json().catch(() => null);
       if (!res.ok) return { error: data?.message || "Invalid username or password." };
+      if (!data?.user_id || !data.username || !data.role) {
+        return { error: "Malformed server response." };
+      }
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
       await refreshProfile();
       return {};
@@ -104,8 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
         body: JSON.stringify({ username, password, invite_code: inviteCode || undefined }),
       });
-      const data = await res.json().catch(() => null);
+      const data: LoginResponse | null = await res.json().catch(() => null);
       if (!res.ok) return { error: data?.message || `Registration failed: ${res.status}` };
+      if (!data?.user_id || !data.username || !data.role) {
+        return { error: "Malformed server response." };
+      }
       setUser({ id: data.user_id, username: data.username, role: data.role, image: null, coverImage: null, hasCompletedSetup: false });
       await refreshProfile();
       return { success: true };

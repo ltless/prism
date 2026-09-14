@@ -81,6 +81,54 @@ func (s *Service) VaultUnlockAllowed(userID, pin string) (bool, error) {
 	return true, nil
 }
 
+// mediaSelectCols is the standard media column list shared by List/Get/Search
+// and the duplicate/dashboard queries.
+const mediaSelectCols = `id, title, file_path, mime_type, size, width, height, hash,
+	folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
+	metadata, duration, transcode_status`
+
+// listFilters captures the WHERE clauses and bind args for List. It is a
+// straight extraction from List (F13) — no behavior change.
+type listFilters struct {
+	where []string
+	args  []interface{}
+}
+
+// buildListWhere assembles List's filter set: tenant scope, folder,
+// favorites, trash, vault and the escaped title search.
+func buildListWhere(userID string, folderID *string, favorites, trash, vault bool, search string) listFilters {
+	f := listFilters{
+		where: []string{"user_id = $1"},
+		args:  []interface{}{userID},
+	}
+	argIdx := 2
+
+	if !vault {
+		f.where = append(f.where, "is_vault = FALSE")
+	}
+	if folderID != nil {
+		f.where = append(f.where, fmt.Sprintf("folder_id = $%d", argIdx))
+		f.args = append(f.args, *folderID)
+		argIdx++
+	}
+	if favorites {
+		f.where = append(f.where, "is_favorite = TRUE")
+	}
+	if trash {
+		f.where = append(f.where, "is_trash = TRUE")
+	} else if !vault {
+		f.where = append(f.where, "is_trash = FALSE")
+	}
+	if search != "" {
+		f.where = append(f.where, fmt.Sprintf("title ILIKE $%d ESCAPE '\\'", argIdx))
+		escaped := strings.ReplaceAll(search, "%", "\\%")
+		escaped = strings.ReplaceAll(escaped, "_", "\\_")
+		f.args = append(f.args, "%"+escaped+"%")
+		argIdx++
+	}
+	return f
+}
+
 func (s *Service) List(userID string, folderID *string, favorites, trash, vault, dedup bool, search string, page, limit int) (*ListResponse, error) {
 	tdb, err := s.pool.Get(userID)
 	if err != nil {
@@ -88,35 +136,8 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 	}
 	defer tdb.Close()
 
-	where := []string{"user_id = $1"}
-	args := []interface{}{userID}
-	argIdx := 2
-
-	if !vault {
-		where = append(where, "is_vault = FALSE")
-	}
-	if folderID != nil {
-		where = append(where, fmt.Sprintf("folder_id = $%d", argIdx))
-		args = append(args, *folderID)
-		argIdx++
-	}
-	if favorites {
-		where = append(where, "is_favorite = TRUE")
-	}
-	if trash {
-		where = append(where, "is_trash = TRUE")
-	} else if !vault {
-		where = append(where, "is_trash = FALSE")
-	}
-	if search != "" {
-		where = append(where, fmt.Sprintf("title ILIKE $%d ESCAPE '\\'", argIdx))
-		escaped := strings.ReplaceAll(search, "%", "\\%")
-		escaped = strings.ReplaceAll(escaped, "_", "\\_")
-		args = append(args, "%"+escaped+"%")
-		argIdx++
-	}
-
-	whereClause := strings.Join(where, " AND ")
+	f := buildListWhere(userID, folderID, favorites, trash, vault, search)
+	whereClause := strings.Join(f.where, " AND ")
 
 	if limit <= 0 || limit > 500 {
 		limit = 100
@@ -128,69 +149,53 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 
 	// ponytail: still OFFSET-based; all current callers use page 1 so deep-page
 	// cost is moot. Switch to keyset (created_at < $last) when a UI pages deeply.
-	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
-		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
-		metadata, duration, transcode_status`
 	// Total is computed in the same query via a window function — one round
 	// trip and one scan instead of a separate COUNT(*) query per request.
 	const totalCol = "__total"
 
 	var total int
+	var items []MediaItem
 	if dedup {
 		query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE id IN (
 			SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-		) ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
-
-		rows, err := tdb.Query(query, args...)
-		if err != nil {
-			return nil, fmt.Errorf("query media dedup: %w", err)
-		}
-		defer rows.Close()
-
-		var items []MediaItem
-		for rows.Next() {
-			item, t, err := scanMediaItemWithTotal(rows, totalCol)
-			if err != nil {
-				return nil, fmt.Errorf("scan media: %w", err)
-			}
-			total = t
-			items = append(items, *item)
-		}
-		if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("rows iteration: %w", err)
-		}
-		if items == nil {
-			items = []MediaItem{}
-		}
-		return &ListResponse{Items: items, Total: total}, nil
+		) ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, mediaSelectCols, totalCol, whereClause, limit, offset)
+		items, total, err = scanMediaPageWithTotal(tdb, query, totalCol, f.args)
+	} else {
+		query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE %s ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, mediaSelectCols, totalCol, whereClause, limit, offset)
+		items, total, err = scanMediaPageWithTotal(tdb, query, totalCol, f.args)
 	}
+	if err != nil {
+		return nil, err
+	}
+	return &ListResponse{Items: items, Total: total}, nil
+}
 
-	query := fmt.Sprintf(`SELECT %s, COUNT(*) OVER() AS %s FROM media WHERE %s ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, selectCols, totalCol, whereClause, limit, offset)
-
+// scanMediaPageWithTotal runs a paged media SELECT carrying a COUNT(*) OVER()
+// total column and drains it into items + total.
+func scanMediaPageWithTotal(tdb *db.TenantDB, query, totalCol string, args []interface{}) ([]MediaItem, int, error) {
 	rows, err := tdb.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query media: %w", err)
+		return nil, 0, fmt.Errorf("query media: %w", err)
 	}
 	defer rows.Close()
 
 	var items []MediaItem
+	var total int
 	for rows.Next() {
 		item, t, err := scanMediaItemWithTotal(rows, totalCol)
 		if err != nil {
-			return nil, fmt.Errorf("scan media: %w", err)
+			return nil, 0, fmt.Errorf("scan media: %w", err)
 		}
 		total = t
 		items = append(items, *item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration: %w", err)
+		return nil, 0, fmt.Errorf("rows iteration: %w", err)
 	}
-
 	if items == nil {
 		items = []MediaItem{}
 	}
-
-	return &ListResponse{Items: items, Total: total}, nil
+	return items, total, nil
 }
 
 func (s *Service) Get(userID, id string) (*MediaItem, error) {
@@ -873,15 +878,15 @@ func (s *Service) CountScored(userID string) (*AIScoreResponse, error) {
 	return &AIScoreResponse{Total: total, Scored: scored}, nil
 }
 
-func (s *Service) Search(userID string, params SearchParams) (*ListResponse, error) {
-	tdb, err := s.pool.Get(userID)
-	if err != nil {
-		return nil, fmt.Errorf("get tenant db: %w", err)
+// buildSearchWhere assembles Search's filter set (F13 extraction): tenant
+// scope, text search over title+metadata, folder, tags, mime and date range.
+// The dedup-subquery placeholders are renumbered by the caller after the
+// main args, so args here are only the main-query range.
+func buildSearchWhere(userID string, params SearchParams) listFilters {
+	f := listFilters{
+		where: []string{"user_id = $1", "is_trash = FALSE"},
+		args:  []interface{}{userID},
 	}
-	defer tdb.Close()
-
-	where := []string{"user_id = $1", "is_trash = FALSE"}
-	args := []interface{}{userID}
 	argIdx := 2
 
 	// Text search — title OR metadata JSONB LIKE (matches Drizzle behaviour).
@@ -889,58 +894,58 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		escaped := strings.ReplaceAll(params.Query, "%", "\\%")
 		escaped = strings.ReplaceAll(escaped, "_", "\\_")
 		qLike := "%" + strings.ToLower(escaped) + "%"
-		where = append(where, fmt.Sprintf(
+		f.where = append(f.where, fmt.Sprintf(
 			"(LOWER(title) ILIKE $%[1]d ESCAPE '\\' OR (metadata IS NOT NULL AND LOWER(metadata::text) LIKE $%[1]d ESCAPE '\\'))",
 			argIdx))
-		args = append(args, qLike)
+		f.args = append(f.args, qLike)
 		argIdx++
 	}
 
 	if params.FolderID != nil && *params.FolderID != "" {
-		where = append(where, fmt.Sprintf("folder_id = $%d", argIdx))
-		args = append(args, *params.FolderID)
+		f.where = append(f.where, fmt.Sprintf("folder_id = $%d", argIdx))
+		f.args = append(f.args, *params.FolderID)
 		argIdx++
 	}
-
-	// Dedup: only keep one row per hash (the earliest created).
-	// The dedup subquery must carry the same WHERE filters as the outer
-	// query so that groups match, and we pick MIN(id) to get the oldest.
 
 	if len(params.Tags) > 0 {
 		tagPlaceholders := make([]string, len(params.Tags))
 		for i, tag := range params.Tags {
 			tagPlaceholders[i] = fmt.Sprintf("$%d", argIdx)
-			args = append(args, tag)
+			f.args = append(f.args, tag)
 			argIdx++
 		}
-		where = append(where, fmt.Sprintf("id IN (SELECT media_id FROM media_tags WHERE user_id = $1 AND tag IN (%s))", strings.Join(tagPlaceholders, ",")))
+		f.where = append(f.where, fmt.Sprintf("id IN (SELECT media_id FROM media_tags WHERE user_id = $1 AND tag IN (%s))", strings.Join(tagPlaceholders, ",")))
 	}
 
 	// Mime type filter: "image" → mime_type LIKE 'image/%', "video" → LIKE 'video/%'.
 	if params.MimeType != nil && *params.MimeType != "" {
-		where = append(where, fmt.Sprintf("mime_type LIKE $%d", argIdx))
-		args = append(args, *params.MimeType+"/%")
+		f.where = append(f.where, fmt.Sprintf("mime_type LIKE $%d", argIdx))
+		f.args = append(f.args, *params.MimeType+"/%")
 		argIdx++
 	}
 
 	// Date range on COALESCE(captured_at, created_at) — both epoch millis.
-	dateCol := "COALESCE(captured_at, created_at)"
+	const dateCol = "COALESCE(captured_at, created_at)"
 	if params.DateFrom != nil {
-		where = append(where, fmt.Sprintf("%s >= $%d", dateCol, argIdx))
-		args = append(args, *params.DateFrom)
+		f.where = append(f.where, fmt.Sprintf("%s >= $%d", dateCol, argIdx))
+		f.args = append(f.args, *params.DateFrom)
 		argIdx++
 	}
 	if params.DateTo != nil {
-		where = append(where, fmt.Sprintf("%s <= $%d", dateCol, argIdx))
-		args = append(args, *params.DateTo)
+		f.where = append(f.where, fmt.Sprintf("%s <= $%d", dateCol, argIdx))
+		f.args = append(f.args, *params.DateTo)
 		argIdx++
 	}
+	return f
+}
 
-	whereClause := strings.Join(where, " AND ")
-
-	// Dedup subquery: one row per hash, picking the earliest id.
-	// Uses only the structural filters (no text/tags) so dedup is
-	// consistent across different search queries.
+// appendSearchDedup adds the one-row-per-hash dedup subquery to the Search
+// filters. The subquery uses only the structural filters (no text/tags) so
+// dedup stays consistent across queries; its $N placeholders are renumbered
+// to follow the main-query args, covering ALL of them ($1 user_id included),
+// else Postgres sees an arg count mismatch.
+func appendSearchDedup(f *listFilters, userID string, params SearchParams) {
+	const dateCol = "COALESCE(captured_at, created_at)"
 	dedupBase := []string{"user_id = $1", "is_trash = FALSE"}
 	dedupArgs := []interface{}{userID}
 	dedupIdx := 2
@@ -965,24 +970,30 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		dedupIdx++
 	}
 	dedupQuery := fmt.Sprintf("SELECT MIN(id) FROM media WHERE %s GROUP BY hash", strings.Join(dedupBase, " AND "))
-	// Merge dedup args after main args — dedup is a subquery, needs its own param range.
-	// Rewrite $1..$(dedupIdx-1) to continue after the main args. The loop must
-	// cover ALL dedup placeholders ($1 included — user_id), else the subquery
-	// reuses main-query parameter numbers and Postgres sees an arg count mismatch.
-	dedupOffset := len(args)
-	rewrittenDedup := dedupQuery
+
+	dedupOffset := len(f.args)
+	rewritten := dedupQuery
 	for i := dedupIdx - 1; i >= 1; i-- {
-		old := fmt.Sprintf("$%d", i)
-		new := fmt.Sprintf("$%d", dedupOffset+i)
-		rewrittenDedup = strings.Replace(rewrittenDedup, old, new, 1)
+		rewritten = strings.Replace(rewritten, fmt.Sprintf("$%d", i), fmt.Sprintf("$%d", dedupOffset+i), 1)
 	}
-	args = append(args, dedupArgs...)
-	where = append(where, fmt.Sprintf("id IN (%s)", rewrittenDedup))
-	whereClause = strings.Join(where, " AND ")
+	f.args = append(f.args, dedupArgs...)
+	f.where = append(f.where, "id IN ("+rewritten+")")
+}
+
+func (s *Service) Search(userID string, params SearchParams) (*ListResponse, error) {
+	tdb, err := s.pool.Get(userID)
+	if err != nil {
+		return nil, fmt.Errorf("get tenant db: %w", err)
+	}
+	defer tdb.Close()
+
+	f := buildSearchWhere(userID, params)
+	appendSearchDedup(&f, userID, params)
+	whereClause := strings.Join(f.where, " AND ")
 
 	var total int
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media WHERE %s", whereClause)
-	if err := tdb.QueryRow(countQuery, args...).Scan(&total); err != nil {
+	if err := tdb.QueryRow(countQuery, f.args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count search: %w", err)
 	}
 
@@ -995,33 +1006,14 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		params.Page = 1
 	}
 
-	query := fmt.Sprintf(`SELECT id, title, file_path, mime_type, size, width, height, hash,
-		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
-		metadata, duration, transcode_status
-		FROM media WHERE %s ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, whereClause, params.Limit, (params.Page-1)*params.Limit)
+	query := fmt.Sprintf(`SELECT %s
+		FROM media WHERE %s ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`,
+		mediaSelectCols, whereClause, params.Limit, (params.Page-1)*params.Limit)
 
-	rows, err := tdb.Query(query, args...)
+	items, err := scanMediaRows(tdb, query, f.args)
 	if err != nil {
 		return nil, fmt.Errorf("query search: %w", err)
 	}
-	defer rows.Close()
-
-	var items []MediaItem
-	for rows.Next() {
-		item, err := scanMediaItem(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
-		}
-		items = append(items, *item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows: %w", err)
-	}
-
-	if items == nil {
-		items = []MediaItem{}
-	}
-
 	return &ListResponse{Items: items, Total: total}, nil
 }
 

@@ -1217,34 +1217,17 @@ func (s *Service) querySmartFolderMedia(tdb *db.TenantDB, userID string, params 
 	minScoreIdx := len(params.Categories) + 2
 	tagArgs = append(tagArgs, params.MinScore)
 
-	matchingIDs, err := tdb.Query(
-		fmt.Sprintf(`SELECT DISTINCT media_id FROM media_tags
-		WHERE user_id = $1 AND category IN (%s) AND score >= $%d`,
-			strings.Join(catPlaceholders, ","), minScoreIdx),
-		tagArgs...,
-	)
-	if err != nil {
-		return nil, 0, fmt.Errorf("query smart folder: %w", err)
-	}
-	defer matchingIDs.Close()
+	// Inline the tag match as a subquery instead of materializing the ID list
+	// in Go and re-inlining it as N placeholders: a broad category/score
+	// match could pull tens of thousands of IDs into memory and blow up the
+	// follow-up query text. IN (subquery) is set-equivalent here (F9).
+	idSubquery := fmt.Sprintf(`id IN (
+		SELECT DISTINCT media_id FROM media_tags
+		WHERE user_id = $1 AND category IN (%s) AND score >= $%d
+	)`, strings.Join(catPlaceholders, ","), minScoreIdx)
 
-	idList, err := scanStringIDs(matchingIDs)
-	if err != nil {
-		return nil, 0, err
-	}
-	if len(idList) == 0 {
-		return []MediaItem{}, 0, nil
-	}
-
-	for _, id := range idList {
-		args = append(args, id)
-	}
-	// placeholders for the appended ids continue after the base args
-	ph := make([]string, len(idList))
-	for i := range idList {
-		ph[i] = fmt.Sprintf("$%d", argIdx+i)
-	}
-	where = append(where, "id IN ("+strings.Join(ph, ",")+")")
+	where = append(where, idSubquery)
+	args = append(args, tagArgs[1:]...) // $1 (user_id) already present in base args
 	whereClause := strings.Join(where, " AND ")
 
 	var total int
@@ -1281,21 +1264,6 @@ func scanMediaRows(tdb *db.TenantDB, q string, args []interface{}) ([]MediaItem,
 		items = []MediaItem{}
 	}
 	return items, nil
-}
-
-// scanStringIDs drains a single-column string rows cursor.
-func scanStringIDs(rows *sql.Rows) ([]string, error) {
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err == nil {
-			ids = append(ids, id)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows: %w", err)
-	}
-	return ids, nil
 }
 
 func computeFolderCounts(tdb *db.TenantDB, userID string) (map[string]int, error) {

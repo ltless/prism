@@ -592,3 +592,85 @@ func TestService_CreateWithinQuota_ZeroAndNullLimits(t *testing.T) {
 		t.Fatalf("null limit (unlimited): unexpected error %v", err)
 	}
 }
+
+// F9: smart-folder tag matching runs as an inline subquery — no unbounded ID
+// list materialized in Go — and stays correct for large matches: the result
+// is paged, totals match, untagged media never leaks in, pages don't overlap.
+func TestService_GetDashboard_SmartFolderLargeMatch(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+
+	const tagged = 30
+	const untagged = 5
+	for i := 0; i < tagged; i++ {
+		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("t%d.jpg", i), "T", "image/jpeg",
+			fmt.Sprintf("st%d", i), 10, nil, nil, nil, nil, nil, nil); err != nil {
+			t.Fatalf("create %d: %v", i, err)
+		}
+	}
+	for i := 0; i < untagged; i++ {
+		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("u%d.jpg", i), "U", "image/jpeg",
+			fmt.Sprintf("su%d", i), 10, nil, nil, nil, nil, nil, nil); err != nil {
+			t.Fatalf("create untagged %d: %v", i, err)
+		}
+	}
+
+	tdb, err := pool.Get("test-user")
+	if err != nil {
+		t.Fatalf("get tenant db: %v", err)
+	}
+	defer tdb.Close()
+	// Tag the tagged set by real media id (media_tags.media_id is an FK to
+	// media.id, not file_path).
+	rows, err := tdb.Query("SELECT id FROM media WHERE file_path LIKE 't%.jpg'")
+	if err != nil {
+		t.Fatalf("query ids: %v", err)
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			t.Fatalf("scan id: %v", err)
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if len(ids) != tagged {
+		t.Fatalf("expected %d tagged ids, got %d", tagged, len(ids))
+	}
+	for _, id := range ids {
+		if _, err := tdb.Exec(
+			"INSERT INTO media_tags (media_id, user_id, tag, score, category) VALUES ($1, $2, $3, $4, $5)",
+			id, "test-user", "nature", 0.9, "scene"); err != nil {
+			t.Fatalf("tag %s: %v", id, err)
+		}
+	}
+
+	page1, err := svc.GetDashboard("test-user", DashboardParams{Categories: []string{"scene"}, MinScore: 0.5, Limit: 10, Page: 1})
+	if err != nil {
+		t.Fatalf("dashboard page 1: %v", err)
+	}
+	if page1.Total != tagged {
+		t.Fatalf("expected total %d, got %d", tagged, page1.Total)
+	}
+	if len(page1.Items) != 10 {
+		t.Fatalf("expected paged 10 items, got %d", len(page1.Items))
+	}
+	for _, it := range page1.Items {
+		if !strings.HasPrefix(it.FilePath, "t") {
+			t.Fatalf("untagged media %s leaked into smart folder result", it.FilePath)
+		}
+	}
+
+	page2, err := svc.GetDashboard("test-user", DashboardParams{Categories: []string{"scene"}, MinScore: 0.5, Limit: 10, Page: 2})
+	if err != nil {
+		t.Fatalf("dashboard page 2: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, it := range append(page1.Items, page2.Items...) {
+		if seen[it.ID] {
+			t.Fatalf("item %s appeared on both pages (pagination broken)", it.ID)
+		}
+		seen[it.ID] = true
+	}
+}

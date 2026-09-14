@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MediaItem } from "../../types";
 import { EditorTopBar } from "./EditorTopBar";
 import { EditorToolbar } from "./EditorToolbar";
@@ -13,7 +13,6 @@ import {
 } from "./image-editor/canvas/CanvasRenderer";
 import { useEditorState } from "./image-editor/state/editorState";
 import {
-  useHistoryStore,
   initHistoryBaseline,
 } from "./image-editor/state/history";
 import {
@@ -25,8 +24,8 @@ import { useColorSetters } from "./image-editor/hooks/useColorSetters";
 import { useEditorSave } from "./image-editor/hooks/useEditorSave";
 import { useEditorShortcuts } from "./image-editor/hooks/useEditorShortcuts";
 import { useEditorCanvas } from "./image-editor/hooks/useEditorCanvas";
+import { useImageEditorUi } from "./image-editor/hooks/useImageEditorUi";
 import { parseImageDimensions } from "./image-editor/utils/parseImageDimensions";
-import { toast } from "sonner";
 
 interface ImageEditorProps {
   item: MediaItem;
@@ -43,17 +42,23 @@ const DRAG_PREVIEW_SIZE = 640;
 
 export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEditorProps) {
   const [currentItem, setCurrentItem] = useState(initialItem);
-  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [showRulers, setShowRulers] = useState(false);
-  const [showGrid, setShowGrid] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [showBefore, setShowBefore] = useState(false);
-  const [sampledColor, setSampledColor] = useState<{
-    r: number;
-    g: number;
-    b: number;
-    a: number;
-  } | null>(null);
+  const canvasRef = useRef<CanvasRendererHandle>(null);
+  const [brushColor, setBrushColor] = useState("#F59E0B");
+
+  const {
+    isLibraryOpen, setIsLibraryOpen,
+    showRulers, setShowRulers,
+    showGrid, setShowGrid,
+    showSidebar, setShowSidebar,
+    showBefore, setShowBefore,
+    sampledColor, setSampledColor,
+    activeTool, setActiveTool,
+    handleRotationChange, handleFlipH, handleFlipV,
+    commitResetAll, handleAutoAdjustStub, handleSampledMouseDown,
+  } = useImageEditorUi({
+    canvasRef,
+    onSampleColor: setBrushColor,
+  });
 
   const [prevImageId, setPrevImageId] = useState(currentItem.id);
   // Reset ephemeral editor state when the edited image changes — set-state-during-render
@@ -65,7 +70,6 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
   }
 
   const isDragging = useDraggingStore((s) => s.isDragging);
-  const { commitEdit } = useEditorActions();
   const {
     setInvert,
     setDuotoneColorA, setDuotoneColorB,
@@ -76,17 +80,11 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
 
   const maxPreviewSize = isDragging ? DRAG_PREVIEW_SIZE : FULL_PREVIEW_SIZE;
 
-  const activeTool = useEditorState((s) => s.activeTool);
-  const setActiveTool = useEditorState((s) => s.setActiveTool);
   const rotation = useEditorState((s) => s.rotation);
   const flipH = useEditorState((s) => s.flipH);
   const flipV = useEditorState((s) => s.flipV);
-  const setTransform = useEditorState((s) => s.setTransform);
-  const resetAll = useEditorState((s) => s.resetAll);
   const setImageId = useEditorState((s) => s.setImageId);
   const adjustments = useEditorState((s) => s.adjustments);
-
-  const canvasRef = useRef<CanvasRendererHandle>(null);
 
   const {
     zoom, pan, isPanning, canvasContainerRef, canvasContainerSize,
@@ -95,44 +93,7 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
     handleMouseMove: handleCanvasMouseMove, handleMouseUp: handleCanvasMouseUp,
   } = useEditorCanvas();
 
-  const [brushColor, setBrushColor] = useState("#F59E0B");
   const [brushSize, setBrushSize] = useState(10);
-
-  // Transform commits
-  const handleRotationChange = useCallback(
-    (value: number) => commitEdit(() => setTransform({ rotation: value })),
-    [commitEdit, setTransform]
-  );
-
-  const handleFlipH = useCallback(
-    () =>
-      commitEdit(() =>
-        setTransform({ flipH: !useEditorState.getState().flipH })
-      ),
-    [commitEdit, setTransform]
-  );
-
-  const handleFlipV = useCallback(
-    () =>
-      commitEdit(() =>
-        setTransform({ flipV: !useEditorState.getState().flipV })
-      ),
-    [commitEdit, setTransform]
-  );
-
-  const commitResetAll = useCallback(() => {
-    commitEdit(() => resetAll());
-  }, [commitEdit, resetAll]);
-
-  const handleAutoAdjustStub = useCallback(
-    (name: "Auto Tone" | "Auto Contrast" | "Auto Color") => {
-      toast(`${name} coming soon — not wired up yet`, {
-        description: "Tweak the sliders by hand for now. Auto-detection is on the maybe-someday list.",
-        duration: 2000,
-      });
-    },
-    []
-  );
 
   const mediaUrl = `/api/v1/media/files/${currentItem.filePath}`;
 
@@ -151,37 +112,13 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (activeTool === "eyedropper") {
-        const color = canvasRef.current?.sampleColor(e.clientX, e.clientY);
-        if (color) {
-          const hex = `#${color.r.toString(16).padStart(2, "0")}${color.g.toString(16).padStart(2, "0")}${color.b.toString(16).padStart(2, "0")}`;
-          setSampledColor(color);
-          setBrushColor(hex);
-          toast(`Sampled ${hex}`, {
-            description: `R${color.r} G${color.g} B${color.b}`,
-            duration: 1500,
-          });
-        }
-        return;
-      }
-
+      if (handleSampledMouseDown(e)) return;
       if (activeTool === "hand" || activeTool === "select" || e.button === 1) {
         handleCanvasMouseDown(e);
       }
     },
-    [activeTool, handleCanvasMouseDown]
+    [activeTool, handleCanvasMouseDown, handleSampledMouseDown]
   );
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      handleCanvasMouseMove(e);
-    },
-    [handleCanvasMouseMove]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    handleCanvasMouseUp();
-  }, [handleCanvasMouseUp]);
 
   const imgDimensions = parseImageDimensions(currentItem);
 
@@ -238,8 +175,8 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
           canvasRef={canvasRef}
           canvasContainerRef={canvasContainerRef}
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseUp={handleCanvasMouseUp}
         />
 
         {/* Right sidebar */}

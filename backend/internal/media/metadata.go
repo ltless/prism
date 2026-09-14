@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"image"
 	"math"
@@ -15,6 +16,25 @@ import (
 	"golang.org/x/image/draw"
 )
 
+// maxImagePixels caps the declared width*height of any image we decode.
+// Go's decoders allocate roughly width*height*4 bytes, so a few-hundred-KB
+// file can otherwise be used as a decompression bomb. 40 MP covers any real
+// camera/phone photo with generous headroom.
+const maxImagePixels = 40_000_000
+
+// errImageTooLarge is returned when an image's declared dimensions exceed
+// maxImagePixels, before any full decode is attempted.
+var errImageTooLarge = errors.New("image dimensions exceed maximum allowed size")
+
+// validateImageDimensions rejects zero/negative or oversized declared
+// dimensions. Callers read these cheaply via image.DecodeConfig first.
+func validateImageDimensions(width, height int) error {
+	if width <= 0 || height <= 0 || int64(width)*int64(height) > maxImagePixels {
+		return errImageTooLarge
+	}
+	return nil
+}
+
 type ImageMetadata struct {
 	Width      int
 	Height     int
@@ -24,6 +44,14 @@ type ImageMetadata struct {
 }
 
 func ExtractImageMetadata(data []byte) (*ImageMetadata, error) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("decode image config: %w", err)
+	}
+	if err := validateImageDimensions(cfg.Width, cfg.Height); err != nil {
+		return nil, err
+	}
+
 	src, format, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("decode image: %w", err)

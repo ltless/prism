@@ -153,6 +153,18 @@ func generateThumbnailFromFile(path, outputPath string) error {
 		return fmt.Errorf("open image: %w", err)
 	}
 	defer f.Close()
+
+	cfg, _, err := image.DecodeConfig(f)
+	if err != nil {
+		return fmt.Errorf("decode image config: %w", err)
+	}
+	if err := validateImageDimensions(cfg.Width, cfg.Height); err != nil {
+		return err
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("seek image: %w", err)
+	}
+
 	src, _, err := image.Decode(f)
 	if err != nil {
 		return fmt.Errorf("decode image: %w", err)

@@ -1,10 +1,56 @@
 package media
 
 import (
+	"bytes"
 	"encoding/binary"
+	"hash/crc32"
 	"testing"
 	"time"
 )
+
+// buildPNGHeader crafts minimal PNG bytes: signature + valid IHDR chunk
+// declaring the given dimensions. image.DecodeConfig only needs the header,
+// so no pixel data is required.
+func buildPNGHeader(width, height uint32) []byte {
+	var buf bytes.Buffer
+	buf.Write([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})
+
+	var ihdr bytes.Buffer
+	binary.Write(&ihdr, binary.BigEndian, width)
+	binary.Write(&ihdr, binary.BigEndian, height)
+	ihdr.Write([]byte{8, 2, 0, 0, 0}) // bit depth, color type RGB, compression, filter, interlace
+
+	binary.Write(&buf, binary.BigEndian, uint32(ihdr.Len()))
+	chunk := append([]byte("IHDR"), ihdr.Bytes()...)
+	buf.Write(chunk)
+	binary.Write(&buf, binary.BigEndian, crc32.ChecksumIEEE(chunk))
+	return buf.Bytes()
+}
+
+// Regression: a crafted PNG declaring huge dimensions must be rejected by the
+// cheap header check, before image.Decode allocates width*height*4 bytes.
+func TestExtractImageMetadata_RejectsDecompressionBomb(t *testing.T) {
+	data := buildPNGHeader(50000, 50000) // 2.5 GP > maxImagePixels
+	_, err := ExtractImageMetadata(data)
+	if err == nil {
+		t.Fatal("expected error for oversized image dimensions")
+	}
+	if err != errImageTooLarge {
+		t.Fatalf("expected errImageTooLarge, got %v", err)
+	}
+}
+
+func TestValidateImageDimensions(t *testing.T) {
+	if err := validateImageDimensions(4000, 3000); err != nil {
+		t.Fatalf("expected 12MP image to pass, got %v", err)
+	}
+	if err := validateImageDimensions(maxImagePixels+1, 1); err == nil {
+		t.Fatal("expected error when pixel count exceeds cap")
+	}
+	if err := validateImageDimensions(0, 100); err == nil {
+		t.Fatal("expected error for zero width")
+	}
+}
 
 // buildTIFF crafts a little-endian TIFF buffer: header at 0, IFDs placed at
 // the given offsets, each IFD's "next IFD" pointer set from nextOffsets.

@@ -11,6 +11,7 @@ interface SidebarContextType {
 }
 
 const STORAGE_KEY = "prism-sidebar-collapsed";
+const COOKIE_KEY = "prism-sidebar-collapsed";
 
 const SidebarContext = createContext<SidebarContextType>({
   isMobileOpen: false,
@@ -20,22 +21,26 @@ const SidebarContext = createContext<SidebarContextType>({
   toggleCollapsed: () => {},
 });
 
-export function SidebarProvider({ children }: { children: ReactNode }) {
+export function SidebarProvider({
+  initialCollapsed,
+  children,
+}: {
+  /** Read from the cookie in the server layout so SSR and client agree on first paint. */
+  initialCollapsed?: boolean;
+  children: ReactNode;
+}) {
   const [isMobileOpen, setMobileOpen] = useState(false);
-  // lazy-init from localStorage when available (client); SSR-safe fallback false.
-  // ponytail: brief flash-of-expanded on first paint if user persisted collapsed — acceptable for a dev-facing app; move to cookie if it bothers.
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    try {
-      return typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  // Collapsed state comes from the server-rendered cookie value — no
+  // localStorage lazy-init, no hydration mismatch on refresh.
+  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed ?? false);
 
   const setCollapsed = useCallback((collapsed: boolean) => {
     setIsCollapsed(collapsed);
     try {
       localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
+      // Cookie (not localStorage) is what the server reads on refresh —
+      // this is what keeps the grid from snapping back to expanded layout.
+      document.cookie = `${COOKIE_KEY}=${collapsed ? "1" : "0"};path=/;max-age=31536000;SameSite=Lax`;
     } catch {
       /* ignore */
     }

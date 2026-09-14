@@ -34,18 +34,26 @@ function getRateLimitConfig(pathname: string) {
   return RATE_LIMITS.find((r) => pathname.startsWith(r.prefix));
 }
 
-const CSP = [
-  "default-src 'self'",
-  isDev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self' ws: wss:",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-].join("; ");
+// Nonce-based CSP: 'unsafe-inline' in production would neutralize XSS
+// mitigation, so every request gets a fresh nonce. Next.js reads the
+// x-nonce request header and applies it to its inline bootstrap scripts
+// (App Router pattern from the Next 16 CSP guide).
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    isDev
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+      : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // style-src 'unsafe-inline' is a deliberate, separate tradeoff — inline
+    // styles are a much weaker XSS vector and Next/Tailwind rely on them.
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' ws: wss:",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+  ].join("; ");
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -63,13 +71,20 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  const response = NextResponse.next();
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const csp = buildCsp(nonce);
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
-  response.headers.set("Content-Security-Policy", CSP);
+  response.headers.set("Content-Security-Policy", csp);
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
   // CSRF: same-origin browser fetches send Origin or Referer. no Origin AND

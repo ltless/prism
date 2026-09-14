@@ -4,6 +4,14 @@ import type { MediaItem } from "@/features/media/types";
 import { applyAdjustments } from "./engine/AdjustmentEngine";
 
 /**
+ * Cap on source-image pixels for the full-resolution save render, matching
+ * the backend's 40MP decode limit (F1). A larger source would allocate a
+ * giant canvas + ImageData and freeze/crash the user's own tab — reject with
+ * a clear message instead (F12).
+ */
+export const MAX_EDIT_IMAGE_PIXELS = 40_000_000;
+
+/**
  * Render the editor's output onto a fresh canvas at full source resolution.
  *
  * This is used exclusively at save time. The preview canvas is downscaled
@@ -33,6 +41,15 @@ export async function renderFullResCanvas(
   const imageBitmap = await createImageBitmap(blob);
   const originalWidth = imageBitmap.width;
   const originalHeight = imageBitmap.height;
+
+  // F12: guard before allocating a full-resolution canvas + ImageData — an
+  // oversized source would freeze or crash the tab, not just fail slowly.
+  if (originalWidth * originalHeight > MAX_EDIT_IMAGE_PIXELS) {
+    imageBitmap.close();
+    throw new Error(
+      `Image too large to edit at full resolution (${originalWidth}×${originalHeight}). Use a smaller source image.`,
+    );
+  }
 
   // 2. Build transform matrix: rotation + flip applied in destination coords
   //    We want to render the image as it appears on screen (with rotation/flip).

@@ -70,6 +70,31 @@ describe("save.renderFullResCanvas", () => {
       renderFullResCanvas("http://test/missing.png", state as any)
     ).rejects.toThrow(/Failed to fetch source image/);
   });
+
+  // F12: an oversized source bitmap must be rejected before any canvas
+  // allocation, with a user-facing message.
+  it("rejects oversized images before allocating a full-res canvas", async () => {
+    const close = vi.fn();
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ width: 70000, height: 70000, close })),
+    );
+    try {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        blob: async () => new Blob([new Uint8ClampedArray(4)], { type: "image/png" }),
+      });
+
+      const state = { ...DEFAULT_STATE, adjustments: DEFAULT_ADJUSTMENTS };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await expect(renderFullResCanvas("http://test/huge.png", state as any)).rejects.toThrow(
+        /Image too large to edit at full resolution/,
+      );
+      expect(close).toHaveBeenCalled(); // bitmap is released on the error path
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe("save.mimeExtension", () => {

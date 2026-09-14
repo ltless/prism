@@ -18,7 +18,7 @@ import sys
 import json
 import re
 
-PG_CONN = os.environ.get("DATABASE_URL", "postgresql://prism:prism_dev_2024@localhost:5432/prism")
+PG_CONN = os.environ.get("DATABASE_URL", "postgresql://prism:@localhost:5432/prism")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DRY_RUN = "--dry-run" in sys.argv

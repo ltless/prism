@@ -6,9 +6,11 @@ services:
     environment:
       POSTGRES_DB: prism
       POSTGRES_USER: prism
-      POSTGRES_PASSWORD: prism_dev_2024
+      # No committed default — docker compose fails loudly if unset.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (scripts/setup.js generates one)}
     ports:
-      - "5432:5432"
+      # Loopback only — never expose postgres to other interfaces.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

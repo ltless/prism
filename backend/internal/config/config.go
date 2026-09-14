@@ -30,12 +30,19 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("JWT_SECRET must be set and at least 32 bytes long (got %d)", len(jwtSecret))
 	}
 
+	if os.Getenv("DATABASE_URL") == "" {
+		return nil, fmt.Errorf("DATABASE_URL must be set (see backend/.env.example)")
+	}
+
 	cfg := &Config{
 		Port:          getEnv("PORT", "8080"),
 		JWTSecret:     jwtSecret,
 		JWTDuration:   getEnv("JWT_DURATION", "168h"),
 		GlobalDB:      getEnv("GLOBAL_DB_PATH", "../prism.db"),
-		DatabaseURL:   getEnv("DATABASE_URL", "postgresql://prism:prism_dev_2024@localhost:5432/prism"),
+		// No committed default: DATABASE_URL must come from backend/.env or
+		// the environment. Failing later with "DATABASE_URL not set" beats
+		// silently connecting with a known password.
+		DatabaseURL:   os.Getenv("DATABASE_URL"),
 		StoragePath:   getEnv("STORAGE_PATH", "../storage/users"),
 		ModelsPath:    getEnv("MODELS_PATH", "../storage/models"),
 		CORSOrigin:    getEnv("CORS_ORIGIN", "http://localhost:3000"),

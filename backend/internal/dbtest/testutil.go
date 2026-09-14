@@ -4,19 +4,60 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // testDBURL is the connection string for the PostgreSQL test database.
-// It can be overridden via the PRISM_TEST_DB env var.
-var testDBURL = "postgresql://prism:prism_dev_2024@localhost:5432/prism_test"
+// Resolution order: PRISM_TEST_DB (full URL) > PRISM_TEST_DB_PASSWORD >
+// DATABASE_URL from the environment or backend/.env (retargeted at
+// prism_test). No committed default password.
+var testDBURL = buildTestDBURL()
 
-func init() {
+func buildTestDBURL() string {
 	if v := os.Getenv("PRISM_TEST_DB"); v != "" {
-		testDBURL = v
+		return v
 	}
+	if v := os.Getenv("PRISM_TEST_DB_PASSWORD"); v != "" {
+		return fmt.Sprintf("postgresql://prism:%s@localhost:5432/prism_test", v)
+	}
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		// best-effort read of backend/.env — keeps plain `go test` working
+		// for local dev without exporting anything. Path is resolved from
+		// this source file (not test cwd, which varies per package).
+		if envPath, err := backendEnvPath(); err == nil {
+			if data, err := os.ReadFile(envPath); err == nil {
+				for _, line := range strings.Split(string(data), "\n") {
+					if v, ok := strings.CutPrefix(line, "DATABASE_URL="); ok {
+						url = strings.TrimSpace(v)
+						break
+					}
+				}
+			}
+		}
+	}
+	if url != "" {
+		// retarget at the test database
+		if idx := strings.LastIndex(url, "/"); idx >= 0 {
+			return url[:idx+1] + "prism_test"
+		}
+	}
+	return "postgresql://prism:@localhost:5432/prism_test"
+}
+
+// backendEnvPath locates backend/.env relative to this file, independent of
+// the test binary's working directory.
+func backendEnvPath() (string, error) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("locate testutil.go")
+	}
+	return filepath.Join(filepath.Dir(thisFile), "..", "..", ".env"), nil
 }
 
 // NewDB connects to the PostgreSQL test database and runs migrations.

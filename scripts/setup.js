@@ -90,15 +90,16 @@ function ensureEnvFile(target, template, secretFor, label) {
   ok(`created ${label} (${target})`);
 }
 
-function ensureBackendEnv(jwtSecret) {
+function ensureBackendEnv(jwtSecret, pgPassword) {
   const envPath = path.join(ROOT, 'backend/.env');
+  const dbUrl = `postgresql://prism:${pgPassword}@localhost:5432/prism`;
   const defaultContent = [
     `JWT_SECRET=${jwtSecret}`,
     `REQUIRE_INVITE=false`,
     `SIDECAR_URL=http://127.0.0.1:8081`,
     ``,
     `# PostgreSQL (Docker)`,
-    `DATABASE_URL=postgresql://prism:prism_dev_2024@localhost:5432/prism`,
+    `DATABASE_URL=${dbUrl}`,
     ``,
   ].join('\n');
 
@@ -115,12 +116,30 @@ function ensureBackendEnv(jwtSecret) {
     } else {
       ok('backend/.env already configured');
     }
-    // ensure DATABASE_URL exists
+    // ensure DATABASE_URL exists; if it still carries the old committed
+    // dev password, replace it with the generated one
+    const dbMatch = existing.match(/^DATABASE_URL=postgresql:\/\/prism:([^@]*)@/m);
     if (!/^DATABASE_URL=/m.test(existing)) {
-      fs.appendFileSync(envPath, `\n# PostgreSQL (Docker)\nDATABASE_URL=postgresql://prism:prism_dev_2024@localhost:5432/prism\n`);
+      fs.appendFileSync(envPath, `\n# PostgreSQL (Docker)\nDATABASE_URL=${dbUrl}\n`);
       ok('added DATABASE_URL to backend/.env');
+    } else if (dbMatch && dbMatch[1] === 'prism_dev_2024') {
+      const updated = existing.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${dbUrl}`);
+      fs.writeFileSync(envPath, updated);
+      ok('replaced old dev password in DATABASE_URL');
     }
   }
+}
+
+// The Postgres password this script provisions. If backend/.env already has a
+// real (non-dev-default) password, keep it — the volume already has it.
+function resolvePgPassword() {
+  const envPath = path.join(ROOT, 'backend/.env');
+  if (fs.existsSync(envPath)) {
+    const m = fs.readFileSync(envPath, 'utf8').match(/^DATABASE_URL=postgresql:\/\/prism:([^@]+)@/m);
+    if (m && m[1] && m[1] !== 'prism_dev_2024') return m[1];
+  }
+  // url-safe alphanumerics only — avoids quoting issues in URLs/shell
+  return crypto.randomBytes(24).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 32);
 }
 
 function readPipedLines() {
@@ -166,7 +185,11 @@ function dockerRunning() {
 }
 
 // matches the DATABASE_URL this script writes into backend/.env
-const DATABASE_URL = 'postgresql://prism:prism_dev_2024@localhost:5432/prism';
+let DATABASE_URL = 'postgresql://prism:prism_dev_2024@localhost:5432/prism';
+
+function setDatabaseUrl(url) {
+  DATABASE_URL = url;
+}
 
 function pgReachable() {
   const result = spawnSync('pg_isready', ['-d', DATABASE_URL], { stdio: 'pipe' });
@@ -240,6 +263,8 @@ async function main() {
 
   const authSecret = genSecret(64);
   const jwtSecret = genSecret(64);
+  const pgPassword = resolvePgPassword();
+  const dbUrl = `postgresql://prism:${pgPassword}@localhost:5432/prism`;
 
   ensureEnvFile('.env.local', '.env.example', (key) => {
     if (key === 'AUTH_SECRET') return authSecret;
@@ -247,7 +272,8 @@ async function main() {
     return null;
   }, 'frontend');
 
-  ensureBackendEnv(jwtSecret);
+  ensureBackendEnv(jwtSecret, pgPassword);
+  setDatabaseUrl(dbUrl);
 
   ok('JWT_SECRET matches across frontend + backend');
 
@@ -259,11 +285,13 @@ async function main() {
   } else if (pgReachable()) {
     ok('native postgres detected on localhost:5432 — skipping docker');
   } else {
-    const result = exec('docker compose up -d');
+    // pass the generated password through so compose doesn't fall back to a
+    // committed default (and doesn't fail on the :? guard)
+    const result = exec('docker compose up -d', { env: { ...process.env, POSTGRES_PASSWORD: pgPassword } });
     if (result === null) {
       err('docker compose failed and no native postgres on localhost:5432.');
       err('either install docker, or create the db manually:');
-      console.log('  sudo -u postgres psql -c "CREATE ROLE prism LOGIN PASSWORD \'prism_dev_2024\';"');
+      console.log(`  sudo -u postgres psql -c "CREATE ROLE prism LOGIN PASSWORD '<choose-a-password>';"`);
       console.log('  sudo -u postgres psql -c "CREATE DATABASE prism OWNER prism;"');
       process.exit(1);
     }
@@ -322,7 +350,7 @@ async function main() {
       ok(`admin user "${username}" created`);
     } else {
       err('failed to create admin user. you can do it manually:');
-      console.log(`  psql "postgresql://prism:prism_dev_2024@localhost:5432/prism" -c "INSERT INTO users (id, username, password_hash, role, has_completed_setup, created_at, updated_at) VALUES (gen_random_uuid(), '${username}', '<bcrypt-hash>', 'admin', true, NOW(), NOW())"`);
+      console.log(`  psql "${DATABASE_URL}" -c "INSERT INTO users (id, username, password_hash, role, has_completed_setup, created_at, updated_at) VALUES (gen_random_uuid(), '${username}', '<bcrypt-hash>', 'admin', true, NOW(), NOW())"`);
       process.exit(1);
     }
   }
@@ -332,7 +360,7 @@ async function main() {
   console.log(`${GR}${BOLD}  ✓ setup complete.${RS}`);
   console.log('');
   console.log(`  ${CY}admin user:${RS}  ${username}`);
-  console.log(`  ${CY}database:${RS}     postgresql://prism:prism_dev_2024@localhost:5432/prism`);
+  console.log(`  ${CY}database:${RS}     ${DATABASE_URL}`);
   console.log('');
   console.log(`  ${BOLD}next step:${RS} ${CY}pnpm dev${RS}`);
   console.log(`  then open http://localhost:3000 and log in.`);

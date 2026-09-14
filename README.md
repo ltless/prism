@@ -84,7 +84,8 @@ pnpm dev
 ```bash
 pnpm install
 pnpm setup:env                          # generate JWT secrets
-docker compose up -d                    # postgres
+export POSTGRES_PASSWORD=$(openssl rand -hex 16)   # compose requires it; keep it
+docker compose up -d                    # postgres (loopback-only, 127.0.0.1:5432)
 pnpm dev
 ```
 
@@ -208,7 +209,7 @@ don't expose ports 8080 or 5432 to the internet. put a reverse proxy in front of
 ## deployment
 
 1. reverse proxy (caddy/nginx) → `localhost:3000`, TLS mandatory.
-2. postgres in docker or native. change the dev password. i shouldn't have to say this.
+2. postgres in docker or native. `docker-compose.yml` binds to `127.0.0.1` only and requires `POSTGRES_PASSWORD` from the environment — no committed default.
 3. build: `pnpm build`, `pnpm build:be`. run both processes under systemd.
 4. set `NUKE_CONFIRMATION_TOKEN`, `REGISTRATION_INVITE_CODE`, `NEXT_ALLOWED_ORIGINS`, and matching `JWT_SECRET` in both env files.
 

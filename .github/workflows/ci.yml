@@ -11,8 +11,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: prism
-          POSTGRES_PASSWORD: prism
+          # The init user is a superuser, and superusers bypass RLS — the
+          # tenant-isolation tests would fail. Use the default `postgres`
+          # admin, then connect as a non-superuser `prism` role created in
+          # the init step below (mirrors production, where the app never
+          # runs as superuser).
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: prism_test
         ports:
           - 5432:5432
@@ -22,7 +27,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      PRISM_TEST_DB: postgresql://prism:prism@localhost:5432/prism_test
+      # Non-superuser credentials, created by the init-db step.
+      PRISM_TEST_DB: postgresql://prism:prism_ci_pw@localhost:5432/prism_test
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -35,6 +41,12 @@ jobs:
           go-version: '1.25'
           cache-dependency-path: backend/go.sum
       - run: pnpm install --frozen-lockfile
+      - name: Init test DB role (non-superuser, like production)
+        run: |
+          psql postgresql://postgres:postgres@localhost:5432/prism_test --command "
+            CREATE ROLE prism LOGIN PASSWORD 'prism_ci_pw' NOSUPERUSER;
+            GRANT ALL ON DATABASE prism_test TO prism;
+            GRANT ALL ON SCHEMA public TO prism;"
       - run: pnpm lint
       - name: Security audit (npm)
         run: pnpm audit --audit-level=high || true

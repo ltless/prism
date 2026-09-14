@@ -276,7 +276,7 @@ func (h *Handler) Upload(c echo.Context) error {
 	item, isDup, err := h.svc.CreateWithinQuota(claims.UserID, "", up.filename, title, mimeType, up.hash, up.size, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		// The file is already on disk; remove it if the row didn't land.
-		_ = h.storage.DeleteFile(claims.UserID, up.filename)
+		h.deleteFileLogged(claims.UserID, up.filename)
 		if errors.Is(err, ErrQuotaExceeded) {
 			return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "storage quota exceeded")
 		}
@@ -284,7 +284,7 @@ func (h *Handler) Upload(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	if isDup {
-		_ = h.storage.DeleteFile(claims.UserID, up.filename)
+		h.deleteFileLogged(claims.UserID, up.filename)
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"success":         true,
 			"isDuplicate":     true,
@@ -652,9 +652,7 @@ func (h *Handler) deleteFilesAsync(userID string, items []TrashedItem) {
 			go func() {
 				defer wg.Done()
 				for it := range jobs {
-					if err := h.storage.DeleteFile(userID, it.FilePath); err != nil {
-						log.Printf("DeleteFile failed %s: %v", it.FilePath, err)
-					}
+					h.deleteFileLogged(userID, it.FilePath)
 				}
 			}()
 		}
@@ -664,6 +662,14 @@ func (h *Handler) deleteFilesAsync(userID string, items []TrashedItem) {
 		close(jobs)
 		wg.Wait()
 	}()
+}
+
+// deleteFileLogged removes a media file best-effort, logging failures (F7):
+// a silently-swallowed delete error leaves an orphaned file with no trace.
+func (h *Handler) deleteFileLogged(userID, filePath string) {
+	if err := h.storage.DeleteFile(userID, filePath); err != nil {
+		log.Printf("DeleteFile failed %s: %v", filePath, err)
+	}
 }
 
 func (h *Handler) EmptyTrash(c echo.Context) error {
@@ -757,7 +763,7 @@ func (h *Handler) ResolveDuplicate(c echo.Context) error {
 	for _, id := range body.DeleteIDs {
 		item, err := h.svc.Get(claims.UserID, id)
 		if err == nil {
-			_ = h.storage.DeleteFile(claims.UserID, item.FilePath)
+			h.deleteFileLogged(claims.UserID, item.FilePath)
 		}
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})

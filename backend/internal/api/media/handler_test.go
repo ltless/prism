@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -410,4 +412,33 @@ func firstEntry(entries []os.DirEntry) string {
 		return e.Name()
 	}
 	return ""
+}
+
+// F7: a DeleteFile failure must be logged, not silently swallowed — otherwise
+// the DB row is gone but the file orphans on disk with no trace.
+func TestHandler_DeleteFileLogged_LogsFailure(t *testing.T) {
+	e, h, _, _ := setupMediaHandler(t)
+	_ = e
+	storage := h.storage
+	if _, _, _, err := storage.SaveFileFromBytes("test-user", []byte("x"), "victim.jpg"); err != nil {
+		t.Fatalf("save file: %v", err)
+	}
+	mediaDir := storage.MediaDir("test-user")
+	if err := os.Chmod(mediaDir, 0500); err != nil {
+		t.Fatalf("chmod read-only: %v", err)
+	}
+	defer os.Chmod(mediaDir, 0755) //nolint:errcheck
+
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	h.deleteFileLogged("test-user", "victim.jpg")
+
+	if !strings.Contains(buf.String(), "DeleteFile failed") {
+		t.Fatalf("expected failure logged, got: %q", buf.String())
+	}
+	if _, err := os.Stat(filepath.Join(mediaDir, "victim.jpg")); err != nil {
+		t.Fatalf("file should still exist after failed delete: %v", err)
+	}
 }

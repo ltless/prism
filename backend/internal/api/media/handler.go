@@ -189,6 +189,64 @@ func (h *Handler) streamUploadToTemp(file multipart.File, header *multipart.File
 	return &streamedUpload{hash: hash, filename: hash + ext, size: size, tmpPath: tmpPath}, nil
 }
 
+// duplicateUploadResponse builds the success response for an upload that
+// resolved to an existing hash (nothing new was written).
+func duplicateUploadResponse(up *streamedUpload, isVideo bool) map[string]interface{} {
+	return map[string]interface{}{
+		"success":         true,
+		"isDuplicate":     true,
+		"filename":        up.filename,
+		"mediaId":         "",
+		"isVideo":         isVideo,
+		"transcodeStatus": "skipped",
+	}
+}
+
+// storeUploadFile persists the streamed temp file into the user's media dir.
+func (h *Handler) storeUploadFile(userID string, up *streamedUpload) (string, error) {
+	tmpFile, err := os.Open(up.tmpPath)
+	if err != nil {
+		return "", echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
+	}
+	defer tmpFile.Close()
+
+	_, mediaPath, _, err := h.storage.SaveFileFromReader(userID, tmpFile, up.filename)
+	if err != nil {
+		log.Printf("SaveFile error: %v", err)
+		return "", echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	return mediaPath, nil
+}
+
+// uploadMeta derives the stored mimeType, display title and video flag from
+// the multipart header.
+func uploadMeta(header *multipart.FileHeader) (mimeType, title string, isVideo bool) {
+	mimeType = header.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	title = strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
+	if title == "" {
+		title = header.Filename
+	}
+	isVideo = len(mimeType) >= 5 && mimeType[:5] == "video"
+	return mimeType, title, isVideo
+}
+
+// schedulePostProcessing hands the reserved pool slot to the background
+// metadata/thumbnail job and starts it. The caller must have acquired the
+// slot and must NOT release it afterward — the goroutine releases it.
+func (h *Handler) schedulePostProcessing(userID, mediaID, mediaPath string, isVideo bool) {
+	go func() {
+		defer h.pool.release()
+		if isVideo {
+			h.processVideoMetadataAsync(userID, mediaID, mediaPath)
+		} else {
+			h.processImageMetadataAsync(userID, mediaID, mediaPath)
+		}
+	}()
+}
+
 func (h *Handler) Upload(c echo.Context) error {
 	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
@@ -235,39 +293,15 @@ func (h *Handler) Upload(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	if exists {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"success":         true,
-			"isDuplicate":     true,
-			"filename":        up.filename,
-			"mediaId":         "",
-			"isVideo":         false,
-			"transcodeStatus": "skipped",
-		})
+		return c.JSON(http.StatusOK, duplicateUploadResponse(up, false))
 	}
 
-	tmpFile, err := os.Open(up.tmpPath)
+	mediaPath, err := h.storeUploadFile(claims.UserID, up)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
-	}
-	defer tmpFile.Close()
-
-	_, mediaPath, _, err := h.storage.SaveFileFromReader(claims.UserID, tmpFile, up.filename)
-	if err != nil {
-		log.Printf("SaveFile error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		return err
 	}
 
-	mimeType := header.Header.Get("Content-Type")
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
-	}
-
-	title := strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
-	if title == "" {
-		title = header.Filename
-	}
-
-	isVideo := len(mimeType) >= 5 && mimeType[:5] == "video"
+	mimeType, title, isVideo := uploadMeta(header)
 
 	// ponytail: EXIF + thumbnail generation moved off the request path — the
 	// client already tolerates late metadata (UI polls / refreshes, thumbnail
@@ -285,30 +319,15 @@ func (h *Handler) Upload(c echo.Context) error {
 	}
 	if isDup {
 		h.deleteFileLogged(claims.UserID, up.filename)
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"success":         true,
-			"isDuplicate":     true,
-			"filename":        up.filename,
-			"mediaId":         "",
-			"isVideo":         isVideo,
-			"transcodeStatus": "skipped",
-		})
+		return c.JSON(http.StatusOK, duplicateUploadResponse(up, isVideo))
 	}
 
 	ts := "async"
 	if isVideo {
 		ts = "pending"
 	}
-	userID, mediaID := claims.UserID, item.ID
 	slotReleased = true
-	go func() {
-		defer h.pool.release()
-		if isVideo {
-			h.processVideoMetadataAsync(userID, mediaID, mediaPath)
-		} else {
-			h.processImageMetadataAsync(userID, mediaID, mediaPath)
-		}
-	}()
+	h.schedulePostProcessing(claims.UserID, item.ID, mediaPath, isVideo)
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":         true,
 		"isDuplicate":     false,

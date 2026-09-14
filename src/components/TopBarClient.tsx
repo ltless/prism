@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MagnifyingGlass, ArrowUp, X, List, Spinner, Sun, Moon } from "@phosphor-icons/react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { m, AnimatePresence } from "motion/react";
 import { SettingsModal } from "@/features/settings/components/SettingsModal";
 import { useSidebar } from "@/components/sidebar-context";
@@ -13,12 +12,10 @@ import { UserMenu } from "@/components/topbar/UserMenu";
 import { UploadStatusToast } from "@/components/topbar/UploadStatusToast";
 import { useTheme } from "@/components/ThemeProvider";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
+import { useTopBarSearch } from "@/components/topbar/useTopBarSearch";
 
 
 export function TopBar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { session: effectiveSession, isLoading: authLoading } = useEffectiveSession();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -42,37 +39,9 @@ export function TopBar() {
     if (e.target.files) startUpload(e.target.files);
   };
 
-  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || "");
+  const { searchQuery, handleSearchChange, handleSearchSubmit } = useTopBarSearch();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const pushSearch = useCallback((q: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (q) params.set('q', q);
-    else params.delete('q');
-    router.push(`${pathname}?${params.toString()}`);
-  }, [searchParams, pathname, router]);
-
-  const handleSearchChange = (q: string) => {
-    setSearchQuery(q);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    if (!q) {
-      pushSearch('');
-    } else {
-      searchTimerRef.current = setTimeout(() => pushSearch(q), 250);
-    }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    pushSearch(searchQuery);
-  };
-
-  useEffect(() => {
-    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-  }, []);
 
   return (
     <>
@@ -105,7 +74,7 @@ export function TopBar() {
               <MagnifyingGlass size={13} weight="light" />
             </button>
 
-            <form onSubmit={handleSearch} className="relative group hidden md:block" role="search">
+            <form onSubmit={handleSearchSubmit} className="relative group hidden md:block" role="search">
               <label htmlFor="topbar-search" className="sr-only">Search</label>
               <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-text/40 group-focus-within:text-muted-text transition-colors" weight="light" />
               <input
@@ -199,7 +168,7 @@ export function TopBar() {
               exit={{ scaleY: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               style={{ transformOrigin: "top" }}
-              onSubmit={handleSearch}
+              onSubmit={handleSearchSubmit}
               className="md:hidden px-3 pb-2 bg-app-bg"
             >
               <div className="relative">

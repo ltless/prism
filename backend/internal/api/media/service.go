@@ -98,6 +98,7 @@ func (s *Service) CheckStorageQuota(userID string, incoming int64) error {
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	var used int64
 	if err := tdb.QueryRow("SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", userID).Scan(&used); err != nil {
 		return fmt.Errorf("query storage usage: %w", err)
@@ -113,6 +114,7 @@ func (s *Service) List(userID string, folderID *string, favorites, trash, vault,
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	where := []string{"user_id = $1"}
 	args := []interface{}{userID}
@@ -224,6 +226,7 @@ func (s *Service) Get(userID, id string) (*MediaItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	row := tdb.QueryRow(`SELECT id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
@@ -391,6 +394,7 @@ func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash strin
 	if err != nil {
 		return nil, false, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	id := uuid.New().String()
 	now := time.Now().Unix()
@@ -448,6 +452,7 @@ func (s *Service) SaveEditorOverwrite(userID, mediaID, filePath, hash string, wi
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	now := time.Now().Unix()
 	_, err = tdb.Exec(
 		`UPDATE media SET file_path = $1, hash = $2, width = $3, height = $4, size = $5, mime_type = $6, metadata = $7, updated_at = $8 WHERE user_id = $9 AND id = $10`,
@@ -461,6 +466,7 @@ func (s *Service) Update(userID, id string, updates map[string]interface{}) erro
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	setClauses := []string{}
 	args := []interface{}{}
@@ -493,6 +499,7 @@ func (s *Service) Delete(userID, id string) (*MediaItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	res, err := tdb.Exec("DELETE FROM media WHERE user_id = $1 AND id = $2", userID, id)
 	if err != nil {
@@ -513,6 +520,7 @@ func (s *Service) HashExists(userID, hash string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	var existing string
 	err = tdb.QueryRow("SELECT id FROM media WHERE user_id = $1 AND hash = $2 LIMIT 1", userID, hash).Scan(&existing)
 	if err == sql.ErrNoRows {
@@ -529,6 +537,7 @@ func (s *Service) BulkMove(userID string, mediaIDs []string, folderID *string) e
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	now := time.Now().Unix()
 	placeholders := make([]string, len(mediaIDs))
@@ -548,6 +557,7 @@ func (s *Service) BulkSetField(userID string, mediaIDs []string, field string, v
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	now := time.Now().Unix()
 	boolVal := value != 0
 	placeholders := make([]string, len(mediaIDs))
@@ -572,6 +582,7 @@ func (s *Service) EmptyTrash(userID string) ([]TrashedItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	rows, err := tdb.Query("SELECT id, file_path FROM media WHERE user_id = $1 AND is_trash = TRUE", userID)
 	if err != nil {
@@ -603,6 +614,7 @@ func (s *Service) ResolveDuplicate(userID, keepID string, deleteIDs []string) er
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	tx, err := tdb.Begin()
 	if err != nil {
@@ -646,6 +658,7 @@ func (s *Service) DeleteAll(userID string) ([]TrashedItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	rows, err := tdb.Query("SELECT id, file_path FROM media WHERE user_id = $1", userID)
 	if err != nil {
@@ -677,6 +690,7 @@ func (s *Service) AutoCleanup(userID string, olderThan *int64) ([]TrashedItem, e
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	query := "SELECT id, file_path FROM media WHERE user_id = $1 AND is_trash = TRUE"
 	args := []interface{}{userID}
@@ -721,6 +735,7 @@ func (s *Service) UpdateByHash(userID, hash string, updates map[string]interface
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	// First look up the media ID by hash
 	var id string
@@ -778,6 +793,7 @@ func (s *Service) CountTagged(userID string) (*AICountResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	var total, tagged int
 	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total)
 	tdb.QueryRow("SELECT COUNT(DISTINCT media_id) FROM media_tags WHERE user_id = $1", userID).Scan(&tagged)
@@ -789,6 +805,7 @@ func (s *Service) CountScored(userID string) (*AIScoreResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	var total, scored int
 	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total)
 	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND metadata IS NOT NULL AND metadata->>'aestheticScored' = 'true'", userID).Scan(&scored)
@@ -800,6 +817,7 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	where := []string{"user_id = $1", "is_trash = FALSE"}
 	args := []interface{}{userID}
@@ -956,6 +974,7 @@ func (s *Service) BatchTranscodeStatus(userID string, ids []string) (map[string]
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	if len(ids) > 200 {
 		ids = ids[:200]
@@ -1009,6 +1028,7 @@ func (s *Service) IsSharedPath(userID, filePath, excludeID string) (bool, error)
 	if err != nil {
 		return false, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	var count int
 	err = tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND file_path = $2 AND id != $3", userID, filePath, excludeID).Scan(&count)
 	if err != nil {
@@ -1022,6 +1042,7 @@ func (s *Service) FindByHash(userID, hash string) (*MediaItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	row := tdb.QueryRow(`SELECT id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status
@@ -1050,6 +1071,7 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	// Clamp pagination like List does — the dashboard used to SELECT the whole
 	// library with no LIMIT on every login.
@@ -1274,6 +1296,7 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,

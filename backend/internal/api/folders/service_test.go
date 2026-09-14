@@ -105,6 +105,8 @@ func TestFolderService_DeleteWithMediaUnlinks(t *testing.T) {
 
 	// Insert media with this folder_id
 	tdb, _ := pool.Get("test-user")
+	defer tdb.Close()
+
 	_, err := tdb.Exec("INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash, folder_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
 		"media-1", "test-user", "Test", "f.jpg", "image/jpeg", 100, "h1", f.ID, 1000)
 	if err != nil {

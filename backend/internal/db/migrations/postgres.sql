@@ -130,3 +130,47 @@ CREATE TABLE IF NOT EXISTS transcode_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_transcode_queue_user_id ON transcode_queue (user_id);
+
+-- ===== ROW-LEVEL SECURITY (defense-in-depth tenant isolation) =====
+-- App queries still filter WHERE user_id = $1, but RLS enforces the boundary
+-- at the database even if a future query forgets the predicate.
+-- app.current_user_id is set per-request by TenantPool.Get (tenant.go) and
+-- reset on TenantDB.Close. An unset/empty variable fails closed: policies
+-- treat '' as matching no tenant.
+-- FORCE ROW LEVEL SECURITY makes the table owner subject to the policies too
+-- (app connects as the table owner).
+
+ALTER TABLE media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS media_tenant_isolation ON media;
+CREATE POLICY media_tenant_isolation ON media
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));
+
+ALTER TABLE folders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE folders FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS folders_tenant_isolation ON folders;
+CREATE POLICY folders_tenant_isolation ON folders
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));
+
+ALTER TABLE media_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media_tags FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS media_tags_tenant_isolation ON media_tags;
+CREATE POLICY media_tags_tenant_isolation ON media_tags
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));
+
+ALTER TABLE error_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE error_logs FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS error_logs_tenant_isolation ON error_logs;
+CREATE POLICY error_logs_tenant_isolation ON error_logs
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));
+
+ALTER TABLE transcode_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transcode_queue FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS transcode_queue_tenant_isolation ON transcode_queue;
+CREATE POLICY transcode_queue_tenant_isolation ON transcode_queue
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));

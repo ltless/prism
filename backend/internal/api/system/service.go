@@ -97,6 +97,7 @@ func (s *Service) Logs(userID, level string, page, limit int) (*LogResponse, err
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	where := []string{"user_id = $1"}
 	args := []interface{}{userID}
@@ -160,6 +161,7 @@ func (s *Service) CreateLogEntry(userID, level, message string, source, meta *st
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	_, err = tdb.Exec(
 		"INSERT INTO error_logs (user_id, level, message, meta, source, timestamp) VALUES ($1, $2, $3, $4, $5, $6)",
 		userID, level, message, meta, source, timestamp,

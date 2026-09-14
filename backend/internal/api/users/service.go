@@ -166,6 +166,7 @@ func (s *Service) GetStorageUsage(userID string) (*StorageUsageResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 	var total, img, vid sql.NullInt64
 	err = tdb.QueryRow(`
 		SELECT

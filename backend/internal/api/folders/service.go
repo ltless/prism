@@ -37,6 +37,7 @@ func (s *Service) List(userID string) (*ListResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	rows, err := tdb.Query("SELECT id, name, color, folder_type, parent_id, filter_query, created_at, updated_at FROM folders WHERE user_id = $1 ORDER BY name ASC", userID)
 	if err != nil {
@@ -71,6 +72,7 @@ func (s *Service) Create(userID, name, color, folderType, filterQuery string) (*
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	id := uuid.New().String()
 	now := time.Now().Unix()
@@ -111,6 +113,7 @@ func (s *Service) Update(userID, id, name string) error {
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	now := time.Now().Unix()
 	_, err = tdb.Exec("UPDATE folders SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4", name, now, id, userID)
@@ -122,6 +125,7 @@ func (s *Service) Delete(userID, id string) error {
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
+	defer tdb.Close()
 
 	tx, err := tdb.Begin()
 	if err != nil {

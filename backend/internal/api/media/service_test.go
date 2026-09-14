@@ -209,6 +209,7 @@ func TestService_BulkMove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
+	defer tdb.Close()
 	_, err = tdb.Exec("INSERT INTO folders (id, user_id, name, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)",
 		"folder-1", "test-user", "Test Folder", 1000, 1000)
 	if err != nil {
@@ -360,6 +361,7 @@ func TestService_GetDashboard_RootViewExcludesFiledMedia(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
+	defer tdb.Close()
 	if _, err := tdb.Exec(`INSERT INTO folders (id, user_id, name) VALUES ($1, $2, $3)`, "folder-1", "test-user", "Folder One"); err != nil {
 		t.Fatalf("insert folder: %v", err)
 	}

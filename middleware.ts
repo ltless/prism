@@ -73,9 +73,10 @@ export function middleware(request: NextRequest) {
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
   // CSRF: same-origin browser fetches send Origin or Referer. no Origin AND
-  // no Referer = something shady. reject it.
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method)
-      && !request.nextUrl.pathname.startsWith("/api/v1/")) {
+  // no Referer = something shady. reject it. Applies to ALL mutating
+  // requests, including /api/v1/* (rewritten to the Go backend) — SameSite
+  // cookies alone are not enough defense.
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
     const origin = request.headers.get("origin");
     const referer = request.headers.get("referer");
     const host = request.headers.get("host");

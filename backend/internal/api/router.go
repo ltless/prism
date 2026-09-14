@@ -35,7 +35,9 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	e.Use(echomw.Recover())
 	e.Use(appmw.CORS(cfg.CORSOrigin))
 
-	rl := appmw.NewRateLimiter(100, time.Minute)
+	// Uploads POST one request per file, so the limit must be configurable
+	// (UPLOAD_RATE_LIMIT) for large imports. Defaults stay conservative.
+	rl := appmw.NewRateLimiter(cfg.UploadRateLimit, time.Minute)
 	// Only GET /media (list) and file/thumbnail reads are high-frequency and
 	// cheap; the POST upload route stays rate-limited.
 	rl.SkipMethodPath(http.MethodGet, "/api/v1/media")

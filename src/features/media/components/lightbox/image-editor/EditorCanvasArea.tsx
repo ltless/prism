@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef, useCallback } from "react";
-import { m } from "motion/react";
 import { Ruler } from "../Ruler";
 import { CanvasRenderer, type CanvasRendererHandle } from "../image-editor/canvas/CanvasRenderer";
 import { DEFAULT_ADJUSTMENTS, useEditorState } from "../image-editor/state/editorState";

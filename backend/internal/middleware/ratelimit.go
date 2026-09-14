@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"io"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -83,10 +85,26 @@ func (rl *RateLimiter) Middleware() echo.MiddlewareFunc {
 				}
 			}
 
-			if len(valid) >= rl.limit {
-				rl.mu.Unlock()
-				return echo.NewHTTPError(http.StatusTooManyRequests, "rate limit exceeded")
+		if len(valid) >= rl.limit {
+			rl.mu.Unlock()
+			// Drain the request body so Go doesn't RST the connection while
+			// the proxy is still writing the upload — the browser would see a
+			// network error instead of the 429. BodyLimit already caps uploads
+			// at 210MB, so draining is bounded.
+			if c.Request().Body != nil {
+				io.Copy(io.Discard, c.Request().Body)
 			}
+			// Seconds until the oldest request in the window ages out — the
+			// earliest the client can successfully retry.
+			retryAfter := int(rl.window.Seconds())
+			if len(valid) > 0 {
+				if s := int(time.Until(valid[0].Add(rl.window)).Seconds()) + 1; s > 0 {
+					retryAfter = s
+				}
+			}
+			c.Response().Header().Set("Retry-After", strconv.Itoa(retryAfter))
+			return echo.NewHTTPError(http.StatusTooManyRequests, "rate limit exceeded")
+		}
 
 			if len(rl.requests) >= rl.maxKeys {
 				// Evict the least-recently-seen key (F11): a random map-order

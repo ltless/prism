@@ -20,11 +20,15 @@ import { downloadBatchAsZip } from "../utils/zipHelper";
 interface MediaLibraryProps {
   initialItems: MediaItem[];
   folders: FolderType[];
+  total: number;
+  initialFolderId: string | null;
+  initialFavorite: boolean;
+  initialSmartFilter: { categories: string[]; minScore: number } | null;
 }
 
 const EMPTY_FOLDERS: FolderType[] = [];
 
-export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: MediaLibraryProps) {
+export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS, total, initialFolderId, initialFavorite, initialSmartFilter }: MediaLibraryProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = searchParams.get('v');
@@ -36,10 +40,52 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: 
 
   const [allItems, setAllItems] = useState<MediaItem[]>(initialItems);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingRef = useRef(false);
+  const [prevInitial, setPrevInitial] = useState(initialItems);
+
+  // Reset accumulated pages when the server sends fresh page-1 data
+  // (router.refresh / folder switch). Render-phase reset — the pattern
+  // ImageEditor.tsx already uses — instead of set-state-in-effect.
+  if (initialItems !== prevInitial) {
+    setPrevInitial(initialItems);
+    setAllItems(initialItems);
+    setPage(1);
+  }
+
+  const hasMore = allItems.length < total;
+
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMore) return;
+    loadingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const { fetchLibraryPageAction } = await import("../services/mediaSearch");
+      const res = await fetchLibraryPageAction(initialFolderId, initialFavorite, initialSmartFilter, page + 1);
+      if (res.success) {
+        setAllItems(prev => {
+          const seen = new Set(prev.map(i => i.id));
+          return [...prev, ...res.items.filter((i: MediaItem) => !seen.has(i.id))];
+        });
+        setPage(p => p + 1);
+      }
+    } finally {
+      loadingRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [page, hasMore, initialFolderId, initialFavorite, initialSmartFilter]);
 
   useEffect(() => {
-    setAllItems(initialItems);
-  }, [initialItems]);
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) loadMore();
+    }, { root: scrollContainerRef.current, rootMargin: "600px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loadMore, hasMore]);
 
   const removeItem = useCallback((id: string) => {
     setAllItems(prev => prev.filter(item => item.id !== id));
@@ -150,19 +196,24 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS }: 
  }}
  />
  </>
- ) : displayedItems.length === 0 ? <EmptyLibrary isFolder={!!activeFolderId} /> : (
- <>
- <MediaGrid
- items={displayedItems} selectedIds={selectedIds} clipboardIds={clipboard?.ids || new Set()}
- isCut={!!clipboard?.isCut} folders={folders}
- onItemSelect={toggleSelect}
- onDelete={removeItem}
- scrollRef={scrollContainerRef}
- onItemClick={(item, e) => {
- if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); toggleSelect(item.id, e.shiftKey, e.ctrlKey || e.metaKey); }
- else setSelectedId(item.id);
- }}
-  />
+  ) : displayedItems.length === 0 ? <EmptyLibrary isFolder={!!activeFolderId} /> : (
+  <>
+  <MediaGrid
+  items={displayedItems} selectedIds={selectedIds} clipboardIds={clipboard?.ids || new Set()}
+  isCut={!!clipboard?.isCut} folders={folders}
+  onItemSelect={toggleSelect}
+  onDelete={removeItem}
+  scrollRef={scrollContainerRef}
+  onItemClick={(item, e) => {
+  if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); toggleSelect(item.id, e.shiftKey, e.ctrlKey || e.metaKey); }
+  else setSelectedId(item.id);
+  }}
+   />
+  {hasMore && (
+  <div ref={sentinelRef} className="flex justify-center py-6">
+  {loadingMore && <Spinner size={24} weight="bold" className="animate-spin text-muted-text" />}
+  </div>
+  )}
   </>
   )}
   </div>

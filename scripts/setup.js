@@ -46,7 +46,6 @@ function step(n, msg) {
 }
 
 function ok(msg) { console.log(`  ${GR}✓${RS} ${msg}`); }
-function warn(msg) { console.log(`  ${YL}!${RS} ${msg}`); }
 function err(msg) { console.log(`  ${RD}✗${RS} ${msg}`); }
 
 function genSecret(len = 64) {
@@ -144,7 +143,6 @@ function resolvePgPassword() {
 
 function readPipedLines() {
   return new Promise((resolve) => {
-    const lines = [];
     let buf = '';
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (chunk) => { buf += chunk; });

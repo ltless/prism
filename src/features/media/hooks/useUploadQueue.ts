@@ -30,6 +30,7 @@ export function useUploadQueue() {
   const currentXhrRef = useRef<XMLHttpRequest | null>(null);
   const pollersRef = useRef<StatusPoller<unknown>[]>([]);
   const cancelledRef = useRef(false);
+  const rateLimitWaitRef = useRef<(() => void) | null>(null);
 
   const stopPollers = useCallback(() => {
     pollersRef.current.forEach(p => p.stop());
@@ -102,9 +103,27 @@ export function useUploadQueue() {
       } catch (error: unknown) {
         if (cancelledRef.current) break;
         if (error instanceof RateLimitError) {
-          // Rate limited — stop the loop. Every remaining file will also 429.
-          lastErrorMessage = `Rate limited. ${completed} uploaded, ${totalFiles - completed - failed} remaining. Retry in ${error.retryAfterSeconds}s.`;
-          failed = totalFiles - completed;
+          // Rate limited — wait out the window, then resume with this same
+          // file. The server sends Retry-After; the default covers older
+          // responses without the header.
+          const remaining = totalFiles - completed - failed;
+          reportResult({
+            success: false,
+            message: `Rate limited. Waiting ${error.retryAfterSeconds}s to resume ${remaining} file${remaining !== 1 ? "s" : ""}...`,
+            successCount: completed,
+            errorCount: failed,
+          });
+          await new Promise<void>(resolve => {
+            const timer = setTimeout(resolve, error.retryAfterSeconds * 1000);
+            rateLimitWaitRef.current = () => { clearTimeout(timer); resolve(); };
+          });
+          rateLimitWaitRef.current = null;
+          if (cancelledRef.current) break;
+          // Re-queue the rest of the batch, including this file.
+          const idx = currentBatch.indexOf(file);
+          const remainingFiles = currentBatch.slice(idx);
+          uploadQueueRef.current.unshift(remainingFiles);
+          setWaitingCount(prev => prev + remainingFiles.length);
           break;
         }
         failed++;
@@ -175,6 +194,7 @@ export function useUploadQueue() {
   useEffect(() => {
     return () => {
       cancelledRef.current = true;
+      rateLimitWaitRef.current?.();
       if (currentXhrRef.current) currentXhrRef.current.abort();
       stopPollers();
     };
@@ -190,6 +210,7 @@ export function useUploadQueue() {
 
   const cancelUpload = useCallback(() => {
     cancelledRef.current = true;
+    rateLimitWaitRef.current?.();
     if (currentXhrRef.current) currentXhrRef.current.abort();
     stopPollers();
     uploadQueueRef.current = [];

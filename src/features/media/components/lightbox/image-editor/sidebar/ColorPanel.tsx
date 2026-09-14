@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Palette, X } from "@phosphor-icons/react";
+import { Palette } from "@phosphor-icons/react";
 import { PanelHeader } from "../../EditorSidebar";
 
 const presetColors = [

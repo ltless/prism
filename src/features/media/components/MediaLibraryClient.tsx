@@ -17,8 +17,28 @@ const MediaLibrary = dynamic(() => import("./MediaLibrary"), {
 interface MediaLibraryClientProps {
   initialItems: MediaItem[];
   folders: FolderType[];
+  total?: number;
+  initialFolderId?: string | null;
+  initialFavorite?: boolean;
+  initialSmartFilter?: { categories: string[]; minScore: number } | null;
 }
 
-export default function MediaLibraryClient({ initialItems, folders }: MediaLibraryClientProps) {
-  return <MediaLibrary initialItems={initialItems} folders={folders} />;
+export default function MediaLibraryClient({
+  initialItems,
+  folders,
+  total = initialItems.length,
+  initialFolderId = null,
+  initialFavorite = false,
+  initialSmartFilter = null,
+}: MediaLibraryClientProps) {
+  return (
+    <MediaLibrary
+      initialItems={initialItems}
+      total={total}
+      initialFolderId={initialFolderId === "" ? null : initialFolderId}
+      initialFavorite={initialFavorite}
+      initialSmartFilter={initialSmartFilter}
+      folders={folders}
+    />
+  );
 }

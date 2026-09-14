@@ -74,8 +74,12 @@ export const MediaGrid = memo(function MediaGrid({
   return () => ro.disconnect();
  }, [parentRef]);
 
- const rowCount = Math.ceil(items.length / cols);
- const virtualizer = useVirtualizer({
+  const rowCount = Math.ceil(items.length / cols);
+  // React Compiler skips memoizing this hook — TanStack Virtual returns
+  // functions that can't be safely memoized. Intentional: the virtualizer
+  // already handles its own instance lifecycle.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
   count: rowCount,
   getScrollElement: () => parentRef.current,
   estimateSize: () => {

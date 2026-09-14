@@ -24,6 +24,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   const params = new URLSearchParams({
     dedup: "true",
+    page: "1",
+    limit: "200",
   });
   if (activeFolderId) params.set("folder_id", activeFolderId);
   if (isFav) params.set("is_favorite", "true");
@@ -37,11 +39,15 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const smartFilter = allFolders.find(f => f.id === activeFolderId)?.smartFilter;
 
   let itemsRes = dashRes;
+  let smartFilterUsed: { categories: string[]; minScore: number } | null = null;
   if (smartFilter) {
+    smartFilterUsed = smartFilter;
     const smartParams = new URLSearchParams({
       smart: "true",
       minScore: String(smartFilter.minScore),
       categories: smartFilter.categories.join(","),
+      page: "1",
+      limit: "200",
     });
     itemsRes = await goFetch<DashboardResponse>(`/api/v1/media/dashboard?${smartParams}`);
   }
@@ -49,6 +55,10 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   return (
     <MediaLibraryClient
       initialItems={(itemsRes.items ?? []).map(mapMedia)}
+      total={itemsRes.total ?? 0}
+      initialFolderId={activeFolderId}
+      initialFavorite={isFav}
+      initialSmartFilter={smartFilterUsed}
       folders={allFolders}
     />
   );

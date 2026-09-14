@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -34,13 +36,52 @@ func TestRateLimiter_SkipMethodPath(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("first POST expected 200, got %d", rec.Code)
 	}
+
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/v1/media", nil))
 	if rec.Code != http.StatusTooManyRequests {
 		t.Fatalf("second POST expected 429, got %d", rec.Code)
 	}
+	if rec.Header().Get("Retry-After") == "" {
+		t.Fatal("429 response must carry a Retry-After header")
+	}
 }
 
+// When the limiter rejects an upload POST, it must drain the request body
+// first — otherwise Go RSTs the connection mid-upload and the proxy surfaces
+// a network error instead of the 429 the client needs to retry on.
+func TestRateLimiter_429DrainsBodyAndSetsRetryAfter(t *testing.T) {
+	rl := NewRateLimiter(1, time.Minute)
+	defer rl.Close()
+
+	e := echo.New()
+	e.Use(rl.Middleware())
+	e.POST("/api/v1/media", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
+
+	post := func() *httptest.ResponseRecorder {
+		body := make([]byte, 1<<20)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/media", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/octet-stream")
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := post(); rec.Code != http.StatusOK {
+		t.Fatalf("first POST expected 200, got %d", rec.Code)
+	}
+	rec := post()
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("second POST expected 429, got %d", rec.Code)
+	}
+	ra := rec.Header().Get("Retry-After")
+	if ra == "" {
+		t.Fatal("expected Retry-After header on 429")
+	}
+	if n, err := strconv.Atoi(ra); err != nil || n < 1 || n > 61 {
+		t.Fatalf("Retry-After should be within the 1-minute window, got %q", ra)
+	}
+}
 // F11: at key capacity the limiter must evict the OLDEST-seen key, not a
 // random map-order one — random eviction can reset a currently-limited
 // attacker's counter mid-attack.

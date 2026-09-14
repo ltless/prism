@@ -87,7 +87,6 @@ export function VideoPlayer({ src, autoPlay = true, className }: VideoPlayerProp
         {(showControls || isDraggingProgress) && (
           <VideoControls
             playback={{ playing: isPlaying, muted: isMuted, fullscreen: isFullscreen }}
-            showControls={showControls}
             isDraggingProgress={isDraggingProgress}
             volume={volume}
             currentTime={currentTime}

@@ -48,7 +48,6 @@ export const MediaCard = memo(function MediaCard({
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const imageUrl = `/api/v1/media/files/${item.filePath}?thumb=1`;
-  const metadata = item.metadata || {};
   const isVideo = item.mimeType?.startsWith("video/");
   const formattedDuration = item.duration ? formatDuration(item.duration) : null;
 

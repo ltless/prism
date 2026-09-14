@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { DuplicateList, DuplicateGroup } from "../../../features/media/components/DuplicateList";
 import { goFetch } from "@/lib/api";
-import { mapFolder, type FolderListResponse } from "@/types/goApi";
+import { type FolderListResponse } from "@/types/goApi";
 
 type DuplicatesResponse = { groups: DuplicateGroup[] };
 

@@ -1,13 +1,11 @@
 "use client";
 
-import { useRef } from "react";
 import { Play, Pause, SpeakerSimpleHigh, SpeakerSimpleX, ArrowsOut, ArrowsIn } from "@phosphor-icons/react";
 import { m } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface VideoControlsProps {
   playback: { playing: boolean; muted: boolean; fullscreen: boolean };
-  showControls: boolean;
   isDraggingProgress: boolean;
   volume: number;
   currentTime: number;
@@ -30,7 +28,7 @@ function formatTime(time: number) {
 }
 
 export function VideoControls({
-  playback, showControls, isDraggingProgress,
+  playback, isDraggingProgress,
   volume, currentTime, duration, bufferedPercent, progressPercent,
   progressBarRef, onTogglePlay, onToggleMute, onToggleFullscreen,
   onVolumeChange, onProgressMouseDown,

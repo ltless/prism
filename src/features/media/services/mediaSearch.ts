@@ -2,6 +2,7 @@
 
 import { goFetch } from "@/lib/api";
 import { safeAction } from "@/core/utils/action";
+import { mapMedia } from "@/types/goApi";
 
 interface GoSearchResponse {
   items: Array<{
@@ -27,6 +28,15 @@ interface GoSearchResponse {
   total: number;
 }
 
+function parseMetadata(item: GoSearchResponse["items"][number]) {
+  return {
+    ...item,
+    metadata: typeof item.metadata === "string"
+      ? (() => { try { return JSON.parse(item.metadata); } catch { return null; } })()
+      : item.metadata,
+  };
+}
+
 export async function searchMediaAction(
   query: string,
   folderId?: string | null,
@@ -49,13 +59,31 @@ export async function searchMediaAction(
     );
 
     // Go returns metadata as a raw JSON string; parse it.
-    const items = resp.items.map((item) => ({
-      ...item,
-      metadata: typeof item.metadata === "string"
-        ? (() => { try { return JSON.parse(item.metadata); } catch { return null; } })()
-        : item.metadata,
-    }));
+    const items = resp.items.map(parseMetadata);
 
     return { items, total: resp.total, query, mode: "keyword" as const };
+  });
+}
+
+// Infinite scroll for the library grid — the dashboard endpoint caps each
+// page at 200 items, so the client pulls successive pages.
+export async function fetchLibraryPageAction(
+  folderId: string | null,
+  favorite: boolean,
+  smart: { categories: string[]; minScore: number } | null,
+  page: number,
+) {
+  return safeAction("fetchLibraryPage", async () => {
+    const params = new URLSearchParams({ page: String(page), limit: "200" });
+    if (folderId) params.set("folder_id", folderId);
+    if (favorite) params.set("is_favorite", "true");
+    if (smart) {
+      params.set("smart", "true");
+      params.set("categories", smart.categories.join(","));
+      params.set("minScore", String(smart.minScore));
+    }
+
+    const resp = await goFetch<GoSearchResponse>(`/api/v1/media/dashboard?${params.toString()}`);
+    return { items: resp.items.map(mapMedia), total: resp.total };
   });
 }

@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import type { EditorTool } from "./image-editor/state/editorState";
-import { SliderRow } from "./image-editor/sidebar/SliderRow";
-import { Histogram } from "./image-editor/sidebar/Histogram";
 import { AdjustPanel } from "./image-editor/sidebar/AdjustPanel";
 import { ColorPanel } from "./image-editor/sidebar/ColorPanel";
 import { SwatchesPanel } from "./image-editor/sidebar/SwatchesPanel";
@@ -15,10 +13,7 @@ import { SidebarRail } from "./image-editor/sidebar/SidebarRail";
 import { HistogramPanel } from "./image-editor/sidebar/HistogramPanel";
 import { HistoryPanel } from "./image-editor/sidebar/HistoryPanel";
 import { useSwatches } from "./image-editor/hooks/useSwatches";
-import {
-  Palette,
-  X,
-} from "@phosphor-icons/react";
+import { Palette, X } from "@phosphor-icons/react";
 
 interface EditorSidebarProps {
   isOpen: boolean;
@@ -172,14 +167,6 @@ export function EditorSidebar({
       return next;
     });
     if (!isOpen) onToggle();
-  };
-
-  const addSwatchHandler = () => {
-    addSwatch();
-  };
-
-  const removeSwatchHandler = (color: string) => {
-    removeSwatch(color);
   };
 
   return (

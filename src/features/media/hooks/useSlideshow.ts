@@ -9,7 +9,16 @@ export const SLIDESHOW_INTERVAL_MS = 4000;
  */
 export function useSlideshow(canAdvance: boolean, onAdvance: () => void): [boolean, () => void] {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [prevCanAdvance, setPrevCanAdvance] = useState(canAdvance);
   const onAdvanceRef = useRef(onAdvance);
+
+  // Render-phase adjustment (React-endorsed for prop-driven resets): when
+  // advancing becomes impossible — last item reached, or a video starts
+  // playing — stop the slideshow without a set-state-in-effect pass.
+  if (canAdvance !== prevCanAdvance) {
+    setPrevCanAdvance(canAdvance);
+    if (!canAdvance) setIsPlaying(false);
+  }
 
   useEffect(() => {
     onAdvanceRef.current = onAdvance;
@@ -21,12 +30,10 @@ export function useSlideshow(canAdvance: boolean, onAdvance: () => void): [boole
     return () => clearInterval(id);
   }, [isPlaying, canAdvance]);
 
-  const toggle = useCallback(() => setIsPlaying(v => !v), []);
-
-  // Stop at the end of the list
-  useEffect(() => {
-    if (isPlaying && !canAdvance) setIsPlaying(false);
-  }, [isPlaying, canAdvance]);
+  const toggle = useCallback(() => {
+    if (!canAdvance) return;
+    setIsPlaying(v => !v);
+  }, [canAdvance]);
 
   return [isPlaying, toggle];
 }

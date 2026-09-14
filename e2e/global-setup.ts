@@ -1,12 +1,8 @@
-import crypto from "crypto";
-import bcrypt from "bcryptjs";
-
 const GO_API_URL = process.env.GO_API_URL || "http://localhost:8080";
 
 async function globalSetup() {
   // Register e2e user via Go API (handles user creation + dedup)
   const password = "testpass123";
-  const passwordHash = bcrypt.hashSync(password, 10);
 
   // Try to register — if user exists, login works anyway
   const res = await fetch(`${GO_API_URL}/api/v1/auth/register`, {

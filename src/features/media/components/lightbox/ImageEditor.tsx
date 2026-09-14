@@ -7,16 +7,12 @@ import { EditorToolbar } from "./EditorToolbar";
 import { EditorSidebar } from "./EditorSidebar";
 import { LibraryPicker } from "./LibraryPicker";
 import { EditorCanvasArea } from "./image-editor/EditorCanvasArea";
-import {
-  CanvasRenderer,
-  type CanvasRendererHandle,
-} from "./image-editor/canvas/CanvasRenderer";
+import type { CanvasRendererHandle } from "./image-editor/canvas/CanvasRenderer";
 import { useEditorState } from "./image-editor/state/editorState";
 import {
   initHistoryBaseline,
 } from "./image-editor/state/history";
 import {
-  useEditorActions,
   useDraggingStore,
   resetEditorActions,
 } from "./image-editor/hooks/useEditorActions";
@@ -88,7 +84,7 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
 
   const {
     zoom, pan, isPanning, canvasContainerRef, canvasContainerSize,
-    setZoom, setPan, setIsPanning, panStart,
+    setZoom,
     handleMouseDown: handleCanvasMouseDown,
     handleMouseMove: handleCanvasMouseMove, handleMouseUp: handleCanvasMouseUp,
   } = useEditorCanvas();

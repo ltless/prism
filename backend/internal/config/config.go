@@ -22,6 +22,7 @@ type Config struct {
 	RequireInvite              bool
 	NukeToken                  string
 	MediaProcessingConcurrency int
+	UploadRateLimit            int
 }
 
 func Load() (*Config, error) {
@@ -53,6 +54,7 @@ func Load() (*Config, error) {
 		RequireInvite:              getEnv("REQUIRE_INVITE", "true") == "true",
 		NukeToken:                  os.Getenv("NUKE_CONFIRMATION_TOKEN"),
 		MediaProcessingConcurrency: getEnvInt("MEDIA_PROCESSING_CONCURRENCY", 4),
+		UploadRateLimit:            getEnvInt("UPLOAD_RATE_LIMIT", 100),
 	}
 
 	return cfg, nil

@@ -2,6 +2,8 @@ export const THUMB_URL = (filePath: string) => `/api/v1/media/files/${filePath}?
 
 const CARD_SIZE = 96;
 const FAN_OFFSET = 10;
+const STACK_OFFSET = 48;
+const SINGLE_OFFSET = 32;
 
 export function buildDragStack(frontUrl: string, otherUrls: string[], total: number): HTMLDivElement {
   const stackCount = Math.min(total, 3);
@@ -77,4 +79,46 @@ export function buildDragStack(frontUrl: string, otherUrls: string[], total: num
   }
 
   return stack;
+}
+
+/** Single-item drag image: one card, no fan-out stack. */
+export function buildSingleGhost(frontUrl: string): HTMLDivElement {
+  const ghost = document.createElement("div");
+  ghost.className = "w-16 h-16 rounded-xl border border-white/20 shadow-2xl overflow-hidden bg-black/40";
+  const img = document.createElement("img");
+  img.src = frontUrl;
+  img.className = "w-full h-full object-cover opacity-80";
+  ghost.appendChild(img);
+  return ghost;
+}
+
+/**
+ * Creates the drag-image ghost off-screen, hands it to the browser, and
+ * removes it on the next tick — the DOM node is only needed for the
+ * setDragImage snapshot.
+ */
+export function attachDragGhost(e: React.DragEvent, ghost: HTMLDivElement, offset: number) {
+  ghost.style.position = "absolute";
+  ghost.style.top = "-1000px";
+  document.body.appendChild(ghost);
+  e.dataTransfer.setDragImage(ghost, offset, offset);
+  setTimeout(() => ghost.remove(), 0);
+}
+
+/** Builds the full drag payload + ghost for a card drag, single or stacked. */
+export function startCardDrag(
+  e: React.DragEvent,
+  idsToMove: string[],
+  imageUrl: string,
+  selectedThumbs: string[],
+) {
+  e.dataTransfer.setData("application/prism-media-ids", JSON.stringify(idsToMove));
+  e.dataTransfer.effectAllowed = "move";
+
+  if (idsToMove.length > 1) {
+    const others = selectedThumbs.filter(t => t !== imageUrl).slice(0, 2);
+    attachDragGhost(e, buildDragStack(imageUrl, others, idsToMove.length), STACK_OFFSET);
+  } else {
+    attachDragGhost(e, buildSingleGhost(imageUrl), SINGLE_OFFSET);
+  }
 }

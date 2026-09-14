@@ -6,6 +6,20 @@ import { DEFAULT_ADJUSTMENTS, useEditorState } from "../image-editor/state/edito
 
 type Adjustments = ReturnType<typeof useEditorState.getState>["adjustments"];
 
+function canvasCursor(activeTool: string, panning: boolean): string {
+  if (activeTool === "eyedropper") return "crosshair";
+  if (activeTool === "hand") return "grab";
+  if (activeTool === "select") return "move";
+  return panning ? "grabbing" : "default";
+}
+
+function imageTransform(pan: { x: number; y: number }, zoom: number, rotation: number, flip: { h: boolean; v: boolean }): string {
+  let t = `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom}) rotate(${rotation}deg)`;
+  if (flip.h) t += " scaleX(-1)";
+  if (flip.v) t += " scaleY(-1)";
+  return t;
+}
+
 interface EditorCanvasAreaProps {
   view: { rulers: boolean; grid: boolean; before: boolean };
   activeTool: string;
@@ -28,7 +42,7 @@ export function EditorCanvasArea({
   view, activeTool, interaction, zoom, pan, rotation, flip, mediaUrl, adjustments, maxPreviewSize,
   canvasRef, canvasContainerRef, onMouseDown, onMouseMove, onMouseUp,
 }: EditorCanvasAreaProps) {
-  const imageTransform = `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom}) rotate(${rotation}deg) ${flip.h ? "scaleX(-1)" : ""} ${flip.v ? "scaleY(-1)" : ""}`;
+  const transform = imageTransform(pan, zoom, rotation, flip);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -44,18 +58,7 @@ export function EditorCanvasArea({
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
           onMouseLeave={onMouseUp}
-          style={{
-            cursor:
-              activeTool === "eyedropper"
-                ? "crosshair"
-                : activeTool === "hand"
-                  ? "grab"
-                  : activeTool === "select"
-                    ? "move"
-                    : interaction.panning
-                      ? "grabbing"
-                      : "default",
-          }}
+          style={{ cursor: canvasCursor(activeTool, interaction.panning) }}
         >
           {view.grid && (
             <div
@@ -69,7 +72,7 @@ export function EditorCanvasArea({
           )}
           <div
             style={{
-              transform: imageTransform,
+              transform,
               transition: interaction.panning
                 ? "none"
                 : "transform 0.1s ease-out",

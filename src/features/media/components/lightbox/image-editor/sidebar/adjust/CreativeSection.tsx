@@ -18,6 +18,42 @@ interface CreativeSectionProps {
   onQuadtoneColorDChange: (v: string) => void;
 }
 
+function ToneColorPicker({
+  label,
+  colors,
+  onChange,
+  onReset,
+}: {
+  label: string;
+  colors: { key: string; title: string; swatch: string; def: string }[];
+  onChange: (key: string, v: string) => void;
+  onReset: () => void;
+}) {
+  const isDirty = colors.some((c) => c.swatch !== c.def);
+  return (
+    <div className="space-y-1.5">
+      <span className="text-[11px] text-main-text/80 block">{label}</span>
+      <div className="flex items-center gap-2">
+        {colors.map((c) => (
+          <input
+            key={c.key}
+            type="color"
+            value={c.swatch}
+            onChange={(e) => onChange(c.key, e.target.value)}
+            className="w-6 h-6 rounded-md border border-main-border cursor-pointer"
+            title={c.title}
+          />
+        ))}
+        {isDirty && (
+          <button type="button" onClick={onReset} className="text-[11px] text-muted-text hover:text-primary underline cursor-pointer">
+            Reset
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CreativeSection({
   onInvertChange,
   onDuotoneColorAChange,
@@ -79,130 +115,36 @@ export function CreativeSection({
         onCommit={endDragSession}
       />
 
-      <div className="space-y-1.5">
-        <span className="text-[11px] text-main-text/80 block">Duotone</span>
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={adjustments.duotone?.colorA ?? "#000"}
-            onChange={(e) => onDuotoneColorAChange(e.target.value)}
-            className="w-8 h-8 rounded-md border border-main-border cursor-pointer"
-            title="Shadow color"
-          />
-          <input
-            type="color"
-            value={adjustments.duotone?.colorB ?? "#ffffff"}
-            onChange={(e) => onDuotoneColorBChange(e.target.value)}
-            className="w-8 h-8 rounded-md border border-main-border cursor-pointer"
-            title="Highlight color"
-          />
-          {(adjustments.duotone?.colorA !== "#000" || adjustments.duotone?.colorB !== "#ffffff") && (
-            <button
-              type="button"
-              onClick={() => {
-                onDuotoneColorAChange("#000");
-                onDuotoneColorBChange("#ffffff");
-              }}
-              className="text-[11px] text-muted-text hover:text-primary underline cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <span className="text-[11px] text-main-text/80 block">Tritone</span>
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={adjustments.tritone?.colorA ?? "#000"}
-            onChange={(e) => onTritoneColorAChange(e.target.value)}
-            className="w-7 h-7 rounded-md border border-main-border cursor-pointer"
-            title="Shadow"
-          />
-          <input
-            type="color"
-            value={adjustments.tritone?.colorB ?? "#808080"}
-            onChange={(e) => onTritoneColorBChange(e.target.value)}
-            className="w-7 h-7 rounded-md border border-main-border cursor-pointer"
-            title="Midtone"
-          />
-          <input
-            type="color"
-            value={adjustments.tritone?.colorC ?? "#ffffff"}
-            onChange={(e) => onTritoneColorCChange(e.target.value)}
-            className="w-7 h-7 rounded-md border border-main-border cursor-pointer"
-            title="Highlight"
-          />
-          {(adjustments.tritone?.colorA !== "#000" ||
-            adjustments.tritone?.colorB !== "#808080" ||
-            adjustments.tritone?.colorC !== "#ffffff") && (
-            <button
-              type="button"
-              onClick={() => {
-                onTritoneColorAChange("#000");
-                onTritoneColorBChange("#808080");
-                onTritoneColorCChange("#ffffff");
-              }}
-              className="text-[11px] text-muted-text hover:text-primary underline cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <span className="text-[11px] text-main-text/80 block">Quadtone</span>
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={adjustments.quadtone?.colorA ?? "#000"}
-            onChange={(e) => onQuadtoneColorAChange(e.target.value)}
-            className="w-6 h-6 rounded-md border border-main-border cursor-pointer"
-            title="0%"
-          />
-          <input
-            type="color"
-            value={adjustments.quadtone?.colorB ?? "#404040"}
-            onChange={(e) => onQuadtoneColorBChange(e.target.value)}
-            className="w-6 h-6 rounded-md border border-main-border cursor-pointer"
-            title="33%"
-          />
-          <input
-            type="color"
-            value={adjustments.quadtone?.colorC ?? "#bfbfbf"}
-            onChange={(e) => onQuadtoneColorCChange(e.target.value)}
-            className="w-6 h-6 rounded-md border border-main-border cursor-pointer"
-            title="67%"
-          />
-          <input
-            type="color"
-            value={adjustments.quadtone?.colorD ?? "#ffffff"}
-            onChange={(e) => onQuadtoneColorDChange(e.target.value)}
-            className="w-6 h-6 rounded-md border border-main-border cursor-pointer"
-            title="100%"
-          />
-          {(adjustments.quadtone?.colorA !== "#000" ||
-            adjustments.quadtone?.colorB !== "#404040" ||
-            adjustments.quadtone?.colorC !== "#bfbfbf" ||
-            adjustments.quadtone?.colorD !== "#ffffff") && (
-            <button
-              type="button"
-              onClick={() => {
-                onQuadtoneColorAChange("#000");
-                onQuadtoneColorBChange("#404040");
-                onQuadtoneColorCChange("#bfbfbf");
-                onQuadtoneColorDChange("#ffffff");
-              }}
-              className="text-[11px] text-muted-text hover:text-primary underline cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
+      <ToneColorPicker
+        label="Duotone"
+        colors={[
+          { key: "colorA", swatch: adjustments.duotone?.colorA ?? "#000", def: "#000", title: "Shadow color" },
+          { key: "colorB", swatch: adjustments.duotone?.colorB ?? "#ffffff", def: "#ffffff", title: "Highlight color" },
+        ]}
+        onChange={(k, v) => k === "colorA" ? onDuotoneColorAChange(v) : onDuotoneColorBChange(v)}
+        onReset={() => { onDuotoneColorAChange("#000"); onDuotoneColorBChange("#ffffff"); }}
+      />
+      <ToneColorPicker
+        label="Tritone"
+        colors={[
+          { key: "colorA", swatch: adjustments.tritone?.colorA ?? "#000", def: "#000", title: "Shadow" },
+          { key: "colorB", swatch: adjustments.tritone?.colorB ?? "#808080", def: "#808080", title: "Midtone" },
+          { key: "colorC", swatch: adjustments.tritone?.colorC ?? "#ffffff", def: "#ffffff", title: "Highlight" },
+        ]}
+        onChange={(k, v) => k === "colorA" ? onTritoneColorAChange(v) : k === "colorB" ? onTritoneColorBChange(v) : onTritoneColorCChange(v)}
+        onReset={() => { onTritoneColorAChange("#000"); onTritoneColorBChange("#808080"); onTritoneColorCChange("#ffffff"); }}
+      />
+      <ToneColorPicker
+        label="Quadtone"
+        colors={[
+          { key: "colorA", swatch: adjustments.quadtone?.colorA ?? "#000", def: "#000", title: "0%" },
+          { key: "colorB", swatch: adjustments.quadtone?.colorB ?? "#404040", def: "#404040", title: "33%" },
+          { key: "colorC", swatch: adjustments.quadtone?.colorC ?? "#bfbfbf", def: "#bfbfbf", title: "67%" },
+          { key: "colorD", swatch: adjustments.quadtone?.colorD ?? "#ffffff", def: "#ffffff", title: "100%" },
+        ]}
+        onChange={(k, v) => k === "colorA" ? onQuadtoneColorAChange(v) : k === "colorB" ? onQuadtoneColorBChange(v) : k === "colorC" ? onQuadtoneColorCChange(v) : onQuadtoneColorDChange(v)}
+        onReset={() => { onQuadtoneColorAChange("#000"); onQuadtoneColorBChange("#404040"); onQuadtoneColorCChange("#bfbfbf"); onQuadtoneColorDChange("#ffffff"); }}
+      />
     </CollapsibleSection>
   );
 }

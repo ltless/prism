@@ -1,10 +1,8 @@
 "use client";
 
 import { m, AnimatePresence } from "motion/react";
-import { ImageBroken } from "@phosphor-icons/react";
 import { useState } from "react";
 import { MediaItem, Folder } from "../types";
-import { VideoPlayer } from "./VideoPlayer";
 import { useRouter } from "next/navigation";
 import { ImageEditor } from "./lightbox/ImageEditor";
 import { useTranscodePolling } from "../hooks/useTranscodePolling";
@@ -13,6 +11,7 @@ import { useLightboxState } from "../hooks/useLightboxState";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
 import { LightboxInfoPanel } from "./lightbox/LightboxInfoPanel";
 import { LightboxControls } from "./lightbox/LightboxControls";
+import { LightboxMediaArea } from "./lightbox/LightboxMediaArea";
 
 interface LightboxProps {
   item: MediaItem;
@@ -89,7 +88,11 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
         ) : (
           <div key="viewer" className="contents">
             {/* Image viewport — flex-1, shrinks when info panel opens */}
-            <div
+            {/* layout prop: when the info panel mounts/unmounts, Motion animates
+                this viewport's resize via transform (layout projection) instead
+                of a per-frame flex reflow. */}
+            <m.div
+              layout
               role="button"
               tabIndex={0}
               aria-label="Image viewer"
@@ -99,60 +102,16 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              <AnimatePresence mode="wait">
-                {isVideo ? (
-                  <m.div
-                    key={`video-${item.id}`}
-                    initial={{ opacity: 0, x: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -20, scale: 0.95 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30, opacity: { duration: 0.2 } }}
-                    className="max-w-full max-h-full"
-                  >
-                    <VideoPlayer src={mediaUrl} autoPlay className="max-w-full max-h-full rounded-xl" />
-                  </m.div>
-                ) : imgError ? (
-                  <m.div
-                    key={`error-${item.id}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center justify-center w-full h-full"
-                  >
-                    <div className="flex flex-col items-center gap-3">
-                      <ImageBroken size={48} weight="light" className="text-white/20" />
-                      <p className="text-xs text-white/30 font-medium">Failed to load image</p>
-                    </div>
-                  </m.div>
-                ) : (
-                  <m.div
-                    key={`img-wrap-${item.id}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="relative w-full h-full flex items-center justify-center overflow-hidden"
-                  >
-                    {!imgLoaded && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-8 h-8 border-2 border-white/10 border-t-white/30 rounded-full animate-spin" />
-                      </div>
-                    )}
-                    <m.img
-                      src={mediaUrl}
-                      alt={item.title}
-                      draggable={false}
-                      loading="eager"
-                      onError={() => setImgError(true)}
-                      onLoad={() => setImgLoaded(true)}
-                      initial={{ opacity: 0, x: 20, scale: 0.95 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -20, scale: 0.95 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30, opacity: { duration: 0.3 } }}
-                      className="max-w-full max-h-full object-contain shadow-2xl select-none"
-                    />
-                  </m.div>
-                )}
-              </AnimatePresence>
+              <LightboxMediaArea
+                  isVideo={!!isVideo}
+                  mediaUrl={mediaUrl}
+                  itemTitle={item.title}
+                  itemId={item.id}
+                  imgError={imgError}
+                  imgLoaded={imgLoaded}
+                  setImgError={setImgError}
+                  setImgLoaded={setImgLoaded}
+                />
 
               <LightboxControls
                 view={{ controls: controlsVisible, video: !!isVideo, imgLoaded }}
@@ -165,9 +124,9 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
                 onInfoToggle={() => setIsInfoOpen(v => !v)}
                 onPrev={onPrev}
                 onNext={onNext}
-                slideshow={!isVideo && onNext && hasCounter ? { isPlaying: isSlideshow, onToggle: toggleSlideshow } : undefined}
-              />
-            </div>
+                  slideshow={!isVideo && onNext && hasCounter ? { isPlaying: isSlideshow, onToggle: toggleSlideshow } : undefined}
+                />
+            </m.div>
 
             {/* Info panel — pushes image aside (desktop) / bottom sheet (mobile) */}
             <AnimatePresence>

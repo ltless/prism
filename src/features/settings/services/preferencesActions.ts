@@ -12,22 +12,6 @@ interface UserProfileResponse {
   preferences: string | null;
 }
 
-async function getPreferencesAction() {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { success: false, error: "Unauthorized" };
-
-  return safeAction("getPreferencesAction", async () => {
-    const profile = await goFetch<UserProfileResponse>("/api/v1/users/me");
-    const raw = profile.preferences ? JSON.parse(profile.preferences) as Record<string, unknown> : null;
-    return {
-      preferences: {
-        theme: (raw?.theme as "dark" | "light") || "dark",
-      } as UserPreferences,
-    };
-  });
-}
-
 export async function updatePreferencesAction(preferences: UserPreferences) {
   const session = await auth();
   const userId = session?.user?.id;

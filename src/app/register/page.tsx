@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { m } from "motion/react";
+import { BrandLogo } from "@/shared/components/BrandLogo";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -63,9 +64,7 @@ export default function RegisterPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center space-y-3"
         >
-          <div className="w-11 h-11 bg-main-text rounded-xl flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="10" height="10" rx="1" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
-          </div>
+          <div className="mx-auto mb-4"><BrandLogo /></div>
           <h2 className="text-base font-semibold text-main-text">Account created</h2>
           <p className="text-[11px] text-muted-text">Redirecting to setup...</p>
         </m.div>
@@ -76,12 +75,10 @@ export default function RegisterPage() {
   return (
     <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay opacity-100">
       <div className="w-full max-w-[320px] flex flex-col gap-8 relative z-10">
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-11 h-11 bg-main-text rounded-xl flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="10" height="10" rx="1" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
-          </div>
-          <h1 className="text-base font-semibold text-main-text">Create account</h1>
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-3">
+            <BrandLogo />
+            <h1 className="text-base font-semibold text-main-text">Create account</h1>
         </div>
 
         {/* Card */}

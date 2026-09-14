@@ -87,8 +87,6 @@ export async function updateStorageLimitAction(newLimitBytes: number | null) {
   if (!session?.user?.id) return { success: false, error: "Unauthorized" };
   if (session.user.role !== "admin") return { success: false, error: "Forbidden" };
 
-  const userId = session.user.id;
-
   if (newLimitBytes !== null && (!Number.isFinite(newLimitBytes) || newLimitBytes < 0)) {
     return { success: false, error: "Limit must be a positive number" };
   }

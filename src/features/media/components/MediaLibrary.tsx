@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Spinner, MagnifyingGlass as SearchIcon } from "@phosphor-icons/react";
+import { Spinner } from "@phosphor-icons/react";
 import { LayoutGroup, AnimatePresence } from "motion/react";
 import { Lightbox } from "./Lightbox";
 import { UploadZone } from "./UploadZone";
@@ -10,7 +10,7 @@ import { MediaItem, Folder as FolderType } from "../types";
 import { LibraryHeader } from "./library/LibraryHeader";
 import { EmptyLibrary } from "./library/EmptyLibrary";
 import { MediaGrid } from "./library/MediaGrid";
-import { SearchFilters } from "./library/SearchFilters";
+import { LibrarySearchView, useClearSearch } from "./library/LibrarySearchView";
 import { SelectionBox } from "./library/SelectionBox";
 import { BulkActionBar } from "./library/BulkActionBar";
 import { useMediaSearch } from "../hooks/useMediaSearch";
@@ -30,6 +30,7 @@ const EMPTY_FOLDERS: FolderType[] = [];
 
 export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS, total, initialFolderId, initialFavorite, initialSmartFilter }: MediaLibraryProps) {
   const router = useRouter();
+  const clearSearch = useClearSearch();
   const searchParams = useSearchParams();
   const view = searchParams.get('v');
   const activeFolderId = searchParams.get('f');
@@ -146,56 +147,27 @@ export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS, to
  >
  <SelectionBox ref={selectionBoxRef} />
  
- {searchLoading ? (
- <div className="flex flex-col items-center justify-center py-32 gap-4">
- <Spinner size={32} weight="bold" className="animate-spin text-muted-text" />
- <p className="text-sm text-muted-text font-medium">
- Searching for <span className="text-main-text font-bold">{'\u201C'}{searchQuery}{'\u201D'}</span>...
- </p>
- <div className="mt-2">
- <SearchFilters />
- </div>
- </div>
- ) : q && displayedItems.length === 0 ? (
- <div className="flex flex-col items-center justify-center py-32 gap-4">
- <SearchIcon size={48} weight="light" className="text-muted-text/30" />
- <p className="text-sm text-muted-text font-medium">
- No results for <span className="text-main-text font-bold">{'\u201C'}{q}{'\u201D'}</span>
- </p>
- <div className="mb-2">
- <SearchFilters />
- </div>
- <button
- type="button"
- onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.delete('q'); p.delete('type'); p.delete('from'); p.delete('to'); router.push(`${window.location.pathname}?${p}`); }}
- className="text-xs text-primary font-bold hover:underline cursor-pointer"
- >
- Clear all
- </button>
- </div>
- ) : q && !searchLoading ? (
- <>
- <div className="flex items-center gap-3 mb-2">
- <SearchIcon size={14} weight="light" className="text-muted-text" />
- <p className="text-xs text-muted-text font-medium">
- <span className="text-main-text font-bold">{displayedItems.length}</span> result{displayedItems.length !== 1 ? 's' : ''} for <span className="text-main-text font-bold">{'\u201C'}{q}{'\u201D'}</span>
- </p>
- </div>
- <div className="mb-4">
- <SearchFilters />
- </div>
- <MediaGrid
- items={displayedItems} selectedIds={selectedIds} clipboardIds={clipboard?.ids || new Set()}
- isCut={!!clipboard?.isCut} folders={folders}
- onItemSelect={toggleSelect}
- onDelete={removeItem}
- scrollRef={scrollContainerRef}
- onItemClick={(item, e) => {
- if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); toggleSelect(item.id, e.shiftKey, e.ctrlKey || e.metaKey); }
- else setSelectedId(item.id);
- }}
- />
- </>
+  {q ? (
+  <LibrarySearchView
+  q={q}
+  searchLoading={searchLoading}
+  searchQuery={searchQuery}
+  items={displayedItems}
+  grid={{
+  selectedIds,
+  clipboardIds: clipboard?.ids || new Set(),
+  isCut: !!clipboard?.isCut,
+  folders,
+  onItemSelect: toggleSelect,
+  onDelete: removeItem,
+  scrollRef: scrollContainerRef,
+  onItemClick: (item, e) => {
+  if (e.ctrlKey || e.metaKey || e.shiftKey) { e.preventDefault(); toggleSelect(item.id, e.shiftKey, e.ctrlKey || e.metaKey); }
+  else setSelectedId(item.id);
+  },
+  }}
+  onClear={clearSearch}
+  />
   ) : displayedItems.length === 0 ? <EmptyLibrary isFolder={!!activeFolderId} /> : (
   <>
   <MediaGrid

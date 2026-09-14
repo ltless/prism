@@ -1,7 +1,5 @@
 import { DEFAULT_USER_QUOTA_BYTES } from "@/core/constants";
 
-const STORAGE_DEFAULT_KEY = "storage_default_quota";
-
 /**
  * Parse the stored app_settings value into an effective bytes limit.
  *   null/undefined (no row) → 10 GiB fallback

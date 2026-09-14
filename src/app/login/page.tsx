@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { BrandLogo } from "@/shared/components/BrandLogo";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -39,9 +40,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[320px] flex flex-col gap-8 relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">
-          <div className="w-11 h-11 bg-main-text rounded-xl flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="10" height="10" rx="1" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
-          </div>
+          <BrandLogo />
           <h1 className="text-base font-semibold text-main-text">Sign in to Prism</h1>
         </div>
 

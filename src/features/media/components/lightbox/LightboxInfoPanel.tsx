@@ -38,13 +38,13 @@ export function LightboxInfoPanel({ item, transcodeStatus, folders, isMobile, on
   return (
     <m.div
       key="info-desktop"
-      initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 320, opacity: 1 }}
-      exit={{ width: 0, opacity: 0 }}
+      initial={{ x: 320, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: 320, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="shrink-0 overflow-hidden border-l border-white/10"
+      className="shrink-0 w-[320px] border-l border-white/10"
     >
-      <div className="w-[320px] h-full bg-panel-bg flex flex-col overflow-hidden">
+      <div className="h-full bg-panel-bg flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 h-11 border-b border-main-border shrink-0">
           <h3 className="text-xs text-muted-text font-medium">Details</h3>
           <button type="button" onClick={onClose} aria-label="Close details" className="p-2 hover:bg-surface-bg rounded-md transition-colors cursor-pointer">

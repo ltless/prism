@@ -18,36 +18,36 @@ interface UploadStatusToastProps {
   onDismiss: () => void;
 }
 
+type ToastVariant = {
+  border: string;
+  iconBg: string;
+  header: string;
+  Icon: typeof Spinner;
+  iconProps?: { weight?: "fill" | "bold" };
+};
+
+// The toast has exactly four visual states; one lookup replaces the three
+// nested ternary chains (border / icon / header) the component used to branch on.
+function toastVariant(isUploading: boolean, result: UploadStatusToastProps["uploadResult"]): ToastVariant {
+  if (isUploading) {
+    return { border: "border-primary/20", iconBg: "bg-primary/10 text-primary", header: "Processing", Icon: Spinner, iconProps: { weight: "bold" } };
+  }
+  if (result?.success) {
+    return { border: "border-primary/20", iconBg: "bg-primary/10 text-primary", header: "Done", Icon: CheckCircle, iconProps: { weight: "fill" } };
+  }
+  const isPartial = !result?.success && (result?.successCount ?? 0) > 0;
+  if (isPartial) {
+    return { border: "border-amber-500/20", iconBg: "bg-amber-500/10 text-amber-500", header: "Partial", Icon: Warning, iconProps: { weight: "fill" } };
+  }
+  return { border: "border-rose-500/20", iconBg: "bg-rose-500/10 text-rose-500", header: "Failed", Icon: Warning, iconProps: { weight: "fill" } };
+}
+
 export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, waitingCount, onDismiss }: UploadStatusToastProps) {
   const show = isUploading || uploadResult || waitingCount > 0;
   if (!show) return null;
   if (typeof window === "undefined") return null;
 
-  const isPartial = uploadResult && !uploadResult.success && (uploadResult.successCount ?? 0) > 0;
-
-  const borderClass = isUploading
-    ? "border-primary/20"
-    : uploadResult?.success
-    ? "border-primary/20"
-    : isPartial
-    ? "border-amber-500/20"
-    : "border-rose-500/20";
-
-  const iconBgClass = isUploading
-    ? "bg-primary/10 text-primary"
-    : uploadResult?.success
-    ? "bg-primary/10 text-primary"
-    : isPartial
-    ? "bg-amber-500/10 text-amber-500"
-    : "bg-rose-500/10 text-rose-500";
-
-  const headerText = isUploading
-    ? "Processing"
-    : uploadResult?.success
-    ? "Done"
-    : isPartial
-    ? "Partial"
-    : "Failed";
+  const { border, iconBg, header, Icon, iconProps } = toastVariant(isUploading, uploadResult);
 
   return createPortal(
     <AnimatePresence mode="wait">
@@ -72,18 +72,18 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
 
         <div className={cn(
           "w-full p-2.5 rounded-md border shadow-elevated flex flex-col gap-2 bg-panel-bg overflow-hidden relative",
-          borderClass
+          border
         )}>
           <div className="flex items-start gap-2.5">
             <div className={cn(
               "w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0",
-              iconBgClass
+              iconBg
             )}>
-              {isUploading ? <Spinner size={16} weight="bold" className="animate-spin" /> : uploadResult?.success ? <CheckCircle size={16} weight="fill" /> : <Warning size={16} weight="fill" />}
+              <Icon size={16} className={cn(isUploading && "animate-spin")} weight={iconProps?.weight} />
             </div>
             <div className="flex-1 min-w-0 pr-1">
               <p className="text-[11px] font-medium text-main-text">
-                {headerText}
+                {header}
               </p>
               <p className="text-[10px] text-muted-text mt-0.5 leading-relaxed break-words whitespace-normal">
                 {isUploading ? `${Math.round(uploadProgress)}%` : uploadResult?.message}

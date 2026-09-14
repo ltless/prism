@@ -16,6 +16,34 @@ const WB_PRESETS = [
   { label: "Fluorescent", temperature: -15, tint: 8 },
 ];
 
+function stateFor(value: number) {
+  if (value === 0) return { cls: "text-muted-text", label: "Neutral" };
+  return value > 0
+    ? { cls: "text-amber-400", label: "Warm" }
+    : { cls: "text-sky-400", label: "Cool" };
+}
+
+function tintStateFor(value: number) {
+  if (value === 0) return { cls: "text-muted-text", label: "Neutral" };
+  return value > 0
+    ? { cls: "text-fuchsia-400", label: "Magenta" }
+    : { cls: "text-emerald-400", label: "Green" };
+}
+
+function WbBadge({ icon, value, stateOf }: {
+  icon: React.ReactNode;
+  value: number;
+  stateOf: (v: number) => { cls: string; label: string };
+}) {
+  const s = stateOf(value);
+  return (
+    <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-main-border/60 bg-surface-bg/40">
+      <span className={s.cls}>{icon}</span>
+      <span className={`text-xs font-semibold uppercase tracking-wider ${s.cls}`}>{s.label}</span>
+    </div>
+  );
+}
+
 export function WhiteBalanceSection() {
   const adjustments = useEditorState((s) => s.adjustments);
   const { setScalar, endDragSession } = useEditorActions();
@@ -30,62 +58,8 @@ export function WhiteBalanceSection() {
   return (
     <CollapsibleSection label="White Balance">
       <div className="flex items-center gap-2">
-        <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-main-border/60 bg-surface-bg/40">
-          <SunDim
-            size={12}
-            weight="regular"
-            className={
-              adjustments.temperature > 0
-                ? "text-amber-400"
-                : adjustments.temperature < 0
-                  ? "text-sky-400"
-                  : "text-muted-text"
-            }
-          />
-          <span
-            className={`text-xs font-semibold uppercase tracking-wider ${
-              adjustments.temperature > 0
-                ? "text-amber-400"
-                : adjustments.temperature < 0
-                  ? "text-sky-400"
-                  : "text-muted-text"
-            }`}
-          >
-            {adjustments.temperature === 0
-              ? "Neutral"
-              : adjustments.temperature > 0
-                ? "Warm"
-                : "Cool"}
-          </span>
-        </div>
-        <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-main-border/60 bg-surface-bg/40">
-          <DropHalfBottom
-            size={12}
-            weight="regular"
-            className={
-              adjustments.tint > 0
-                ? "text-fuchsia-400"
-                : adjustments.tint < 0
-                  ? "text-emerald-400"
-                  : "text-muted-text"
-            }
-          />
-          <span
-            className={`text-xs font-semibold uppercase tracking-wider ${
-              adjustments.tint > 0
-                ? "text-fuchsia-400"
-                : adjustments.tint < 0
-                  ? "text-emerald-400"
-                  : "text-muted-text"
-            }`}
-          >
-            {adjustments.tint === 0
-              ? "Neutral"
-              : adjustments.tint > 0
-                ? "Magenta"
-                : "Green"}
-          </span>
-        </div>
+        <WbBadge value={adjustments.temperature} stateOf={stateFor} icon={<SunDim size={12} weight="regular" />} />
+        <WbBadge value={adjustments.tint} stateOf={tintStateFor} icon={<DropHalfBottom size={12} weight="regular" />} />
       </div>
 
       <SliderRow

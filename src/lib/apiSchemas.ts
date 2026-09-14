@@ -12,7 +12,7 @@ import { z } from "zod";
  * UI-state feeds are covered in this first pass: auth session (/auth/me),
  * media list/item, and the upload response.
  *
- * Schemas are deliberately loose (`passthrough`, nullable optionals): they
+ * Schemas are deliberately loose (looseObject, nullable optionals): they
  * assert the fields the UI actually reads, not the full backend contract, so
  * additive backend changes don't break the client.
  */
@@ -53,38 +53,34 @@ export const meResponseSchema = z.object({
   has_completed_setup: z.boolean().optional(),
 });
 
-export const mediaItemSchema = z
-  .object({
-    id: z.string(),
-    title: z.string(),
-    filePath: z.string(),
-    mimeType: z.string(),
-    size: z.number(),
-    width: z.number().nullable(),
-    height: z.number().nullable(),
-    hash: z.string(),
-    isFavorite: z.boolean().optional(),
-    isTrash: z.boolean().optional(),
-    isVault: z.boolean().nullable().optional(),
-    folderId: z.string().nullable().optional(),
-    capturedAt: z.number().nullable().optional(),
-    updatedAt: z.number().nullable().optional(),
-    createdAt: z.number().nullable().optional(),
-    duration: z.number().nullable().optional(),
-    transcodeStatus: z.string().nullable().optional(),
-  })
-  .passthrough();
+export const mediaItemSchema = z.looseObject({
+  id: z.string(),
+  title: z.string(),
+  filePath: z.string(),
+  mimeType: z.string(),
+  size: z.number(),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  hash: z.string(),
+  isFavorite: z.boolean().optional(),
+  isTrash: z.boolean().optional(),
+  isVault: z.boolean().nullable().optional(),
+  folderId: z.string().nullable().optional(),
+  capturedAt: z.number().nullable().optional(),
+  updatedAt: z.number().nullable().optional(),
+  createdAt: z.number().nullable().optional(),
+  duration: z.number().nullable().optional(),
+  transcodeStatus: z.string().nullable().optional(),
+});
 
 export const mediaListSchema = z.object({
   items: z.array(mediaItemSchema),
   total: z.number(),
 });
 
-export const uploadResponseSchema = z
-  .object({
-    success: z.boolean(),
-    isDuplicate: z.boolean().optional(),
-    mediaId: z.string().optional(),
-    transcodeStatus: z.string().optional(),
-  })
-  .passthrough();
+export const uploadResponseSchema = z.looseObject({
+  success: z.boolean(),
+  isDuplicate: z.boolean().optional(),
+  mediaId: z.string().optional(),
+  transcodeStatus: z.string().optional(),
+});

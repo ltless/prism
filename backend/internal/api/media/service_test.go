@@ -1,8 +1,11 @@
 package media
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
@@ -459,5 +462,58 @@ func TestBuildEditorMetadata_CorruptExisting(t *testing.T) {
 	}
 	if out == "" || !strings.Contains(out, "rating") || !strings.Contains(out, "palette") {
 		t.Fatalf("expected merged metadata, got %q", out)
+	}
+}
+
+// F3: concurrent uploads for the same user must not collectively exceed the
+// storage limit. The check and insert share a transaction serialized by an
+// advisory lock, so exactly the number of files that fit under the limit land.
+func TestService_CreateWithinQuota_ConcurrentRespectsLimit(t *testing.T) {
+	sqlDB := dbtest.NewDB(t)
+	if _, err := sqlDB.Exec(
+		"INSERT INTO users (id, username, password_hash, role, storage_limit) VALUES ($1, $2, $3, $4, $5)",
+		"quota-user", "quotauser", "hash", "admin", int64(1000)); err != nil {
+		t.Fatalf("insert quota user: %v", err)
+	}
+	pool := db.NewTenantPool(sqlDB)
+	svc := NewService(pool, nil)
+
+	const workers = 10
+	const fileSize = 200
+	var wg sync.WaitGroup
+	var created int64
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			item, dup, err := svc.CreateWithinQuota("quota-user", "", fmt.Sprintf("f%d.jpg", i), "T", "image/jpeg", fmt.Sprintf("h%d", i), fileSize, nil, nil, nil, nil, nil, nil)
+			if errors.Is(err, ErrQuotaExceeded) {
+				return
+			}
+			if err != nil {
+				t.Errorf("worker %d: %v", i, err)
+				return
+			}
+			if !dup && item != nil {
+				atomic.AddInt64(&created, 1)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	tdb, err := pool.Get("quota-user")
+	if err != nil {
+		t.Fatalf("get tenant db: %v", err)
+	}
+	defer tdb.Close()
+	var used int64
+	if err := tdb.QueryRow("SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", "quota-user").Scan(&used); err != nil {
+		t.Fatalf("sum usage: %v", err)
+	}
+	if used > 1000 {
+		t.Fatalf("total usage %d exceeds limit 1000", used)
+	}
+	if created != 5 {
+		t.Fatalf("expected exactly 5 uploads to fit under the limit, got %d", created)
 	}
 }

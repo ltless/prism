@@ -244,14 +244,6 @@ func (h *Handler) Upload(c echo.Context) error {
 		})
 	}
 
-	if err := h.svc.CheckStorageQuota(claims.UserID, up.size); err != nil {
-		if errors.Is(err, ErrQuotaExceeded) {
-			return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "storage quota exceeded")
-		}
-		log.Printf("CheckStorageQuota error: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
-	}
-
 	tmpFile, err := os.Open(up.tmpPath)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "temp file failed")
@@ -280,8 +272,13 @@ func (h *Handler) Upload(c echo.Context) error {
 	// client already tolerates late metadata (UI polls / refreshes, thumbnail
 	// 404s fall back to placeholder until it appears). If users need instant
 	// thumbs, move only thumbnail generation back inline.
-	item, isDup, err := h.svc.Create(claims.UserID, "", up.filename, title, mimeType, up.hash, up.size, nil, nil, nil, nil, nil, nil)
+	item, isDup, err := h.svc.CreateWithinQuota(claims.UserID, "", up.filename, title, mimeType, up.hash, up.size, nil, nil, nil, nil, nil, nil)
 	if err != nil {
+		// The file is already on disk; remove it if the row didn't land.
+		_ = h.storage.DeleteFile(claims.UserID, up.filename)
+		if errors.Is(err, ErrQuotaExceeded) {
+			return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "storage quota exceeded")
+		}
 		log.Printf("MediaCreate error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

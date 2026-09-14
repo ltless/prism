@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// ErrQuotaExceeded is returned by CheckStorageQuota when an upload would push
+// ErrQuotaExceeded is returned by CreateWithinQuota when an upload would push
 // the user's total usage past their configured storage_limit.
 var ErrQuotaExceeded = errors.New("storage quota exceeded")
 
@@ -79,34 +79,6 @@ func (s *Service) VaultUnlockAllowed(userID, pin string) (bool, error) {
 	}
 	vault.Reset(userID)
 	return true, nil
-}
-
-// CheckStorageQuota returns ErrQuotaExceeded when adding incoming bytes would
-// exceed the user's storage_limit. A nil/NULL/zero limit means unlimited.
-func (s *Service) CheckStorageQuota(userID string, incoming int64) error {
-	if s.globalDB == nil || incoming <= 0 {
-		return nil
-	}
-	var limit sql.NullInt64
-	if err := s.globalDB.DB.QueryRow("SELECT storage_limit FROM users WHERE id = $1", userID).Scan(&limit); err != nil {
-		return fmt.Errorf("query storage limit: %w", err)
-	}
-	if !limit.Valid || limit.Int64 <= 0 {
-		return nil
-	}
-	tdb, err := s.pool.Get(userID)
-	if err != nil {
-		return fmt.Errorf("get tenant db: %w", err)
-	}
-	defer tdb.Close()
-	var used int64
-	if err := tdb.QueryRow("SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", userID).Scan(&used); err != nil {
-		return fmt.Errorf("query storage usage: %w", err)
-	}
-	if used+incoming > limit.Int64 {
-		return ErrQuotaExceeded
-	}
-	return nil
 }
 
 func (s *Service) List(userID string, folderID *string, favorites, trash, vault, dedup bool, search string, page, limit int) (*ListResponse, error) {
@@ -389,6 +361,28 @@ func sanitizeTitle(s string) string {
 	return b.String()
 }
 
+// mediaExecer is the shared Exec surface of *db.TenantDB and *sql.Tx, so the
+// media insert can run either directly or inside the quota transaction.
+type mediaExecer interface {
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
+// insertMedia inserts one media row, returning false when the hash conflict
+// short-circuit (ON CONFLICT DO NOTHING) fired.
+func insertMedia(e mediaExecer, id, userID, title, filePath, mimeType string, size int64, width, height *int, hash string, folderID *string, capturedAt *int64, metadata *string, duration *int, transcodeStatus *string, now int64) (bool, error) {
+	res, err := e.Exec(
+		`INSERT INTO media (id, user_id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		ON CONFLICT DO NOTHING`,
+		id, userID, title, filePath, mimeType, size, width, height, hash, folderID, capturedAt, metadata, duration, transcodeStatus, now, now,
+	)
+	if err != nil {
+		return false, fmt.Errorf("insert media: %w", err)
+	}
+	rowsAffected, _ := res.RowsAffected()
+	return rowsAffected > 0, nil
+}
+
 func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash string, size int64, width, height *int, capturedAt *int64, metadata *string, duration *int, transcodeStatus *string) (*MediaItem, bool, error) {
 	tdb, err := s.pool.Get(userID)
 	if err != nil {
@@ -405,19 +399,86 @@ func (s *Service) Create(userID, folderID, filePath, title, mimeType, hash strin
 		fID = &folderID
 	}
 
-	res, err := tdb.Exec(
-		`INSERT INTO media (id, user_id, title, file_path, mime_type, size, width, height, hash, folder_id, captured_at, metadata, duration, transcode_status, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		ON CONFLICT DO NOTHING`,
-		id, userID, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now, now,
-	)
+	inserted, err := insertMedia(tdb, id, userID, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now)
 	if err != nil {
-		return nil, false, fmt.Errorf("insert media: %w", err)
+		return nil, false, err
+	}
+	if !inserted {
+		return nil, true, nil
 	}
 
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
+	return &MediaItem{
+		ID:              id,
+		Title:           title,
+		FilePath:        filePath,
+		MimeType:        mimeType,
+		Size:            size,
+		Hash:            hash,
+		FolderID:        fID,
+		Duration:        duration,
+		TranscodeStatus: transcodeStatus,
+	}, false, nil
+}
+
+// CreateWithinQuota atomically checks the user's storage quota and inserts the
+// media row in a single transaction. Concurrent uploads for the same user are
+// serialized by a transaction-scoped advisory lock, so N parallel requests
+// cannot all read the same "used" value and collectively blow past the limit.
+// Returns ErrQuotaExceeded when the insert would exceed the limit, and
+// (nil, true, nil) on hash conflict — same contract as Create.
+func (s *Service) CreateWithinQuota(userID, folderID, filePath, title, mimeType, hash string, size int64, width, height *int, capturedAt *int64, metadata *string, duration *int, transcodeStatus *string) (*MediaItem, bool, error) {
+	tdb, err := s.pool.Get(userID)
+	if err != nil {
+		return nil, false, fmt.Errorf("get tenant db: %w", err)
+	}
+	defer tdb.Close()
+
+	tx, err := tdb.Begin()
+	if err != nil {
+		return nil, false, fmt.Errorf("begin media txn: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Serialize check+insert per user. hashtext keeps the lock key bounded.
+	if _, err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext($1))", userID); err != nil {
+		return nil, false, fmt.Errorf("quota lock: %w", err)
+	}
+
+	if size > 0 {
+		var limit sql.NullInt64
+		if err := tx.QueryRow("SELECT storage_limit FROM users WHERE id = $1", userID).Scan(&limit); err != nil {
+			return nil, false, fmt.Errorf("query storage limit: %w", err)
+		}
+		if limit.Valid && limit.Int64 > 0 {
+			var used int64
+			if err := tx.QueryRow("SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", userID).Scan(&used); err != nil {
+				return nil, false, fmt.Errorf("query storage usage: %w", err)
+			}
+			if used+size > limit.Int64 {
+				return nil, false, ErrQuotaExceeded
+			}
+		}
+	}
+
+	id := uuid.New().String()
+	now := time.Now().Unix()
+	title = sanitizeTitle(title)
+
+	var fID *string
+	if folderID != "" {
+		fID = &folderID
+	}
+
+	inserted, err := insertMedia(tx, id, userID, title, filePath, mimeType, size, width, height, hash, fID, capturedAt, metadata, duration, transcodeStatus, now)
+	if err != nil {
+		return nil, false, err
+	}
+	if !inserted {
 		return nil, true, nil
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, false, fmt.Errorf("commit media insert: %w", err)
 	}
 
 	return &MediaItem{

@@ -2,13 +2,14 @@
 
 import { m, AnimatePresence } from "motion/react";
 import { ImageBroken } from "@phosphor-icons/react";
-import { useState, useEffect, useRef, useCallback, useEffectEvent } from "react";
+import { useState } from "react";
 import { MediaItem, Folder } from "../types";
 import { VideoPlayer } from "./VideoPlayer";
 import { useRouter } from "next/navigation";
 import { ImageEditor } from "./lightbox/ImageEditor";
 import { useTranscodePolling } from "../hooks/useTranscodePolling";
 import { useSlideshow } from "../hooks/useSlideshow";
+import { useLightboxState } from "../hooks/useLightboxState";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
 import { LightboxInfoPanel } from "./lightbox/LightboxInfoPanel";
 import { LightboxControls } from "./lightbox/LightboxControls";
@@ -25,15 +26,12 @@ interface LightboxProps {
 
 export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalItems, folders }: LightboxProps) {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [prevId, setPrevId] = useState(item.id);
   const [prevTranscodeStatus, setPrevTranscodeStatus] = useState(item.transcodeStatus);
   const [transcodeStatus, setTranscodeStatus] = useState(item.transcodeStatus);
   const [isEditing, setIsEditing] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset per-item UI state when the displayed item changes. Set-state-during-render
   // (React-endorsed for "reset on prop change") avoids the set-state-in-effect pattern.
@@ -49,87 +47,18 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
   const isVideo = item.mimeType?.startsWith("video/");
   const router = useRouter();
 
+  const { isMobile, controlsVisible, showControls, handleTouchStart, handleTouchMove, handleTouchEnd } =
+    useLightboxState({
+      isVideo: !!isVideo,
+      isInfoOpen,
+      onClose,
+      onToggleInfo: () => setIsInfoOpen(v => !v),
+      onNext,
+      onPrev,
+    });
+
   useTranscodePolling(item.id, transcodeStatus, !!isVideo, setTranscodeStatus);
   useScrollLock(true);
-
-  useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  const scheduleHideControls = useCallback(() => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    if (!isInfoOpen) {
-      hideTimer.current = setTimeout(() => setControlsVisible(false), 3000);
-    }
-  }, [isInfoOpen]);
-
-  const showControls = useCallback(() => {
-    setControlsVisible(true);
-    scheduleHideControls();
-  }, [scheduleHideControls]);
-
-  useEffect(() => {
-    scheduleHideControls();
-    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
-  }, [scheduleHideControls]);
-
-  const onKeyAction = useEffectEvent((e: KeyboardEvent) => {
-    const active = document.activeElement;
-    const isInInput = active?.tagName === "INPUT" || active?.tagName === "TEXTAREA";
-    if (isInInput) {
-      if (e.key === "Escape") onClose();
-      return;
-    }
-    if (e.key === "Escape") {
-      if (isInfoOpen) { setIsInfoOpen(false); return; }
-      onClose();
-    }
-    if (isInfoOpen) return;
-    if (isVideo) return;
-    if (e.key === "ArrowRight" && onNext) onNext();
-    if (e.key === "ArrowLeft" && onPrev) onPrev();
-    if (e.key === "i" || e.key === "I") setIsInfoOpen(v => !v);
-  });
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => onKeyAction(e);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // Swipe navigation
-  const swipeState = useRef<{ startX: number; startY: number } | null>(null);
-  const SWIPE_THRESHOLD = 30;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    showControls();
-    if (isVideo) return;
-    const touch = e.touches[0];
-    swipeState.current = { startX: touch.clientX, startY: touch.clientY };
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!swipeState.current || isVideo) return;
-    const touch = e.touches[0];
-    const diffX = touch.clientX - swipeState.current.startX;
-    const diffY = Math.abs(touch.clientY - swipeState.current.startY);
-    if (diffY > Math.abs(diffX)) { swipeState.current = null; return; }
-    if (Math.abs(diffX) > SWIPE_THRESHOLD) {
-      if (diffX > 0 && onPrev) onPrev();
-      else if (diffX < 0 && onNext) onNext();
-      swipeState.current = null;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    swipeState.current = null;
-  };
 
   const hasCounter = currentIndex !== undefined && totalItems !== undefined;
 

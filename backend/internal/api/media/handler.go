@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // controlCharRe matches raw control bytes (0x00-0x1F, 0x7F) and their JSON
@@ -37,14 +38,60 @@ func sanitizeMetadata(s string) string {
 
 const maxUploadSize = 200 << 20 // 200MB
 
+// defaultProcessingConcurrency caps how many uploads may be post-processed
+// (thumbnail + EXIF / ffmpeg) at once. Overridable via
+// MEDIA_PROCESSING_CONCURRENCY.
+const defaultProcessingConcurrency = 4
+
+// processingAcquireTimeout is how long an upload waits for a processing slot
+// before being shed with 503. Backpressure, not rejection of the bytes.
+const processingAcquireTimeout = 30 * time.Second
+
+// processingPool bounds concurrent post-upload processing. A slot is acquired
+// on the request path before any upload work starts and released by the
+// background job when it finishes, so saturation applies backpressure instead
+// of spawning an unbounded goroutine per upload.
+type processingPool struct {
+	sem     chan struct{}
+	timeout time.Duration
+}
+
+func newProcessingPool(size int, timeout time.Duration) *processingPool {
+	if size < 1 {
+		size = 1
+	}
+	return &processingPool{sem: make(chan struct{}, size), timeout: timeout}
+}
+
+func (p *processingPool) acquire() bool {
+	select {
+	case p.sem <- struct{}{}:
+		return true
+	case <-time.After(p.timeout):
+		return false
+	}
+}
+
+func (p *processingPool) release() { <-p.sem }
+
 type Handler struct {
 	svc       *Service
 	storage   *mw.Storage
 	nukeToken string
+	pool      *processingPool
 }
 
-func NewHandler(svc *Service, storage *mw.Storage, nukeToken string) *Handler {
-	return &Handler{svc: svc, storage: storage, nukeToken: nukeToken}
+func NewHandler(svc *Service, storage *mw.Storage, nukeToken string, processingConcurrency ...int) *Handler {
+	concurrency := defaultProcessingConcurrency
+	if len(processingConcurrency) > 0 && processingConcurrency[0] > 0 {
+		concurrency = processingConcurrency[0]
+	}
+	return &Handler{
+		svc:       svc,
+		storage:   storage,
+		nukeToken: nukeToken,
+		pool:      newProcessingPool(concurrency, processingAcquireTimeout),
+	}
 }
 
 func (h *Handler) List(c echo.Context) error {
@@ -151,6 +198,20 @@ func (h *Handler) Upload(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 200MB)")
 	}
 
+	// Reserve a post-processing slot before doing any work. If the pool is
+	// saturated the request waits briefly, then sheds with 503 rather than
+	// spawning unbounded background CPU (see F2). The slot is handed to the
+	// background job on success and released here on every early return.
+	if !h.pool.acquire() {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "processing queue full, try again shortly")
+	}
+	slotReleased := false
+	defer func() {
+		if !slotReleased {
+			h.pool.release()
+		}
+	}()
+
 	file, header, err := c.Request().FormFile("file")
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "no file uploaded")
@@ -239,10 +300,17 @@ func (h *Handler) Upload(c echo.Context) error {
 	ts := "async"
 	if isVideo {
 		ts = "pending"
-		go h.processVideoMetadataAsync(claims.UserID, item.ID, mediaPath)
-	} else {
-		go h.processImageMetadataAsync(claims.UserID, item.ID, mediaPath)
 	}
+	userID, mediaID := claims.UserID, item.ID
+	slotReleased = true
+	go func() {
+		defer h.pool.release()
+		if isVideo {
+			h.processVideoMetadataAsync(userID, mediaID, mediaPath)
+		} else {
+			h.processImageMetadataAsync(userID, mediaID, mediaPath)
+		}
+	}()
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success":         true,
 		"isDuplicate":     false,

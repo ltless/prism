@@ -1,19 +1,20 @@
 package api
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 
+	configH "github.com/ltless/prism/internal/api/config"
+	folderH "github.com/ltless/prism/internal/api/folders"
+	mediaH "github.com/ltless/prism/internal/api/media"
+	systemH "github.com/ltless/prism/internal/api/system"
+	userH "github.com/ltless/prism/internal/api/users"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/config"
 	"github.com/ltless/prism/internal/db"
-	mediaH "github.com/ltless/prism/internal/api/media"
-	folderH "github.com/ltless/prism/internal/api/folders"
-	configH "github.com/ltless/prism/internal/api/config"
-	systemH "github.com/ltless/prism/internal/api/system"
-	userH "github.com/ltless/prism/internal/api/users"
 	mediaS "github.com/ltless/prism/internal/media"
 	appmw "github.com/ltless/prism/internal/middleware"
 )
@@ -35,7 +36,9 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	e.Use(appmw.CORS(cfg.CORSOrigin))
 
 	rl := appmw.NewRateLimiter(100, time.Minute)
-	rl.SkipPath("/api/v1/media")
+	// Only GET /media (list) and file/thumbnail reads are high-frequency and
+	// cheap; the POST upload route stays rate-limited.
+	rl.SkipMethodPath(http.MethodGet, "/api/v1/media")
 	rl.SkipPath("/api/v1/media/files/*")
 	e.Use(rl.Middleware())
 
@@ -46,7 +49,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	mediaStorage := mediaS.NewStorage(cfg.StoragePath)
 	mediaSvc := mediaH.NewService(tenantPool, configH.NewService(global))
 	mediaSvc.SetGlobalDB(global)
-	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage, cfg.NukeToken)
+	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage, cfg.NukeToken, cfg.MediaProcessingConcurrency)
 
 	folderSvc := folderH.NewService(tenantPool)
 	folderHandler := folderH.NewHandler(folderSvc)

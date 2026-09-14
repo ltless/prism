@@ -36,8 +36,15 @@ func NewRateLimiter(limit int, window time.Duration, maxKeys ...int) *RateLimite
 	return rl
 }
 
+// SkipPath exempts a route path from rate limiting for all HTTP methods.
 func (rl *RateLimiter) SkipPath(path string) {
-	rl.skipPaths[path] = true
+	rl.skipPaths["* "+path] = true
+}
+
+// SkipMethodPath exempts a route path from rate limiting for a single HTTP
+// method only — e.g. exempt high-frequency GETs while still limiting POSTs.
+func (rl *RateLimiter) SkipMethodPath(method, path string) {
+	rl.skipPaths[method+" "+path] = true
 }
 
 // Close stops the background cleanup goroutine. Safe to call multiple times.
@@ -53,7 +60,7 @@ func (rl *RateLimiter) Middleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			path := c.Path()
-			if rl.skipPaths[path] {
+			if rl.skipPaths["* "+path] || rl.skipPaths[c.Request().Method+" "+path] {
 				return next(c)
 			}
 			ip := c.RealIP()

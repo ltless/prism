@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
@@ -288,5 +291,62 @@ func TestHandler_Search_Paginated(t *testing.T) {
 	rec := testRequest(e, "GET", "/api/v1/media/search?q=x&limit=2&page=1", token, "", "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// F2: post-upload processing must be bounded. The pool is acquired before any
+// upload work and released by the background job, so concurrent processing can
+// never exceed the configured size.
+func TestProcessingPool_BoundsConcurrency(t *testing.T) {
+	const size = 3
+	const jobs = 20
+	p := newProcessingPool(size, time.Second)
+
+	var current, peak int32
+	var wg sync.WaitGroup
+	for i := 0; i < jobs; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if !p.acquire() {
+				t.Error("acquire timed out")
+				return
+			}
+			defer p.release()
+			n := atomic.AddInt32(&current, 1)
+			for {
+				m := atomic.LoadInt32(&peak)
+				if n <= m || atomic.CompareAndSwapInt32(&peak, m, n) {
+					break
+				}
+			}
+			time.Sleep(5 * time.Millisecond)
+			atomic.AddInt32(&current, -1)
+		}()
+	}
+	wg.Wait()
+
+	if peak == 0 {
+		t.Fatal("expected jobs to run")
+	}
+	if peak > size {
+		t.Fatalf("peak concurrency %d exceeded pool size %d", peak, size)
+	}
+}
+
+// F2: a saturated pool must shed rather than queue unboundedly.
+func TestProcessingPool_AcquireShedsWhenSaturated(t *testing.T) {
+	p := newProcessingPool(1, 20*time.Millisecond)
+	if !p.acquire() {
+		t.Fatal("first acquire should succeed")
+	}
+	defer p.release()
+
+	start := time.Now()
+	if p.acquire() {
+		t.Fatal("expected acquire to fail while pool is saturated")
+	}
+	if elapsed := time.Since(start); elapsed < 20*time.Millisecond {
+		t.Fatalf("expected acquire to wait for timeout, returned after %v", elapsed)
 	}
 }

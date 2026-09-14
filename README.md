@@ -183,7 +183,8 @@ everything under `/api/v1`, all JSON, all behind the same JWT cookie:
 | media | `GET/POST /media` `GET/PATCH/DELETE /media/:id` `PATCH /media/hash/:hash` `GET /media/files/*` `POST /media/:id/save-editor` |
 | bulk ops | `PUT /bulk/move` `POST /bulk/favorite` `POST /bulk/trash` `POST /bulk/restore` `POST /bulk/vault` `POST /empty-trash` `POST /resolve-duplicate` |
 | library views | `GET /dashboard` `GET /duplicates` `GET /search` `GET /count/tagged` `GET /count/scored` |
-| admin | `POST /media/nuke` `POST /media/auto-cleanup` `PUT /config` `PUT /config/storage-default` `PUT /users/me/storage-limit` |
+| self-service wipe | `POST /media/nuke` `POST /media/auto-cleanup` — any authenticated user, **own data only**, nuke gated by `X-Nuke-Token` |
+| admin | `PUT /config` `PUT /config/storage-default` `PUT /users/me/storage-limit` |
 | users | `GET/PUT /users/me` `PUT /users/me/username` `POST /users/me/profile-image` `POST /users/me/setup-complete` `GET /users/me/storage-usage` |
 | vault | `POST /users/me/vault-pin` `POST /users/me/vault-pin/verify` `DELETE /users/me/vault-pin` `GET /users/me/vault-pin/status` |
 | system | `GET /health` `GET /system/stats` `GET/POST /system/logs` |
@@ -199,7 +200,7 @@ everything under `/api/v1`, all JSON, all behind the same JWT cookie:
 - **invites:** constant-time comparison, required by default.
 - **uploads:** extension allowlist + magic-byte validation on every path that writes media files, including the editor.
 - **rate limits:** 100/min global, 10/min auth, per-IP. in-memory; resets on restart, like your motivation.
-- **library wipe:** admin-only, requires `NUKE_CONFIRMATION_TOKEN` header. unset = endpoint disabled. fail closed, always.
+- **library wipe:** self-service, per-account — any authenticated user can wipe **their own** library, gated by the `NUKE_CONFIRMATION_TOKEN` header (server-side constant-time check). not admin-only: it only ever operates on the caller's own data. unset token = endpoint disabled. fail closed, always.
 - **threat model:** unauthenticated attackers, curious non-admin users, and yourself at 3am. not modeled: state adversaries, compromised servers, rogue admins.
 
 don't expose ports 8080 or 5432 to the internet. put a reverse proxy in front of port 3000 and let it do TLS.

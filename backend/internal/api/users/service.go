@@ -39,7 +39,7 @@ func (s *Service) GetProfile(userID string) (*UserProfile, error) {
 	var storageLimit sql.NullInt64
 
 	err := s.global.DB.QueryRow(
-	"SELECT id, username, role, image, cover_image, has_completed_setup, storage_limit, preferences, created_at FROM users WHERE id = $1",
+		"SELECT id, username, role, image, cover_image, has_completed_setup, storage_limit, preferences, created_at FROM users WHERE id = $1",
 		userID,
 	).Scan(&profile.ID, &profile.Username, &profile.Role, &image, &coverImage, &profile.HasCompletedSet, &storageLimit, &preferences, &profile.CreatedAt)
 	if err != nil {
@@ -47,16 +47,16 @@ func (s *Service) GetProfile(userID string) (*UserProfile, error) {
 	}
 
 	if image.Valid {
-	profile.Image = &image.String
+		profile.Image = &image.String
 	}
 	if coverImage.Valid {
-	profile.CoverImage = &coverImage.String
+		profile.CoverImage = &coverImage.String
 	}
 	if storageLimit.Valid {
-	profile.StorageLimit = &storageLimit.Int64
+		profile.StorageLimit = &storageLimit.Int64
 	}
 	if preferences.Valid {
-	profile.Preferences = &preferences.String
+		profile.Preferences = &preferences.String
 	}
 
 	return &profile, nil
@@ -74,22 +74,24 @@ func (s *Service) UpdateProfile(userID string, image, coverImage, preferences *s
 	if image != nil {
 		if _, err := tx.Exec("UPDATE users SET image = $1, updated_at = $2 WHERE id = $3", *image, now, userID); err != nil {
 			return fmt.Errorf("update image: %w", err)
-	}
+		}
 	}
 	if coverImage != nil {
 		if _, err := tx.Exec("UPDATE users SET cover_image = $1, updated_at = $2 WHERE id = $3", *coverImage, now, userID); err != nil {
 			return fmt.Errorf("update cover_image: %w", err)
-	}
+		}
 	}
 	if preferences != nil {
 		if _, err := tx.Exec("UPDATE users SET preferences = $1, updated_at = $2 WHERE id = $3", *preferences, now, userID); err != nil {
 			return fmt.Errorf("update preferences: %w", err)
-	}
+		}
 	}
 	return tx.Commit()
 }
 
-func (s *Service) UpdateStorageLimit(userID string, limit int64) error {
+// UpdateStorageLimit sets the user's storage_limit. Valid=true with Int64=0
+// means zero bytes allowed; Valid=false means unlimited (SQL NULL).
+func (s *Service) UpdateStorageLimit(userID string, limit sql.NullInt64) error {
 	_, err := s.global.DB.Exec("UPDATE users SET storage_limit = $1 WHERE id = $2", limit, userID)
 	return err
 }
@@ -149,7 +151,7 @@ func (s *Service) UpdateUsername(userID, newUsername string) error {
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return fmt.Errorf("username already taken")
-	}
+		}
 		return fmt.Errorf("update username: %w", err)
 	}
 	return nil

@@ -566,3 +566,29 @@ func TestService_QueryEmbeddedItems_CappedAtLimit(t *testing.T) {
 		t.Fatalf("expected cap warning to be logged, got: %q", buf.String())
 	}
 }
+
+// F6: a storage_limit of 0 must mean "zero bytes allowed" — any upload is
+// rejected — while NULL still means unlimited. Older code treated <=0 as
+// unlimited, silently granting infinite storage to zero-limit accounts.
+func TestService_CreateWithinQuota_ZeroAndNullLimits(t *testing.T) {
+	sqlDB := dbtest.NewDB(t)
+	if _, err := sqlDB.Exec(
+		"INSERT INTO users (id, username, password_hash, role, storage_limit) VALUES ($1, $2, $3, $4, $5)",
+		"zero-user", "zerouser", "hash", "admin", 0); err != nil {
+		t.Fatalf("insert zero-limit user: %v", err)
+	}
+	if _, err := sqlDB.Exec(
+		"INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+		"null-user", "nulluser", "hash", "admin"); err != nil {
+		t.Fatalf("insert null-limit user: %v", err)
+	}
+	pool := db.NewTenantPool(sqlDB)
+	svc := NewService(pool, nil)
+
+	if _, _, err := svc.CreateWithinQuota("zero-user", "", "z.jpg", "Z", "image/jpeg", "hz", 1, nil, nil, nil, nil, nil, nil); !errors.Is(err, ErrQuotaExceeded) {
+		t.Fatalf("zero limit: expected ErrQuotaExceeded, got %v", err)
+	}
+	if _, _, err := svc.CreateWithinQuota("null-user", "", "n.jpg", "N", "image/jpeg", "hn", 1, nil, nil, nil, nil, nil, nil); err != nil {
+		t.Fatalf("null limit (unlimited): unexpected error %v", err)
+	}
+}

@@ -21,7 +21,7 @@ func setupUsersHandlerDB(t *testing.T) *db.GlobalDB {
 	gdb := &db.GlobalDB{DB: sqlDB}
 	h, _ := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
 	_, err := gdb.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-	"user-1", "testuser", string(h), "admin")
+		"user-1", "testuser", string(h), "admin")
 	if err != nil {
 		t.Fatalf("insert test user: %v", err)
 	}
@@ -101,9 +101,33 @@ func TestUsersHandler_UpdateProfile_Unauthorized(t *testing.T) {
 func TestUsersHandler_UpdateStorageLimit(t *testing.T) {
 	e, h, token := setupUsersHandler(t)
 	e.PUT("/api/v1/users/me/storage-limit", h.UpdateStorageLimit)
-	rec := usrReq(e, "PUT", "/api/v1/users/me/storage-limit", token, `{"limit":1000000}`)
+	rec := usrReq(e, "PUT", "/api/v1/users/me/storage-limit", token, `{"storage_limit":1000000}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// F6: storage_limit contract — 0 = zero bytes allowed, null = unlimited,
+// negative or missing = 400. Never a silent "0 means unlimited".
+func TestUsersHandler_UpdateStorageLimit_Semantics(t *testing.T) {
+	e, h, token := setupUsersHandler(t)
+	e.PUT("/api/v1/users/me/storage-limit", h.UpdateStorageLimit)
+
+	cases := []struct {
+		name string
+		body string
+		code int
+	}{
+		{"zero means zero bytes", `{"storage_limit":0}`, http.StatusOK},
+		{"null means unlimited", `{"storage_limit":null}`, http.StatusOK},
+		{"negative rejected", `{"storage_limit":-1}`, http.StatusBadRequest},
+		{"missing field rejected", `{}`, http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		rec := usrReq(e, "PUT", "/api/v1/users/me/storage-limit", token, tc.body)
+		if rec.Code != tc.code {
+			t.Errorf("%s: expected %d, got %d: %s", tc.name, tc.code, rec.Code, rec.Body.String())
+		}
 	}
 }
 

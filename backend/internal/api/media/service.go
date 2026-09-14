@@ -449,7 +449,7 @@ func (s *Service) CreateWithinQuota(userID, folderID, filePath, title, mimeType,
 		if err := tx.QueryRow("SELECT storage_limit FROM users WHERE id = $1", userID).Scan(&limit); err != nil {
 			return nil, false, fmt.Errorf("query storage limit: %w", err)
 		}
-		if limit.Valid && limit.Int64 > 0 {
+		if limit.Valid && limit.Int64 >= 0 {
 			var used int64
 			if err := tx.QueryRow("SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", userID).Scan(&used); err != nil {
 				return nil, false, fmt.Errorf("query storage usage: %w", err)
@@ -1346,6 +1346,7 @@ type DuplicatesResponse struct {
 const nearDuplicateThreshold = 0.95
 const maxNearDuplicates = 1000
 const maxExactDuplicateRows = 1000
+
 // maxEmbeddedItems caps the embedded-media scan for near-duplicate detection
 // (the clustering pass is O(n^2) over what this query returns).
 const maxEmbeddedItems = 1000

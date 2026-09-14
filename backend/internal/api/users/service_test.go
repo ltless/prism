@@ -16,7 +16,7 @@ func setupTestDB(t *testing.T) *db.GlobalDB {
 
 	h, _ := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
 	_, err := gdb.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-	"user-1", "testuser", string(h), "admin")
+		"user-1", "testuser", string(h), "admin")
 	if err != nil {
 		t.Fatalf("insert test user: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestUsersService_UpdateProfile_Preferences(t *testing.T) {
 func TestUsersService_UpdateStorageLimit(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
-	err := svc.UpdateStorageLimit("user-1", 1000000)
+	err := svc.UpdateStorageLimit("user-1", sql.NullInt64{Int64: 1000000, Valid: true})
 	if err != nil {
 		t.Fatalf("UpdateStorageLimit: %v", err)
 	}
@@ -88,6 +88,17 @@ func TestUsersService_UpdateStorageLimit(t *testing.T) {
 	}
 	if !limit.Valid || limit.Int64 != 1000000 {
 		t.Fatalf("expected 1000000, got %v", limit)
+	}
+
+	// F6: unlimited is stored as NULL, and NULL persists (not coerced to 0).
+	if err := svc.UpdateStorageLimit("user-1", sql.NullInt64{}); err != nil {
+		t.Fatalf("UpdateStorageLimit unlimited: %v", err)
+	}
+	if err := gdb.QueryRow("SELECT storage_limit FROM users WHERE id = $1", "user-1").Scan(&limit); err != nil {
+		t.Fatalf("query storage_limit: %v", err)
+	}
+	if limit.Valid {
+		t.Fatalf("expected NULL (unlimited), got %v", limit)
 	}
 }
 

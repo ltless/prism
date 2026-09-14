@@ -174,3 +174,9 @@ DROP POLICY IF EXISTS transcode_queue_tenant_isolation ON transcode_queue;
 CREATE POLICY transcode_queue_tenant_isolation ON transcode_queue
     USING (user_id = current_setting('app.current_user_id', true))
     WITH CHECK (user_id = current_setting('app.current_user_id', true));
+
+-- F6: storage_limit semantics — NULL means unlimited, 0 means zero bytes.
+-- Older builds wrote 0 when an admin sent `storage_limit: null` or 0 and the
+-- backend silently treated <=0 as unlimited. Convert any legacy 0 to NULL so
+-- nobody's account flips from "unlimited" to "locked" with the fix deployed.
+UPDATE users SET storage_limit = NULL WHERE storage_limit = 0;

@@ -1,6 +1,7 @@
 package users
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log"
@@ -15,7 +16,7 @@ import (
 	"github.com/ltless/prism/internal/vault"
 )
 
-const maxPreferencesSize = 10 * 1024 // 10KB
+const maxPreferencesSize = 10 * 1024        // 10KB
 const maxProfileImageSize = 5 * 1024 * 1024 // 5MB
 
 type Handler struct {
@@ -136,14 +137,31 @@ func (h *Handler) UpdateStorageLimit(c echo.Context) error {
 		return err
 	}
 
+	// storage_limit semantics (F6): NULL = unlimited, 0 = zero bytes allowed.
+	// json.RawMessage distinguishes JSON null (unlimited) from an absent field
+	// (rejected); negative numbers are rejected.
 	var body struct {
-		StorageLimit int64 `json:"storage_limit"`
+		StorageLimit json.RawMessage `json:"storage_limit"`
 	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
 
-	if err := h.svc.UpdateStorageLimit(claims.UserID, body.StorageLimit); err != nil {
+	limit := sql.NullInt64{}
+	switch {
+	case len(body.StorageLimit) == 0:
+		return echo.NewHTTPError(http.StatusBadRequest, "storage_limit is required")
+	case string(body.StorageLimit) == "null":
+		// unlimited — leave limit invalid (NULL)
+	default:
+		var n int64
+		if err := json.Unmarshal(body.StorageLimit, &n); err != nil || n < 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "storage_limit must be a non-negative integer or null")
+		}
+		limit = sql.NullInt64{Int64: n, Valid: true}
+	}
+
+	if err := h.svc.UpdateStorageLimit(claims.UserID, limit); err != nil {
 		log.Printf("UpdateStorageLimit error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

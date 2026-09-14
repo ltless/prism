@@ -11,6 +11,7 @@ import (
 type RateLimiter struct {
 	mu        sync.Mutex
 	requests  map[string][]time.Time
+	lastSeen  map[string]time.Time
 	limit     int
 	window    time.Duration
 	maxKeys   int
@@ -25,6 +26,7 @@ func NewRateLimiter(limit int, window time.Duration, maxKeys ...int) *RateLimite
 	}
 	rl := &RateLimiter{
 		requests:  make(map[string][]time.Time),
+		lastSeen:  make(map[string]time.Time),
 		limit:     limit,
 		window:    window,
 		maxKeys:   mk,
@@ -87,12 +89,24 @@ func (rl *RateLimiter) Middleware() echo.MiddlewareFunc {
 			}
 
 			if len(rl.requests) >= rl.maxKeys {
-				for k := range rl.requests {
-					delete(rl.requests, k)
-					break
+				// Evict the least-recently-seen key (F11): a random map-order
+				// eviction could wipe a currently-limited attacker's counter
+				// (resetting their quota) or an active user's tracking.
+				oldestKey := ""
+				var oldest time.Time
+				for k, t := range rl.lastSeen {
+					if oldestKey == "" || t.Before(oldest) {
+						oldestKey = k
+						oldest = t
+					}
+				}
+				if oldestKey != "" {
+					delete(rl.requests, oldestKey)
+					delete(rl.lastSeen, oldestKey)
 				}
 			}
 			rl.requests[key] = append(valid, now)
+			rl.lastSeen[key] = now
 			rl.mu.Unlock()
 
 			return next(c)
@@ -119,6 +133,7 @@ func (rl *RateLimiter) cleanup() {
 				}
 				if len(valid) == 0 {
 					delete(rl.requests, key)
+					delete(rl.lastSeen, key)
 				} else {
 					rl.requests[key] = valid
 				}

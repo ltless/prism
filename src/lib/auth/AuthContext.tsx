@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
+import { meResponseSchema, validateApiResponse } from "@/lib/apiSchemas";
 
 interface User {
   id: string;
@@ -22,15 +23,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-interface MeResponse {
-  id: string;
-  username: string;
-  role: string;
-  image?: string | null;
-  cover_image?: string | null;
-  has_completed_setup?: boolean;
-}
-
 interface LoginResponse {
   message?: string;
   user_id?: string;
@@ -48,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch("/api/v1/auth/me", { credentials: "include" });
         if (res.ok) {
-          const data: MeResponse = await res.json();
+          const data = validateApiResponse("/api/v1/auth/me", meResponseSchema, await res.json());
           if (!cancelled) {
             setUser({
               id: data.id,
@@ -73,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch("/api/v1/auth/me", { credentials: "include" });
       if (!res.ok) return;
-      const data: MeResponse = await res.json();
+      const data = validateApiResponse("/api/v1/auth/me", meResponseSchema, await res.json());
       setUser(prev => prev ? {
         ...prev,
         image: data.image ?? null,

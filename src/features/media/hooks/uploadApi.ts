@@ -1,5 +1,7 @@
 "use client";
 
+import { uploadResponseSchema, validateApiResponse } from "@/lib/apiSchemas";
+
 export class RateLimitError extends Error {
   retryAfterSeconds: number;
 
@@ -48,9 +50,10 @@ export function uploadFile(
         return;
       }
       try {
-        const response = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-        if (response.success) resolve(response as UploadResponse);
-        else reject(new Error(response.error || "Upload failed"));
+        const response: unknown = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+        const validated = validateApiResponse("/api/v1/media (upload)", uploadResponseSchema, response);
+        if (validated.success) resolve(validated);
+        else reject(new Error("Upload failed"));
       } catch {
         reject(new Error("Invalid server response"));
       }

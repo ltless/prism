@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -627,6 +628,44 @@ func (h *Handler) BulkRestore(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
+// deleteFileConcurrency bounds parallel disk deletions, mirroring the
+// frontend zipHelper CONCURRENCY=4 chunking pattern.
+const deleteFileConcurrency = 4
+
+// deleteFilesAsync removes media/thumbnail files for already-deleted DB rows
+// off the request path, with bounded concurrency (F5): empty-trash,
+// auto-cleanup and friends used to loop DeleteFile synchronously inside the
+// request, so a large library tied up the request goroutine for the whole
+// disk walk. Failures are logged, not swallowed (F7).
+// ponytail: one-shot goroutine, not a durable job queue — if the process dies
+// mid-walk the files orphan (DB rows are already gone). Add a real cleanup
+// job system when orphan reclamation matters.
+func (h *Handler) deleteFilesAsync(userID string, items []TrashedItem) {
+	if len(items) == 0 {
+		return
+	}
+	go func() {
+		jobs := make(chan TrashedItem)
+		var wg sync.WaitGroup
+		for w := 0; w < deleteFileConcurrency; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for it := range jobs {
+					if err := h.storage.DeleteFile(userID, it.FilePath); err != nil {
+						log.Printf("DeleteFile failed %s: %v", it.FilePath, err)
+					}
+				}
+			}()
+		}
+		for _, it := range items {
+			jobs <- it
+		}
+		close(jobs)
+		wg.Wait()
+	}()
+}
+
 func (h *Handler) EmptyTrash(c echo.Context) error {
 	claims, err := auth.GetClaimsOrErr(c)
 	if err != nil {
@@ -636,9 +675,9 @@ func (h *Handler) EmptyTrash(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
-	for _, item := range items {
-		_ = h.storage.DeleteFile(claims.UserID, item.FilePath)
-	}
+	// File cleanup runs off the request path with bounded concurrency — see
+	// deleteFilesAsync.
+	h.deleteFilesAsync(claims.UserID, items)
 	return c.JSON(http.StatusOK, map[string]int{"deleted": len(items)})
 }
 
@@ -849,9 +888,9 @@ func (h *Handler) AutoCleanup(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
-	for _, item := range items {
-		_ = h.storage.DeleteFile(claims.UserID, item.FilePath)
-	}
+	// File cleanup runs off the request path with bounded concurrency — see
+	// deleteFilesAsync.
+	h.deleteFilesAsync(claims.UserID, items)
 
 	return c.JSON(http.StatusOK, map[string]int{"deleted": len(items)})
 }

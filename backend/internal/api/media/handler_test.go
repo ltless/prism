@@ -3,10 +3,12 @@ package media
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -349,4 +351,63 @@ func TestProcessingPool_AcquireShedsWhenSaturated(t *testing.T) {
 	if elapsed := time.Since(start); elapsed < 20*time.Millisecond {
 		t.Fatalf("expected acquire to wait for timeout, returned after %v", elapsed)
 	}
+}
+
+// F5: EmptyTrash must return immediately and clean files up asynchronously
+// with bounded concurrency — not walk the disk synchronously inside the request.
+func TestHandler_EmptyTrash_ReturnsFastDeletesAsync(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.POST("/api/v1/media/empty-trash", h.EmptyTrash)
+
+	storage := h.storage
+	const items = 50
+	for i := 0; i < items; i++ {
+		name := fmt.Sprintf("file%d.jpg", i)
+		if _, _, _, err := storage.SaveFileFromBytes("test-user", []byte("x"), name); err != nil {
+			t.Fatalf("save file %d: %v", i, err)
+		}
+	}
+
+	// Seed DB rows pointing at the files above, all in trash.
+	tdb, err := h.svc.pool.Get("test-user")
+	if err != nil {
+		t.Fatalf("get tenant db: %v", err)
+	}
+	for i := 0; i < items; i++ {
+		if _, err := tdb.Exec(
+			`INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash, is_trash, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, 'image/jpeg', 1, $5, TRUE, 0, 0)`,
+			fmt.Sprintf("id%d", i), "test-user", "T", fmt.Sprintf("file%d.jpg", i), fmt.Sprintf("hz%d", i)); err != nil {
+			t.Fatalf("insert %d: %v", i, err)
+		}
+	}
+
+	start := time.Now()
+	rec := testRequest(e, "POST", "/api/v1/media/empty-trash", token, "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("handler blocked %v on file cleanup; should return fast", elapsed)
+	}
+
+	// Files must eventually all disappear (async deletion completed).
+	mediaDir := storage.MediaDir("test-user")
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		entries, _ := os.ReadDir(mediaDir)
+		if len(entries) == 0 {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	entries, _ := os.ReadDir(mediaDir)
+	t.Fatalf("files not cleaned up asynchronously: %d remain (e.g. %s)", len(entries), firstEntry(entries))
+}
+
+func firstEntry(entries []os.DirEntry) string {
+	for _, e := range entries {
+		return e.Name()
+	}
+	return ""
 }

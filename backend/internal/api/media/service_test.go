@@ -1,8 +1,11 @@
 package media
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -515,5 +518,51 @@ func TestService_CreateWithinQuota_ConcurrentRespectsLimit(t *testing.T) {
 	}
 	if created != 5 {
 		t.Fatalf("expected exactly 5 uploads to fit under the limit, got %d", created)
+	}
+}
+
+// F4: the embedded-items scan for duplicate detection must be capped and must
+// filter out metadata-less rows in SQL, not after loading them into memory.
+func TestService_QueryEmbeddedItems_CappedAtLimit(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+
+	embedMeta := `{"embedding":[0.1,0.2]}`
+	const extra = 5
+	for i := 0; i < maxEmbeddedItems+extra; i++ {
+		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("e%d.jpg", i), "E", "image/jpeg",
+			fmt.Sprintf("he%d", i), 10, nil, nil, nil, &embedMeta, nil, nil); err != nil {
+			t.Fatalf("create %d: %v", i, err)
+		}
+	}
+	// Rows without any metadata must be filtered by the query itself.
+	for i := 0; i < 3; i++ {
+		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("n%d.jpg", i), "N", "image/jpeg",
+			fmt.Sprintf("hn%d", i), 10, nil, nil, nil, nil, nil, nil); err != nil {
+			t.Fatalf("create no-meta %d: %v", i, err)
+		}
+	}
+
+	tdb, err := pool.Get("test-user")
+	if err != nil {
+		t.Fatalf("get tenant db: %v", err)
+	}
+	defer tdb.Close()
+	selectCols := `id, title, file_path, mime_type, size, width, height, hash,
+		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
+		metadata, duration, transcode_status`
+
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+	withEmb, err := svc.queryEmbeddedItems(tdb, "test-user", selectCols)
+	if err != nil {
+		t.Fatalf("queryEmbeddedItems: %v", err)
+	}
+	if len(withEmb) != maxEmbeddedItems {
+		t.Fatalf("expected scan capped at %d, got %d", maxEmbeddedItems, len(withEmb))
+	}
+	if !strings.Contains(buf.String(), "capped") {
+		t.Fatalf("expected cap warning to be logged, got: %q", buf.String())
 	}
 }

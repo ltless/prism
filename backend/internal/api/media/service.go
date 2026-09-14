@@ -1346,6 +1346,9 @@ type DuplicatesResponse struct {
 const nearDuplicateThreshold = 0.95
 const maxNearDuplicates = 1000
 const maxExactDuplicateRows = 1000
+// maxEmbeddedItems caps the embedded-media scan for near-duplicate detection
+// (the clustering pass is O(n^2) over what this query returns).
+const maxEmbeddedItems = 1000
 
 type embeddedItem struct {
 	item      MediaItem
@@ -1422,10 +1425,13 @@ func (s *Service) queryExactDuplicates(tdb *db.TenantDB, userID, selectCols stri
 	return groups, exactHashes, nil
 }
 
-// queryEmbeddedItems loads all non-trash media carrying an AI embedding.
+// queryEmbeddedItems loads non-trash media carrying an AI embedding, capped
+// at maxEmbeddedItems rows — near-duplicate clustering is O(n^2) over this
+// slice, so the load must be bounded no matter how large the library is.
 func (s *Service) queryEmbeddedItems(tdb *db.TenantDB, userID, selectCols string) ([]embeddedItem, error) {
 	allRows, err := tdb.Query(fmt.Sprintf(
-		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE`, selectCols), userID)
+		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE AND metadata IS NOT NULL
+		ORDER BY created_at DESC, id DESC LIMIT %d`, selectCols, maxEmbeddedItems), userID)
 	if err != nil {
 		return nil, fmt.Errorf("query all media: %w", err)
 	}
@@ -1444,6 +1450,9 @@ func (s *Service) queryEmbeddedItems(tdb *db.TenantDB, userID, selectCols string
 			continue
 		}
 		withEmb = append(withEmb, embeddedItem{item: *item, embedding: meta.Embedding})
+	}
+	if len(withEmb) >= maxEmbeddedItems {
+		log.Printf("Near-duplicate scan capped at %d embedded items (library has more; newest items scanned first)", maxEmbeddedItems)
 	}
 	return withEmb, nil
 }

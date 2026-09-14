@@ -575,6 +575,9 @@ func (h *Handler) BulkFavorite(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
+	if len(body.MediaIDs) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "media_ids is required")
+	}
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
@@ -599,6 +602,9 @@ func (h *Handler) BulkTrash(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
+	if len(body.MediaIDs) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "media_ids is required")
+	}
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
@@ -618,6 +624,9 @@ func (h *Handler) BulkRestore(c echo.Context) error {
 	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if len(body.MediaIDs) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "media_ids is required")
 	}
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
@@ -699,6 +708,9 @@ func (h *Handler) BulkVault(c echo.Context) error {
 	}
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
+	}
+	if len(body.MediaIDs) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "media_ids is required")
 	}
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))

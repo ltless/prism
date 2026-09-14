@@ -442,3 +442,26 @@ func TestHandler_DeleteFileLogged_LogsFailure(t *testing.T) {
 		t.Fatalf("file should still exist after failed delete: %v", err)
 	}
 }
+
+// F8: empty media_ids on bulk endpoints must 400 (matching BulkMove's guard),
+// not build 'IN ()' SQL and blow up as a 500.
+func TestHandler_BulkEndpoints_RejectEmptyMediaIDs(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.POST("/api/v1/media/bulk/favorite", h.BulkFavorite)
+	e.POST("/api/v1/media/bulk/trash", h.BulkTrash)
+	e.POST("/api/v1/media/bulk/restore", h.BulkRestore)
+	e.POST("/api/v1/media/bulk/vault", h.BulkVault)
+
+	paths := []string{
+		"/api/v1/media/bulk/favorite",
+		"/api/v1/media/bulk/trash",
+		"/api/v1/media/bulk/restore",
+		"/api/v1/media/bulk/vault",
+	}
+	for _, p := range paths {
+		rec := testRequest(e, "POST", p, token, "", `{"media_ids":[]}`)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: expected 400 for empty media_ids, got %d: %s", p, rec.Code, rec.Body.String())
+		}
+	}
+}

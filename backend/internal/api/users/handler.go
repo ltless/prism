@@ -20,12 +20,13 @@ const maxPreferencesSize = 10 * 1024        // 10KB
 const maxProfileImageSize = 5 * 1024 * 1024 // 5MB
 
 type Handler struct {
-	svc     *Service
-	storage *mw.Storage
+	svc      *Service
+	storage  *mw.Storage
+	vaultMgr *vault.Manager
 }
 
-func NewHandler(svc *Service, storage *mw.Storage) *Handler {
-	return &Handler{svc: svc, storage: storage}
+func NewHandler(svc *Service, storage *mw.Storage, vaultMgr *vault.Manager) *Handler {
+	return &Handler{svc: svc, storage: storage, vaultMgr: vaultMgr}
 }
 
 // UploadProfileImage accepts a multipart file + type ("image"|"coverImage"),
@@ -213,7 +214,26 @@ func (h *Handler) VerifyVaultPin(c echo.Context) error {
 	if !ok {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid pin")
 	}
+	// A successful unlock grants a short-lived read token so the vault page
+	// can fetch media server-side without re-sending the PIN on every
+	// request. The token lives in an HttpOnly cookie (vault_token).
+	token, err := h.vaultMgr.Issue(claims.UserID)
+	if err != nil {
+		log.Printf("Issue vault token error: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
+	h.vaultMgr.SetCookie(c, token)
 	return c.JSON(http.StatusOK, map[string]bool{"valid": true})
+}
+
+// LockVault revokes the vault read token for this session, so the frontend can
+// lock explicitly (tab hidden, idle timeout) instead of waiting for the TTL.
+func (h *Handler) LockVault(c echo.Context) error {
+	if _, err := auth.GetClaimsOrErr(c); err != nil {
+		return err
+	}
+	h.vaultMgr.ClearCookie(c)
+	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
 func (h *Handler) DisableVaultPin(c echo.Context) error {
@@ -225,6 +245,8 @@ func (h *Handler) DisableVaultPin(c echo.Context) error {
 		log.Printf("DisableVaultPin error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	// Disabling the PIN must not leave a still-valid unlock token behind.
+	h.vaultMgr.ClearCookie(c)
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 

@@ -80,9 +80,10 @@ type Handler struct {
 	storage   *mw.Storage
 	nukeToken string
 	pool      *processingPool
+	vaultMgr  *vault.Manager
 }
 
-func NewHandler(svc *Service, storage *mw.Storage, nukeToken string, processingConcurrency ...int) *Handler {
+func NewHandler(svc *Service, storage *mw.Storage, nukeToken string, vaultMgr *vault.Manager, processingConcurrency ...int) *Handler {
 	concurrency := defaultProcessingConcurrency
 	if len(processingConcurrency) > 0 && processingConcurrency[0] > 0 {
 		concurrency = processingConcurrency[0]
@@ -92,6 +93,7 @@ func NewHandler(svc *Service, storage *mw.Storage, nukeToken string, processingC
 		storage:   storage,
 		nukeToken: nukeToken,
 		pool:      newProcessingPool(concurrency, processingAcquireTimeout),
+		vaultMgr:  vaultMgr,
 	}
 }
 
@@ -115,6 +117,15 @@ func (h *Handler) List(c echo.Context) error {
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 
+	// The vault read path is gated server-side: without a valid short-lived
+	// unlock token the whole vault listing is refused (403) rather than
+	// returning the user's entire library.
+	if vault {
+		if err := h.vaultMgr.Require(c, claims.UserID); err != nil {
+			return err
+		}
+	}
+
 	resp, err := h.svc.List(claims.UserID, fID, favorites, trash, vault, dedup, search, page, limit)
 	if err != nil {
 		log.Printf("MediaList error: %v", err)
@@ -133,6 +144,11 @@ func (h *Handler) Get(c echo.Context) error {
 	id := c.Param("id")
 	item, err := h.svc.Get(claims.UserID, id)
 	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "media not found")
+	}
+
+	// Vault items are not enumerable while locked — 404 hides existence.
+	if item.IsVault && !h.vaultMgr.Unlocked(c, claims.UserID) {
 		return echo.NewHTTPError(http.StatusNotFound, "media not found")
 	}
 
@@ -574,6 +590,22 @@ func (h *Handler) ServeFile(c echo.Context) error {
 	isThumb := c.QueryParam("thumb") == "1"
 	filePath := c.Param("*")
 
+	// Vault reads are gated by hash: on-disk media files are named
+	// <hash><ext>. While locked, any request for a vault file — original or
+	// thumbnail — returns 404 so the existence of vault items stays hidden.
+	if !h.vaultMgr.Unlocked(c, claims.UserID) {
+		hash := filepath.Base(filePath)
+		hash = strings.TrimSuffix(hash, filepath.Ext(hash))
+		isVaultHash, err := h.svc.IsVaultHash(claims.UserID, hash)
+		if err != nil {
+			log.Printf("IsVaultHash error: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+		}
+		if isVaultHash {
+			return echo.NewHTTPError(http.StatusNotFound, "media not found")
+		}
+	}
+
 	if isThumb {
 		return h.storage.ServeThumbnail(c, claims.UserID, filePath)
 	}
@@ -831,9 +863,10 @@ func (h *Handler) Search(c echo.Context) error {
 	}
 
 	params := SearchParams{
-		Query: c.QueryParam("q"),
-		Page:  parseInt(c.QueryParam("page")),
-		Limit: parseInt(c.QueryParam("limit")),
+		Query:        c.QueryParam("q"),
+		Page:         parseInt(c.QueryParam("page")),
+		Limit:        parseInt(c.QueryParam("limit")),
+		IncludeVault: h.vaultMgr.Unlocked(c, claims.UserID),
 	}
 
 	folderID := c.QueryParam("folder_id")
@@ -978,10 +1011,11 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	favorites := c.QueryParam("is_favorite") == "true"
 
 	params := DashboardParams{
-		FolderID:   fID,
-		IsFavorite: favorites,
-		Page:       page,
-		Limit:      limit,
+		FolderID:     fID,
+		IsFavorite:   favorites,
+		Page:         page,
+		Limit:        limit,
+		IncludeVault: h.vaultMgr.Unlocked(c, claims.UserID),
 	}
 
 	smart := c.QueryParam("smart") == "true"
@@ -1008,7 +1042,7 @@ func (h *Handler) Duplicates(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := h.svc.GetDuplicates(claims.UserID)
+	resp, err := h.svc.GetDuplicates(claims.UserID, h.vaultMgr.Unlocked(c, claims.UserID))
 	if err != nil {
 		log.Printf("Duplicates error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")

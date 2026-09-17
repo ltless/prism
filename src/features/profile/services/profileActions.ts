@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { safeAction } from "@/core/utils/action";
-import { goFetch, goFetchUpload } from "@/lib/api";
+import { goFetch, goFetchUpload, goFetchWithSetCookie, mirrorVaultCookie } from "@/lib/api";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,32}$/;
@@ -105,9 +105,10 @@ export async function disableVaultPinAction(pin: string) {
     });
     if (!verifyRes.valid) throw new Error("PIN is incorrect");
 
-    await goFetch("/api/v1/users/me/vault-pin", {
+    const res = await goFetchWithSetCookie<{ success: boolean }>("/api/v1/users/me/vault-pin", {
       method: "DELETE",
     });
+    await mirrorVaultCookie(res.setCookie);
 
     return {};
   });
@@ -128,11 +129,15 @@ export async function verifyVaultPinAction(pin: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
 
-    const res = await goFetch<{ valid: boolean }>("/api/v1/users/me/vault-pin/verify", {
+    const { data, setCookie } = await goFetchWithSetCookie<{ valid: boolean }>("/api/v1/users/me/vault-pin/verify", {
       method: "POST",
       body: { pin },
     });
-    if (!res.valid) throw new Error("PIN is incorrect");
+    if (!data.valid) throw new Error("PIN is incorrect");
+
+    // Replay Go's HttpOnly vault_token cookie into Next's response so the
+    // browser holds the unlock token for the follow-up vault reads.
+    await mirrorVaultCookie(setCookie);
 
     return {};
   });

@@ -17,9 +17,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
 	mw "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/vault"
 )
 
 func setupMediaHandler(t *testing.T) (*echo.Echo, *Handler, string, *auth.JWTManager) {
@@ -34,7 +36,7 @@ func setupMediaHandler(t *testing.T) (*echo.Echo, *Handler, string, *auth.JWTMan
 
 	storage := mw.NewStorage(t.TempDir())
 	svc := NewService(pool, nil)
-	handler := NewHandler(svc, storage, "test-nuke-token")
+	handler := NewHandler(svc, storage, "test-nuke-token", vault.NewManager("test-secret"))
 
 	e := echo.New()
 	e.Use(jwt.Middleware)
@@ -100,7 +102,7 @@ func TestHandler_CreateAndGet(t *testing.T) {
 	token, _ := jwt.Generate("test-user", "testuser", "admin")
 
 	svc := NewService(sharedPool, nil)
-	h := NewHandler(svc, storage, "test-nuke-token")
+	h := NewHandler(svc, storage, "test-nuke-token", vault.NewManager("test-secret"))
 	e := echo.New()
 	e.Use(jwt.Middleware)
 	e.POST("/api/v1/media", h.Upload)
@@ -464,4 +466,191 @@ func TestHandler_BulkEndpoints_RejectEmptyMediaIDs(t *testing.T) {
 			t.Errorf("%s: expected 400 for empty media_ids, got %d: %s", p, rec.Code, rec.Body.String())
 		}
 	}
+}
+
+// F1: the vault read path must be gated server-side by a short-lived unlock
+// token. No token, another user's token, or an expired token → 403; a valid
+// token → 200 and only vault items.
+func TestHandler_VaultList_Gated(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+
+	item, _, err := h.svc.Create("test-user", "", "vault.jpg", "Vault", "image/jpeg", "hash-vault-1", 100, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create vault item: %v", err)
+	}
+	if err := h.svc.Update("test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
+		t.Fatalf("mark vault: %v", err)
+	}
+
+	e.GET("/api/v1/media", h.List)
+
+	// (a) vault=true without unlock token → 403
+	rec := testRequest(e, "GET", "/api/v1/media?vault=true", token, "", "")
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("locked list: expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// (c) a valid token belonging to another user → 403
+	otherTok, err := h.vaultMgr.Issue("other-user")
+	if err != nil {
+		t.Fatalf("issue other token: %v", err)
+	}
+	rec = testRequestWithVaultCookie(e, "GET", "/api/v1/media?vault=true", token, otherTok)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("other-user token: expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// (d) an expired token → 403
+	rec = testRequestWithVaultCookie(e, "GET", "/api/v1/media?vault=true", token, signVaultToken(t, "test-user", -2*time.Minute, "test-secret"))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expired token: expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// (b) a valid token → 200, only the vault item
+	goodTok, err := h.vaultMgr.Issue("test-user")
+	if err != nil {
+		t.Fatalf("issue token: %v", err)
+	}
+	rec = testRequestWithVaultCookie(e, "GET", "/api/v1/media?vault=true", token, goodTok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unlocked list: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Items []struct {
+			IsVault bool `json:"isVault"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("parse list: %v", err)
+	}
+	if len(resp.Items) != 1 || !resp.Items[0].IsVault {
+		t.Fatalf("expected exactly the 1 vault item, got %d items", len(resp.Items))
+	}
+}
+
+// F1: a normal (non-vault) list must not require the vault token.
+func TestHandler_VaultList_NonVaultUnaffected(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	e.GET("/api/v1/media", h.List)
+	rec := testRequest(e, "GET", "/api/v1/media", token, "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("normal list: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// F1: ServeFile must return 404 for vault originals and thumbnails while
+// locked (existence hidden), and serve them once unlocked.
+func TestHandler_ServeFile_VaultGate(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+
+	const hash = "ab12cd34ef56ab7890"
+	if _, _, _, err := h.storage.SaveFileFromBytes("test-user", []byte("vault-bytes"), hash+".jpg"); err != nil {
+		t.Fatalf("save file: %v", err)
+	}
+
+	item, _, err := h.svc.Create("test-user", "", hash+".jpg", "V", "image/jpeg", hash, 100, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create vault item: %v", err)
+	}
+	if err := h.svc.Update("test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
+		t.Fatalf("mark vault: %v", err)
+	}
+
+	e.GET("/api/v1/media/files/*", h.ServeFile)
+
+	// (e) original file, locked → 404 (not 403 — vault existence is hidden)
+	rec := testRequest(e, "GET", "/api/v1/media/files/"+hash+".jpg", token, "", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("locked original: expected 404, got %d", rec.Code)
+	}
+
+	// (f) thumbnail, locked → 404
+	rec = testRequest(e, "GET", "/api/v1/media/files/"+hash+".thumb.jpg?thumb=1", token, "", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("locked thumbnail: expected 404, got %d", rec.Code)
+	}
+
+	// unlocked → the file is served
+	goodTok, err := h.vaultMgr.Issue("test-user")
+	if err != nil {
+		t.Fatalf("issue token: %v", err)
+	}
+	rec = testRequestWithVaultCookie(e, "GET", "/api/v1/media/files/"+hash+".jpg", token, goodTok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unlocked serve: expected 200, got %d", rec.Code)
+	}
+}
+
+// F1: a non-vault file must keep serving while the vault is locked.
+func TestHandler_ServeFile_NonVaultUnaffected(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	if _, _, _, err := h.storage.SaveFileFromBytes("test-user", []byte("plain"), "plainhash.jpg"); err != nil {
+		t.Fatalf("save file: %v", err)
+	}
+	e.GET("/api/v1/media/files/*", h.ServeFile)
+	rec := testRequest(e, "GET", "/api/v1/media/files/plainhash.jpg", token, "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("non-vault serve: expected 200, got %d", rec.Code)
+	}
+}
+
+// F1: Get on a vault item returns 404 while locked, 200 while unlocked.
+func TestHandler_Get_VaultGate(t *testing.T) {
+	e, h, token, _ := setupMediaHandler(t)
+	item, _, err := h.svc.Create("test-user", "", "v.jpg", "V", "image/jpeg", "getvault", 100, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := h.svc.Update("test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
+		t.Fatalf("mark vault: %v", err)
+	}
+	e.GET("/api/v1/media/:id", h.Get)
+
+	rec := testRequest(e, "GET", "/api/v1/media/"+item.ID, token, "", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("locked get: expected 404, got %d", rec.Code)
+	}
+
+	goodTok, err := h.vaultMgr.Issue("test-user")
+	if err != nil {
+		t.Fatalf("issue token: %v", err)
+	}
+	rec = testRequestWithVaultCookie(e, "GET", "/api/v1/media/"+item.ID, token, goodTok)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unlocked get: expected 200, got %d", rec.Code)
+	}
+}
+
+func testRequestWithVaultCookie(e *echo.Echo, method, path, token, vaultToken string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, nil)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if vaultToken != "" {
+		req.AddCookie(&http.Cookie{Name: vault.TokenCookieName, Value: vaultToken})
+	}
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	return rec
+}
+
+// signVaultToken crafts a vault-unlock token with an arbitrary age, using the
+// same domain-separated secret the Manager derives from the auth secret.
+func signVaultToken(t *testing.T, userID string, age time.Duration, authSecret string) string {
+	t.Helper()
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"iss":     "prism-vault",
+		"sub":     userID,
+		"iat":     now.Add(age).Unix(),
+		"exp":     now.Add(age).Unix(),
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	s, err := tok.SignedString([]byte(authSecret + "|vault-unlock-v1"))
+	if err != nil {
+		t.Fatalf("sign vault token: %v", err)
+	}
+	return s
 }

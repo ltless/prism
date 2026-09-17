@@ -12,6 +12,7 @@ import (
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/db"
 	"github.com/ltless/prism/internal/dbtest"
+	"github.com/ltless/prism/internal/vault"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,7 +33,7 @@ func setupUsersHandler(t *testing.T) (*echo.Echo, *Handler, string) {
 	t.Helper()
 	gdb := setupUsersHandlerDB(t)
 	svc := NewService(gdb, nil)
-	h := NewHandler(svc, nil)
+	h := NewHandler(svc, nil, vault.NewManager("test-secret"))
 
 	jwt := auth.NewJWTManager("test-secret")
 	token, _ := jwt.Generate("user-1", "testuser", "admin")
@@ -137,5 +138,38 @@ func TestUsersHandler_SetupComplete(t *testing.T) {
 	rec := usrReq(e, "POST", "/api/v1/users/me/setup-complete", token, `{}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// F1: a successful vault-PIN verification must mint a short-lived unlock
+// token in an HttpOnly vault_token cookie — the server-side read gate depends
+// on it.
+func TestUsersHandler_VerifyVaultPin_SetsUnlockCookie(t *testing.T) {
+	e, h, token := setupUsersHandler(t)
+	if err := h.svc.SetVaultPin("user-1", "123456"); err != nil {
+		t.Fatalf("set vault pin: %v", err)
+	}
+	e.POST("/api/v1/users/me/vault-pin/verify", h.VerifyVaultPin)
+	rec := usrReq(e, "POST", "/api/v1/users/me/vault-pin/verify", token, `{"pin":"123456"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	setCookie := rec.Result().Header.Get("Set-Cookie")
+	if !strings.Contains(setCookie, "vault_token=") || !strings.Contains(setCookie, "HttpOnly") {
+		t.Fatalf("expected vault_token Set-Cookie with HttpOnly, got: %q", setCookie)
+	}
+}
+
+// F1: the explicit lock endpoint must expire the vault_token cookie.
+func TestUsersHandler_LockVault_ClearsCookie(t *testing.T) {
+	e, h, token := setupUsersHandler(t)
+	e.DELETE("/api/v1/users/me/vault-lock", h.LockVault)
+	rec := usrReq(e, "DELETE", "/api/v1/users/me/vault-lock", token, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	setCookie := rec.Result().Header.Get("Set-Cookie")
+	if !strings.Contains(setCookie, "vault_token=;") && !strings.Contains(setCookie, "Max-Age=-1") {
+		t.Fatalf("expected vault_token expiry Set-Cookie, got: %q", setCookie)
 	}
 }

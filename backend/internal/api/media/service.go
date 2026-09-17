@@ -103,7 +103,9 @@ func buildListWhere(userID string, folderID *string, favorites, trash, vault boo
 	}
 	argIdx := 2
 
-	if !vault {
+	if vault {
+		f.where = append(f.where, "is_vault = TRUE")
+	} else {
 		f.where = append(f.where, "is_vault = FALSE")
 	}
 	if folderID != nil {
@@ -116,7 +118,7 @@ func buildListWhere(userID string, folderID *string, favorites, trash, vault boo
 	}
 	if trash {
 		f.where = append(f.where, "is_trash = TRUE")
-	} else if !vault {
+	} else {
 		f.where = append(f.where, "is_trash = FALSE")
 	}
 	if search != "" {
@@ -717,6 +719,10 @@ type SearchParams struct {
 	DateTo   *int64   `json:"date_to"`   // epoch ms
 	Page     int      `json:"page"`
 	Limit    int      `json:"limit"`
+	// IncludeVault allows vault items in results. Set by the handler only when
+	// the caller holds a valid vault-unlock token; otherwise search would leak
+	// vault items.
+	IncludeVault bool
 }
 
 func (s *Service) DeleteAll(userID string) ([]TrashedItem, error) {
@@ -895,6 +901,9 @@ func buildSearchWhere(userID string, params SearchParams) listFilters {
 		where: []string{"user_id = $1", "is_trash = FALSE"},
 		args:  []interface{}{userID},
 	}
+	if !params.IncludeVault {
+		f.where = append(f.where, "is_vault = FALSE")
+	}
 	argIdx := 2
 
 	// Text search — title OR metadata JSONB LIKE (matches Drizzle behaviour).
@@ -957,6 +966,9 @@ func appendSearchDedup(f *listFilters, userID string, params SearchParams) {
 	dedupBase := []string{"user_id = $1", "is_trash = FALSE"}
 	dedupArgs := []interface{}{userID}
 	dedupIdx := 2
+	if !params.IncludeVault {
+		dedupBase = append(dedupBase, "is_vault = FALSE")
+	}
 	if params.FolderID != nil && *params.FolderID != "" {
 		dedupBase = append(dedupBase, fmt.Sprintf("folder_id = $%d", dedupIdx))
 		dedupArgs = append(dedupArgs, *params.FolderID)
@@ -1118,6 +1130,31 @@ func (s *Service) FindByHash(userID, hash string) (*MediaItem, error) {
 	return item, nil
 }
 
+// IsVaultHash reports whether the given content hash belongs to a vault item
+// for this user. An unknown hash (not our media, e.g. a profile image) is not
+// vault business and returns (false, nil). The unique index on (user_id, hash)
+// keeps the lookup indexed.
+func (s *Service) IsVaultHash(userID, hash string) (bool, error) {
+	tdb, err := s.pool.Get(userID)
+	if err != nil {
+		return false, fmt.Errorf("get tenant db: %w", err)
+	}
+	defer tdb.Close()
+
+	var isVault bool
+	err = tdb.QueryRow(
+		"SELECT is_vault FROM media WHERE user_id = $1 AND hash = $2",
+		userID, hash,
+	).Scan(&isVault)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("query is_vault: %w", err)
+	}
+	return isVault, nil
+}
+
 type DashboardParams struct {
 	FolderID   *string
 	IsFavorite bool
@@ -1125,6 +1162,10 @@ type DashboardParams struct {
 	MinScore   float64
 	Page       int
 	Limit      int
+	// IncludeVault admits vault items. Set by the handler only when a valid
+	// vault-unlock token is present; otherwise the dashboard would be a side
+	// channel to enumerate vault media.
+	IncludeVault bool
 }
 
 func (s *Service) GetDashboard(userID string, params DashboardParams) (*DashboardResponse, error) {
@@ -1144,9 +1185,12 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	}
 	offset := (params.Page - 1) * params.Limit
 
-	where := []string{"user_id = $1", "is_trash = FALSE", "is_vault = FALSE"}
+	where := []string{"user_id = $1", "is_trash = FALSE"}
 	args := []interface{}{userID}
 	argIdx := 2
+	if !params.IncludeVault {
+		where = append(where, "is_vault = FALSE")
+	}
 
 	if params.FolderID != nil && len(params.Categories) == 0 {
 		if *params.FolderID == "" {
@@ -1177,7 +1221,7 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	}
 
 	// Compute folder counts
-	folderCounts, err := computeFolderCounts(tdb, userID)
+	folderCounts, err := computeFolderCounts(tdb, userID, params.IncludeVault)
 	if err != nil {
 		return nil, fmt.Errorf("folder counts: %w", err)
 	}
@@ -1280,12 +1324,17 @@ func scanMediaRows(tdb *db.TenantDB, q string, args []interface{}) ([]MediaItem,
 	return items, nil
 }
 
-func computeFolderCounts(tdb *db.TenantDB, userID string) (map[string]int, error) {
+func computeFolderCounts(tdb *db.TenantDB, userID string, includeVault bool) (map[string]int, error) {
 	folderCounts := map[string]int{}
+
+	vaultClause := "AND m.is_vault = FALSE"
+	if includeVault {
+		vaultClause = ""
+	}
 
 	rows, err := tdb.Query(
 		`SELECT f.id, COUNT(DISTINCT m.id) FROM folders f
-		LEFT JOIN media m ON m.folder_id = f.id AND m.is_trash = FALSE AND m.is_vault = FALSE AND m.user_id = $1
+		LEFT JOIN media m ON m.folder_id = f.id AND m.is_trash = FALSE `+vaultClause+` AND m.user_id = $1
 		WHERE f.user_id = $1
 		GROUP BY f.id`,
 		userID,
@@ -1340,7 +1389,7 @@ type embeddedItem struct {
 	embedding []float64
 }
 
-func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
+func (s *Service) GetDuplicates(userID string, includeVault bool) (*DuplicatesResponse, error) {
 	tdb, err := s.pool.Get(userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
@@ -1351,12 +1400,12 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status`
 
-	exactGroups, exactHashes, err := s.queryExactDuplicates(tdb, userID, selectCols)
+	exactGroups, exactHashes, err := s.queryExactDuplicates(tdb, userID, selectCols, includeVault)
 	if err != nil {
 		return nil, err
 	}
 
-	withEmb, err := s.queryEmbeddedItems(tdb, userID, selectCols)
+	withEmb, err := s.queryEmbeddedItems(tdb, userID, selectCols, includeVault)
 	if err != nil {
 		return nil, err
 	}
@@ -1370,11 +1419,15 @@ func (s *Service) GetDuplicates(userID string) (*DuplicatesResponse, error) {
 }
 
 // queryExactDuplicates returns groups of media sharing a content hash.
-func (s *Service) queryExactDuplicates(tdb *db.TenantDB, userID, selectCols string) ([]DuplicateGroup, map[string]bool, error) {
+func (s *Service) queryExactDuplicates(tdb *db.TenantDB, userID, selectCols string, includeVault bool) ([]DuplicateGroup, map[string]bool, error) {
+	exactVault := " AND is_vault = FALSE "
+	if includeVault {
+		exactVault = " "
+	}
 	rows, err := tdb.Query(fmt.Sprintf(
-		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE AND hash IN (
-			SELECT hash FROM media WHERE user_id = $1 AND is_trash = FALSE GROUP BY hash HAVING COUNT(*) > 1
-		) ORDER BY hash ASC, created_at DESC, id DESC LIMIT %d`, selectCols, maxExactDuplicateRows), userID)
+		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE %sAND hash IN (
+			SELECT hash FROM media WHERE user_id = $1 AND is_trash = FALSE %sGROUP BY hash HAVING COUNT(*) > 1
+		) ORDER BY hash ASC, created_at DESC, id DESC LIMIT %d`, selectCols, exactVault, exactVault, maxExactDuplicateRows), userID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("query exact dupes: %w", err)
 	}
@@ -1413,10 +1466,14 @@ func (s *Service) queryExactDuplicates(tdb *db.TenantDB, userID, selectCols stri
 // queryEmbeddedItems loads non-trash media carrying an AI embedding, capped
 // at maxEmbeddedItems rows — near-duplicate clustering is O(n^2) over this
 // slice, so the load must be bounded no matter how large the library is.
-func (s *Service) queryEmbeddedItems(tdb *db.TenantDB, userID, selectCols string) ([]embeddedItem, error) {
+func (s *Service) queryEmbeddedItems(tdb *db.TenantDB, userID, selectCols string, includeVault bool) ([]embeddedItem, error) {
+	vaultClause := " AND is_vault = FALSE"
+	if includeVault {
+		vaultClause = ""
+	}
 	allRows, err := tdb.Query(fmt.Sprintf(
-		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE AND metadata IS NOT NULL
-		ORDER BY created_at DESC, id DESC LIMIT %d`, selectCols, maxEmbeddedItems), userID)
+		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE%s AND metadata IS NOT NULL
+		ORDER BY created_at DESC, id DESC LIMIT %d`, selectCols, vaultClause, maxEmbeddedItems), userID)
 	if err != nil {
 		return nil, fmt.Errorf("query all media: %w", err)
 	}

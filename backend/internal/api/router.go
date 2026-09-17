@@ -17,6 +17,7 @@ import (
 	"github.com/ltless/prism/internal/db"
 	mediaS "github.com/ltless/prism/internal/media"
 	appmw "github.com/ltless/prism/internal/middleware"
+	"github.com/ltless/prism/internal/vault"
 )
 
 func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, cfg *config.Config) *echo.Echo {
@@ -46,12 +47,13 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 
 	authSvc := auth.NewService(global.DB, jwt, cfg.InviteCode, cfg.RequireInvite)
 	authSvc.SetClaimsValidator()
-	authH := auth.NewHandler(authSvc)
+	vaultMgr := vault.NewManager(cfg.JWTSecret)
+	authH := auth.NewHandler(authSvc, vaultMgr)
 
 	mediaStorage := mediaS.NewStorage(cfg.StoragePath)
 	mediaSvc := mediaH.NewService(tenantPool, configH.NewService(global))
 	mediaSvc.SetGlobalDB(global)
-	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage, cfg.NukeToken, cfg.MediaProcessingConcurrency)
+	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage, cfg.NukeToken, vaultMgr, cfg.MediaProcessingConcurrency)
 
 	folderSvc := folderH.NewService(tenantPool)
 	folderHandler := folderH.NewHandler(folderSvc)
@@ -117,7 +119,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	configG.PUT("/storage-default", configHandler.UpdateStorageDefault, auth.RequireAdmin)
 
 	usersSvc := userH.NewService(global, tenantPool)
-	usersHandler := userH.NewHandler(usersSvc, mediaStorage)
+	usersHandler := userH.NewHandler(usersSvc, mediaStorage, vaultMgr)
 	usersG := protected.Group("/users")
 	usersG.POST("/me/profile-image", usersHandler.UploadProfileImage)
 	usersG.GET("/me", usersHandler.GetProfile)
@@ -128,6 +130,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	usersG.POST("/me/vault-pin/verify", usersHandler.VerifyVaultPin)
 	usersG.DELETE("/me/vault-pin", usersHandler.DisableVaultPin)
 	usersG.GET("/me/vault-pin/status", usersHandler.GetVaultPinStatus)
+	usersG.DELETE("/me/vault-lock", usersHandler.LockVault)
 	usersG.PUT("/me/username", usersHandler.UpdateUsername)
 	usersG.GET("/me/storage-usage", usersHandler.GetStorageUsage)
 

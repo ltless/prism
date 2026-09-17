@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const testState = vi.hoisted(() => ({ goFetchCalls: [] as { path: string; options: unknown }[] }));
+const testState = vi.hoisted(() => ({
+  goFetchCalls: [] as { path: string; options: unknown }[],
+  goFetchWithSetCookieCalls: [] as { path: string; options: unknown }[],
+}));
 
 vi.mock('@/lib/api', () => ({
   goFetch: vi.fn((path: string, options?: unknown) => {
@@ -14,13 +17,23 @@ vi.mock('@/lib/api', () => ({
     }
     return Promise.resolve({});
   }),
+  goFetchWithSetCookie: vi.fn((path: string, options?: unknown) => {
+    testState.goFetchWithSetCookieCalls.push({ path, options });
+    if (path.includes('/vault-pin/verify')) {
+      const body = (options as { body?: { pin: string } } | undefined)?.body;
+      return Promise.resolve({ data: { valid: body?.pin === '1234' || body?.pin === 'correct_old_pin' }, setCookie: null });
+    }
+    return Promise.resolve({ data: {}, setCookie: null });
+  }),
+  mirrorVaultCookie: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 import { changePasswordAction, setVaultPinAction, changeVaultPinAction, disableVaultPinAction, getVaultPinStatusAction, verifyVaultPinAction, updateUsernameAction } from '../services/profileActions';
+import { mirrorVaultCookie } from '@/lib/api';
 
-beforeEach(() => { vi.clearAllMocks(); testState.goFetchCalls = []; });
+beforeEach(() => { vi.clearAllMocks(); testState.goFetchCalls = []; testState.goFetchWithSetCookieCalls = []; });
 
 describe('changePasswordAction', () => {
   it('changes password with valid old password', async () => {
@@ -99,10 +112,11 @@ describe('vault PIN actions', () => {
     it('disables PIN with correct PIN', async () => {
       const result = await disableVaultPinAction('1234');
       expect(result).toMatchObject({ success: true });
-      expect(testState.goFetchCalls[1]).toMatchObject({
+      expect(testState.goFetchWithSetCookieCalls[0]).toMatchObject({
         path: '/api/v1/users/me/vault-pin',
         options: expect.objectContaining({ method: 'DELETE' }),
       });
+      expect(vi.mocked(mirrorVaultCookie)).toHaveBeenCalled();
     });
 
     it('rejects wrong PIN', async () => {
@@ -122,11 +136,17 @@ describe('vault PIN actions', () => {
     it('returns success for correct PIN', async () => {
       const result = await verifyVaultPinAction('1234');
       expect(result).toMatchObject({ success: true });
+      expect(testState.goFetchWithSetCookieCalls[0]).toMatchObject({
+        path: '/api/v1/users/me/vault-pin/verify',
+        options: expect.objectContaining({ method: 'POST', body: { pin: '1234' } }),
+      });
+      expect(vi.mocked(mirrorVaultCookie)).toHaveBeenCalled();
     });
 
     it('returns error for wrong PIN', async () => {
       const result = await verifyVaultPinAction('wrong');
       expect(result).toMatchObject({ success: false, error: expect.stringContaining('PIN is incorrect') });
+      expect(vi.mocked(mirrorVaultCookie)).not.toHaveBeenCalled();
     });
   });
 });

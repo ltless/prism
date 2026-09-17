@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/vault"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,14 +18,14 @@ func setupAuthHandler(t *testing.T) (*echo.Echo, *Handler) {
 	db := setupTestDB(t)
 	h, _ := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
 	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-	"user-1", "testuser", string(h), "admin")
+		"user-1", "testuser", string(h), "admin")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
 
 	jwt := NewJWTManager("test-secret")
 	svc := NewService(db, jwt, "", false)
-	handler := NewHandler(svc)
+	handler := NewHandler(svc, vault.NewManager("test-secret"))
 
 	e := echo.New()
 	return e, handler

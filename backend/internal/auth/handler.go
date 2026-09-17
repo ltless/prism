@@ -6,14 +6,16 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/vault"
 )
 
 type Handler struct {
-	service *Service
+	service  *Service
+	vaultMgr *vault.Manager
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, vaultMgr *vault.Manager) *Handler {
+	return &Handler{service: service, vaultMgr: vaultMgr}
 }
 
 func (h *Handler) Login(c echo.Context) error {
@@ -68,6 +70,7 @@ func (h *Handler) Register(c echo.Context) error {
 
 func (h *Handler) Logout(c echo.Context) error {
 	ClearAuthCookie(c)
+	h.vaultMgr.ClearCookie(c)
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 

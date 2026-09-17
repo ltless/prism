@@ -126,6 +126,87 @@ func TestService_List_WithTrashFilter(t *testing.T) {
 	}
 }
 
+func TestService_List_VaultTrashCombinations(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+
+	mk := func(title, hash string) *MediaItem {
+		t.Helper()
+		item, dup, err := svc.Create("test-user", "", "f_"+hash+".jpg", title, "image/jpeg", hash, 100, nil, nil, nil, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("create %s: %v", title, err)
+		}
+		if dup {
+			t.Fatalf("create %s: unexpected duplicate", title)
+		}
+		return item
+	}
+
+	plain := mk("plain", "h-plain")
+	trashed := mk("trashed", "h-trash")
+	vaulted := mk("vaulted", "h-vault")
+	vaultTrashed := mk("vault-trashed", "h-vault-trash")
+	favorited := mk("favorited", "h-fav")
+
+	set := func(id string, updates map[string]interface{}) {
+		t.Helper()
+		if err := svc.Update("test-user", id, updates); err != nil {
+			t.Fatalf("update %s: %v", id, err)
+		}
+	}
+	set(trashed.ID, map[string]interface{}{"is_trash": true})
+	set(vaulted.ID, map[string]interface{}{"is_vault": true})
+	set(vaultTrashed.ID, map[string]interface{}{"is_vault": true, "is_trash": true})
+	set(favorited.ID, map[string]interface{}{"is_favorite": true})
+
+	ids := func(resp *ListResponse) map[string]bool {
+		out := make(map[string]bool, len(resp.Items))
+		for _, it := range resp.Items {
+			out[it.ID] = true
+		}
+		return out
+	}
+
+	assertSet := func(desc string, got map[string]bool, want ...*MediaItem) {
+		t.Helper()
+		wantSet := make(map[string]bool, len(want))
+		for _, it := range want {
+			wantSet[it.ID] = true
+		}
+		if len(got) != len(wantSet) {
+			t.Fatalf("%s: got %d items, want %d (got %v)", desc, len(got), len(wantSet), got)
+		}
+		for id := range wantSet {
+			if !got[id] {
+				t.Fatalf("%s: missing item %s", desc, id)
+			}
+		}
+	}
+
+	cases := []struct {
+		name             string
+		favorites, trash bool
+		vault            bool
+		want             []*MediaItem
+	}{
+		{"default", false, false, false, []*MediaItem{plain, favorited}},
+		{"trash", false, true, false, []*MediaItem{trashed}},
+		{"vault", false, false, true, []*MediaItem{vaulted}},
+		{"vault+trash", false, true, true, []*MediaItem{vaultTrashed}},
+		{"favorites", true, false, false, []*MediaItem{favorited}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := svc.List("test-user", nil, tc.favorites, tc.trash, tc.vault, false, "", 1, 50)
+			if err != nil {
+				t.Fatalf("List: %v", err)
+			}
+			assertSet(tc.name, ids(resp), tc.want...)
+		})
+	}
+}
+
 func TestService_Get_Found(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
@@ -555,7 +636,7 @@ func TestService_QueryEmbeddedItems_CappedAtLimit(t *testing.T) {
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
 	defer log.SetOutput(os.Stderr)
-	withEmb, err := svc.queryEmbeddedItems(tdb, "test-user", selectCols)
+	withEmb, err := svc.queryEmbeddedItems(tdb, "test-user", selectCols, false)
 	if err != nil {
 		t.Fatalf("queryEmbeddedItems: %v", err)
 	}
@@ -727,5 +808,82 @@ func TestService_GetDashboard_SmartFolderLargeMatch(t *testing.T) {
 			t.Fatalf("item %s appeared on both pages (pagination broken)", it.ID)
 		}
 		seen[it.ID] = true
+	}
+}
+
+// F1: while the vault is locked, Search, Dashboard and Duplicates must all
+// exclude vault items; with IncludeVault=true they must include them.
+//
+// Near-duplicate groups (the only kind that can form: (user_id, hash) is
+// unique, so same-user exact-hash groups never materialize) are clustered by
+// embedding similarity, so the vault item shares the cluster's embedding.
+func TestService_IncludeVaultGates(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+
+	near := `{"embedding":[1,0]}`
+	far := `{"embedding":[1,100]}`
+
+	mk := func(title, hash, metadata string) *MediaItem {
+		it, _, err := svc.Create("test-user", "", hash+".jpg", title, "image/jpeg", hash, 100, nil, nil, nil, &metadata, nil, nil)
+		if err != nil {
+			t.Fatalf("create %s: %v", title, err)
+		}
+		return it
+	}
+	mk("plain", "hz-far", far)
+	mk("sim-a", "hz-sima", near)
+	mk("sim-b", "hz-simb", near)
+	vaulted := mk("sim-c", "hz-simc", near)
+	if err := svc.Update("test-user", vaulted.ID, map[string]interface{}{"is_vault": true}); err != nil {
+		t.Fatalf("mark vault: %v", err)
+	}
+
+	// Search: raw rows are 4; locked must return the 3 non-vault items.
+	s, err := svc.Search("test-user", SearchParams{Limit: 50})
+	if err != nil {
+		t.Fatalf("search locked: %v", err)
+	}
+	if s.Total != 3 {
+		t.Fatalf("search locked: expected 3 items, got %d", s.Total)
+	}
+	su, err := svc.Search("test-user", SearchParams{Limit: 50, IncludeVault: true})
+	if err != nil {
+		t.Fatalf("search unlocked: %v", err)
+	}
+	if su.Total != 4 {
+		t.Fatalf("search unlocked: expected 4 items, got %d", su.Total)
+	}
+
+	// Dashboard uses the same dedup path.
+	d, err := svc.GetDashboard("test-user", DashboardParams{Limit: 50})
+	if err != nil {
+		t.Fatalf("dashboard locked: %v", err)
+	}
+	if d.Total != 3 {
+		t.Fatalf("dashboard locked: expected 3 items, got %d", d.Total)
+	}
+	du, err := svc.GetDashboard("test-user", DashboardParams{Limit: 50, IncludeVault: true})
+	if err != nil {
+		t.Fatalf("dashboard unlocked: %v", err)
+	}
+	if du.Total != 4 {
+		t.Fatalf("dashboard unlocked: expected 4 items, got %d", du.Total)
+	}
+
+	// Duplicates: the near-duplicate cluster has 2 non-vault + 1 vault member.
+	gd, err := svc.GetDuplicates("test-user", false)
+	if err != nil {
+		t.Fatalf("duplicates locked: %v", err)
+	}
+	if len(gd.Groups) != 1 || len(gd.Groups[0].Items) != 2 {
+		t.Fatalf("duplicates locked: expected one group of 2, got %d groups", len(gd.Groups))
+	}
+	gu, err := svc.GetDuplicates("test-user", true)
+	if err != nil {
+		t.Fatalf("duplicates unlocked: %v", err)
+	}
+	if len(gu.Groups) != 1 || len(gu.Groups[0].Items) != 3 {
+		t.Fatalf("duplicates unlocked: expected one group of 3, got %d groups", len(gu.Groups))
 	}
 }

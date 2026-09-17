@@ -1,6 +1,31 @@
 -- PostgreSQL schema for prism
 -- Merged from global.sql + tenant.sql (single-DB architecture with user_id tenancy)
 
+-- ===== MIGRATION LEDGER =====
+-- This file is re-executed on every startup, so one-shot data fixes must be
+-- guarded: an unguarded `UPDATE users SET storage_limit = NULL WHERE
+-- storage_limit = 0` here would silently undo an admin's deliberate
+-- storage_limit = 0 on the next restart.
+-- ponytail: a ledger row per data fix is enough while every change is
+-- idempotent DDL. Split into numbered files + a transactional runner with
+-- pg_advisory_lock when the first non-idempotent change (rename column, alter
+-- type, backfill) lands.
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    name       TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Baseline: a database that already has `users` predates this ledger, so any
+-- pre-ledger data fix already ran (or was intentionally skipped) and must not
+-- be replayed. Fresh databases are left unmarked and get the fix below.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
+        INSERT INTO schema_migrations (name) VALUES ('f6_storage_limit_zero_to_null')
+        ON CONFLICT (name) DO NOTHING;
+    END IF;
+END $$;
+
 -- ===== GLOBAL TABLES =====
 
 CREATE TABLE IF NOT EXISTS users (
@@ -179,4 +204,12 @@ CREATE POLICY transcode_queue_tenant_isolation ON transcode_queue
 -- Older builds wrote 0 when an admin sent `storage_limit: null` or 0 and the
 -- backend silently treated <=0 as unlimited. Convert any legacy 0 to NULL so
 -- nobody's account flips from "unlimited" to "locked" with the fix deployed.
-UPDATE users SET storage_limit = NULL WHERE storage_limit = 0;
+-- Guarded by the ledger: unguarded, this re-runs on every boot and reverts a
+-- deliberate storage_limit = 0 back to unlimited.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE name = 'f6_storage_limit_zero_to_null') THEN
+        UPDATE users SET storage_limit = NULL WHERE storage_limit = 0;
+        INSERT INTO schema_migrations (name) VALUES ('f6_storage_limit_zero_to_null');
+    END IF;
+END $$;

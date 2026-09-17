@@ -861,8 +861,12 @@ func (s *Service) CountTagged(userID string) (*AICountResponse, error) {
 	}
 	defer tdb.Close()
 	var total, tagged int
-	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total)
-	tdb.QueryRow("SELECT COUNT(DISTINCT media_id) FROM media_tags WHERE user_id = $1", userID).Scan(&tagged)
+	if err := tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count media: %w", err)
+	}
+	if err := tdb.QueryRow("SELECT COUNT(DISTINCT media_id) FROM media_tags WHERE user_id = $1", userID).Scan(&tagged); err != nil {
+		return nil, fmt.Errorf("count tagged media: %w", err)
+	}
 	return &AICountResponse{Total: total, Tagged: tagged}, nil
 }
 
@@ -873,8 +877,12 @@ func (s *Service) CountScored(userID string) (*AIScoreResponse, error) {
 	}
 	defer tdb.Close()
 	var total, scored int
-	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total)
-	tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND metadata IS NOT NULL AND metadata->>'aestheticScored' = 'true'", userID).Scan(&scored)
+	if err := tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND is_trash = FALSE", userID).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count media: %w", err)
+	}
+	if err := tdb.QueryRow("SELECT COUNT(*) FROM media WHERE user_id = $1 AND metadata IS NOT NULL AND metadata->>'aestheticScored' = 'true'", userID).Scan(&scored); err != nil {
+		return nil, fmt.Errorf("count scored media: %w", err)
+	}
 	return &AIScoreResponse{Total: total, Scored: scored}, nil
 }
 
@@ -1181,17 +1189,24 @@ const dashboardSelectCols = `id, title, file_path, mime_type, size, width, heigh
 	folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 	metadata, duration, transcode_status`
 
-// queryDedupedMedia returns one row per hash (earliest id) for the plain
-// (non-smart) dashboard view.
+// queryDedupedMedia returns one row per hash — the earliest upload — for the
+// plain (non-smart) dashboard view.
 func (s *Service) queryDedupedMedia(tdb *db.TenantDB, where []string, args []interface{}, limit, offset int) ([]MediaItem, int, error) {
 	whereClause := strings.Join(where, " AND ")
 
 	var total int
-	tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
+	if err := tdb.QueryRow(
+		fmt.Sprintf("SELECT COUNT(DISTINCT hash) FROM media WHERE %s", whereClause),
+		args...,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count deduped media: %w", err)
+	}
 
-	q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
-		SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, dashboardSelectCols, whereClause, limit, offset)
+	q := fmt.Sprintf(`SELECT %s FROM (
+		SELECT DISTINCT ON (hash) %s FROM media WHERE %s
+		ORDER BY hash, created_at ASC, id ASC
+	) AS deduped ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`,
+		dashboardSelectCols, dashboardSelectCols, whereClause, limit, offset)
 
 	items, err := scanMediaRows(tdb, q, args)
 	return items, total, err
@@ -1223,11 +1238,18 @@ func (s *Service) querySmartFolderMedia(tdb *db.TenantDB, userID string, params 
 	whereClause := strings.Join(where, " AND ")
 
 	var total int
-	tdb.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE %s GROUP BY hash)", whereClause), args...).Scan(&total)
+	if err := tdb.QueryRow(
+		fmt.Sprintf("SELECT COUNT(DISTINCT hash) FROM media WHERE %s", whereClause),
+		args...,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count deduped media: %w", err)
+	}
 
-	q := fmt.Sprintf(`SELECT %s FROM media WHERE id IN (
-		SELECT MIN(id) FROM media WHERE %s GROUP BY hash
-	) ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`, dashboardSelectCols, whereClause, params.Limit, offset)
+	q := fmt.Sprintf(`SELECT %s FROM (
+		SELECT DISTINCT ON (hash) %s FROM media WHERE %s
+		ORDER BY hash, created_at ASC, id ASC
+	) AS deduped ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`,
+		dashboardSelectCols, dashboardSelectCols, whereClause, params.Limit, offset)
 
 	items, err := scanMediaRows(tdb, q, args)
 	return items, total, err
@@ -1283,10 +1305,12 @@ func computeFolderCounts(tdb *db.TenantDB, userID string) (map[string]int, error
 
 	// Inbox count (media with no folder, excluding smart-tagged items)
 	var inbox int
-	tdb.QueryRow(
-		`SELECT COUNT(*) FROM (SELECT MIN(id) FROM media WHERE user_id = $1 AND is_trash = FALSE AND is_vault = FALSE AND folder_id IS NULL GROUP BY hash)`,
+	if err := tdb.QueryRow(
+		`SELECT COUNT(DISTINCT hash) FROM media WHERE user_id = $1 AND is_trash = FALSE AND is_vault = FALSE AND folder_id IS NULL`,
 		userID,
-	).Scan(&inbox)
+	).Scan(&inbox); err != nil {
+		return nil, fmt.Errorf("count inbox media: %w", err)
+	}
 	folderCounts["__inbox__"] = inbox
 
 	return folderCounts, nil

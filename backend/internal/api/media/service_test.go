@@ -596,6 +596,61 @@ func TestService_CreateWithinQuota_ZeroAndNullLimits(t *testing.T) {
 // F9: smart-folder tag matching runs as an inline subquery — no unbounded ID
 // list materialized in Go — and stays correct for large matches: the result
 // is paged, totals match, untagged media never leaks in, pages don't overlap.
+// Regression: the dashboard COUNT query and the inbox count discarded their
+// Scan error, so a broken query silently left Total and the inbox badge at 0
+// with nothing in the log. Assert the numbers, not just that nothing panics.
+func TestService_GetDashboard_TotalAndInboxCount(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+	for i := 0; i < 3; i++ {
+		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i),
+			"image/jpeg", fmt.Sprintf("h-count-%d", i), 100, nil, nil, nil, nil, nil, nil); err != nil {
+			t.Fatalf("create %d: %v", i, err)
+		}
+	}
+
+	resp, err := svc.GetDashboard("test-user", DashboardParams{Limit: 10, Page: 1})
+	if err != nil {
+		t.Fatalf("GetDashboard: %v", err)
+	}
+	if resp.Total != 3 {
+		t.Fatalf("expected total 3, got %d", resp.Total)
+	}
+	if got := resp.FolderCounts["__inbox__"]; got != 3 {
+		t.Fatalf("expected inbox count 3, got %d", got)
+	}
+}
+
+// TestService_Create_DuplicateHash pins the assumption the dashboard dedup
+// relies on: (user_id, hash) is unique, so at most one row per hash exists and
+// the "earliest upload per hash" selection has nothing to choose between.
+func TestService_GetDashboard_DedupKeepsSingleRowPerHash(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+	for i := 0; i < 3; i++ {
+		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("d%d.jpg", i), "Dup", "image/jpeg", "h-shared", 100, nil, nil, nil, nil, nil, nil); err != nil {
+			t.Fatalf("create %d: %v", i, err)
+		}
+	}
+
+	resp, err := svc.GetDashboard("test-user", DashboardParams{Limit: 10, Page: 1})
+	if err != nil {
+		t.Fatalf("GetDashboard: %v", err)
+	}
+	if resp.Total != 1 || len(resp.Items) != 1 {
+		t.Fatalf("expected a single deduped row for the shared hash, got total=%d items=%d", resp.Total, len(resp.Items))
+	}
+
+	// Repeated calls must be stable — same representative row every time.
+	again, err := svc.GetDashboard("test-user", DashboardParams{Limit: 10, Page: 1})
+	if err != nil {
+		t.Fatalf("GetDashboard repeat: %v", err)
+	}
+	if again.Items[0].ID != resp.Items[0].ID {
+		t.Fatalf("dedup representative changed between calls: %s vs %s", resp.Items[0].ID, again.Items[0].ID)
+	}
+}
+
 func TestService_GetDashboard_SmartFolderLargeMatch(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)

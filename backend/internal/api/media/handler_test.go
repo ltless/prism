@@ -19,11 +19,13 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/api/users"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/db"
 	"github.com/ltless/prism/internal/dbtest"
 	mw "github.com/ltless/prism/internal/media"
 	"github.com/ltless/prism/internal/vault"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func setupMediaHandler(t *testing.T) (*echo.Echo, *Handler, string, *auth.JWTManager) {
@@ -514,6 +516,65 @@ func TestHandler_BulkEndpoints_RejectEmptyMediaIDs(t *testing.T) {
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: expected 400 for empty media_ids, got %d: %s", p, rec.Code, rec.Body.String())
 		}
+	}
+}
+
+// F10: the vault-PIN lockout must survive a backend restart (it lives in the
+// users row, not in-memory) and be shared between the two protected routes.
+// Five wrong PINs via the un-vault route lock the user; the users PIN-verify
+// route then rejects the correct PIN with 429 too.
+func TestHandler_VaultPin_LockoutPersistedAndShared(t *testing.T) {
+	sqlDB := dbtest.NewDB(t)
+	hash, err := bcrypt.GenerateFromPassword([]byte("123456"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash pin: %v", err)
+	}
+	_, err = sqlDB.Exec("INSERT INTO users (id, username, password_hash, role, vault_pin) VALUES ($1, $2, $3, $4, $5)",
+		"test-user", "testuser", "hash", "admin", string(hash))
+	if err != nil {
+		t.Fatalf("insert test user: %v", err)
+	}
+
+	// Wire a media service with its global DB set, exactly as router.go does.
+	mediaSvc := NewService(db.NewTenantPool(sqlDB), nil)
+	mediaSvc.SetGlobalDB(&db.GlobalDB{DB: sqlDB})
+	mediaH := NewHandler(mediaSvc, mw.NewStorage(t.TempDir()), "test-nuke-token", vault.NewManager("test-secret"))
+
+	usersSvc := users.NewService(&db.GlobalDB{DB: sqlDB}, nil)
+	usersH := users.NewHandler(usersSvc, nil, vault.NewManager("test-secret"))
+
+	jwt := auth.NewJWTManager("test-secret")
+	token, _ := jwt.Generate("test-user", "testuser", "admin")
+
+	e := echo.New()
+	e.Use(jwt.Middleware)
+	e.POST("/api/v1/media/bulk/vault", mediaH.BulkVault)
+	e.POST("/api/v1/users/me/vault-pin/verify", usersH.VerifyVaultPin)
+
+	// Five wrong PINs through the media un-vault route.
+	for i := 0; i < 5; i++ {
+		rec := testRequest(e, "POST", "/api/v1/media/bulk/vault", token, "",
+			`{"media_ids":["m1"],"is_vault":false,"pin":"000000"}`)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("attempt %d: expected 403, got %d: %s", i+1, rec.Code, rec.Body.String())
+		}
+	}
+
+	// Sixth attempt is rejected by the shared counter with a retry hint.
+	rec := testRequest(e, "POST", "/api/v1/media/bulk/vault", token, "",
+		`{"media_ids":["m1"],"is_vault":false,"pin":"000000"}`)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 on 6th attempt, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Retry-After") == "" {
+		t.Fatal("expected Retry-After header on 429")
+	}
+
+	// The users PIN-verify route hits the same counter: even the correct PIN
+	// is rejected while the lock is active.
+	rec = testRequest(e, "POST", "/api/v1/users/me/vault-pin/verify", token, "", `{"pin":"123456"}`)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected users verify route to share the lockout (429), got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

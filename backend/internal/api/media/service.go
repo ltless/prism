@@ -48,6 +48,7 @@ type Service struct {
 	pool     *db.TenantPool
 	checker  config.ActiveChecker
 	globalDB *db.GlobalDB
+	pinLock  *vault.PinLock
 }
 
 func NewService(pool *db.TenantPool, checker config.ActiveChecker) *Service {
@@ -56,6 +57,13 @@ func NewService(pool *db.TenantPool, checker config.ActiveChecker) *Service {
 
 func (s *Service) SetGlobalDB(g *db.GlobalDB) {
 	s.globalDB = g
+	s.pinLock = vault.NewPinLock(g.DB)
+}
+
+// VaultLocked reports whether userID is currently locked out of vault-PIN
+// verified operations (un-vault, PIN verify) and, if so, the remaining time.
+func (s *Service) VaultLocked(userID string) (bool, time.Duration) {
+	return s.pinLock.Locked(userID)
 }
 
 // VaultUnlockAllowed reports whether userID may move media out of the vault.
@@ -66,7 +74,7 @@ func (s *Service) VaultUnlockAllowed(userID, pin string) (bool, error) {
 	if s.globalDB == nil {
 		return false, errors.New("global db not configured")
 	}
-	hasPin, ok, err := vault.Verify(s.globalDB.DB, userID, pin)
+	hasPin, ok, err := s.pinLock.Verify(userID, pin)
 	if err != nil {
 		return false, fmt.Errorf("verify vault pin: %w", err)
 	}
@@ -74,10 +82,10 @@ func (s *Service) VaultUnlockAllowed(userID, pin string) (bool, error) {
 		return true, nil
 	}
 	if !ok {
-		vault.RecordFailure(userID)
+		s.pinLock.RecordFailure(userID)
 		return false, nil
 	}
-	vault.Reset(userID)
+	s.pinLock.Reset(userID)
 	return true, nil
 }
 

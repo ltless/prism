@@ -28,7 +28,7 @@ const dummyPasswordHash = "$2a$10$a4Ehgp16FtY2HONYvsq5Qu4p36RkDxc7D/c1OMA3/vgxjN
 
 type LoginRequest struct {
 	Username string `json:"username" validate:"required,min=3,max=50"`
-	Password string `json:"password" validate:"required,min=6"`
+	Password string `json:"password" validate:"required"`
 }
 
 type RegisterRequest struct {

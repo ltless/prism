@@ -202,7 +202,7 @@ func (h *Handler) VerifyVaultPin(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
-	if locked, retry := vault.Locked(claims.UserID); locked {
+	if locked, retry := h.svc.VaultLocked(claims.UserID); locked {
 		c.Response().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
 		return echo.NewHTTPError(http.StatusTooManyRequests, "too many failed attempts, try again later")
 	}

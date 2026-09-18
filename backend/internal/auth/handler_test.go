@@ -87,6 +87,37 @@ func TestHandler_Login_WrongPassword(t *testing.T) {
 	}
 }
 
+// F11: legacy users with sub-6-char passwords must still be able to log in.
+// Login validation requires the field but not a minimum length — the length
+// rule is registration-time only.
+func TestHandler_Login_ShortPasswordAllowed(t *testing.T) {
+	db := setupTestDB(t)
+	hash, _ := bcrypt.GenerateFromPassword([]byte("abc"), bcrypt.MinCost)
+	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+		"user-short", "shortpw", string(hash), "user")
+	if err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	jwt := NewJWTManager("test-secret")
+	svc := NewService(db, jwt, "", false)
+	handler := NewHandler(svc, vault.NewManager("test-secret"))
+	e := echo.New()
+
+	body := mustJSON(LoginRequest{Username: "shortpw", Password: "abc"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	if err := handler.Login(c); err != nil {
+		t.Fatalf("Login with short password returned error: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+}
+
 func TestHandler_Login_EmptyBody(t *testing.T) {
 	e, h := setupAuthHandler(t)
 	// nil body → empty LoginRequest → validation fails → 400

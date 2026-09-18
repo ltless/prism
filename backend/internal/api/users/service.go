@@ -25,12 +25,13 @@ type UserProfile struct {
 }
 
 type Service struct {
-	global *db.GlobalDB
-	pool   *db.TenantPool
+	global  *db.GlobalDB
+	pool    *db.TenantPool
+	pinLock *vault.PinLock
 }
 
 func NewService(global *db.GlobalDB, pool *db.TenantPool) *Service {
-	return &Service{global: global, pool: pool}
+	return &Service{global: global, pool: pool, pinLock: vault.NewPinLock(global.DB)}
 }
 
 func (s *Service) GetProfile(userID string) (*UserProfile, error) {
@@ -110,8 +111,12 @@ func (s *Service) SetVaultPin(userID, pin string) error {
 	return err
 }
 
+func (s *Service) VaultLocked(userID string) (bool, time.Duration) {
+	return s.pinLock.Locked(userID)
+}
+
 func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
-	hasPin, ok, err := vault.Verify(s.global.DB, userID, pin)
+	hasPin, ok, err := s.pinLock.Verify(userID, pin)
 	if err != nil {
 		return false, fmt.Errorf("verify vault pin: %w", err)
 	}
@@ -119,10 +124,10 @@ func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
 		return false, nil
 	}
 	if !ok {
-		vault.RecordFailure(userID)
+		s.pinLock.RecordFailure(userID)
 		return false, nil
 	}
-	vault.Reset(userID)
+	s.pinLock.Reset(userID)
 	return true, nil
 }
 

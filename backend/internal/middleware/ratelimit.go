@@ -85,31 +85,40 @@ func (rl *RateLimiter) Middleware() echo.MiddlewareFunc {
 				}
 			}
 
-		if len(valid) >= rl.limit {
-			rl.mu.Unlock()
-			// Drain the request body so Go doesn't RST the connection while
-			// the proxy is still writing the upload — the browser would see a
-			// network error instead of the 429. BodyLimit already caps uploads
-			// at 210MB, so draining is bounded.
-			if c.Request().Body != nil {
-				io.Copy(io.Discard, c.Request().Body)
-			}
-			// Seconds until the oldest request in the window ages out — the
-			// earliest the client can successfully retry.
-			retryAfter := int(rl.window.Seconds())
-			if len(valid) > 0 {
-				if s := int(time.Until(valid[0].Add(rl.window)).Seconds()) + 1; s > 0 {
-					retryAfter = s
+			if len(valid) >= rl.limit {
+				rl.mu.Unlock()
+				// Drain the request body so Go doesn't RST the connection while
+				// the proxy is still writing the upload — the browser would see a
+				// network error instead of the 429. BodyLimit already caps uploads
+				// at 210MB, so draining is bounded.
+				if c.Request().Body != nil {
+					io.Copy(io.Discard, c.Request().Body)
 				}
+				// Seconds until the oldest request in the window ages out — the
+				// earliest the client can successfully retry.
+				retryAfter := int(rl.window.Seconds())
+				if len(valid) > 0 {
+					if s := int(time.Until(valid[0].Add(rl.window)).Seconds()) + 1; s > 0 {
+						retryAfter = s
+					}
+				}
+				c.Response().Header().Set("Retry-After", strconv.Itoa(retryAfter))
+				return echo.NewHTTPError(http.StatusTooManyRequests, "rate limit exceeded")
 			}
-			c.Response().Header().Set("Retry-After", strconv.Itoa(retryAfter))
-			return echo.NewHTTPError(http.StatusTooManyRequests, "rate limit exceeded")
-		}
 
 			if len(rl.requests) >= rl.maxKeys {
-				// Evict the least-recently-seen key (F11): a random map-order
+				// Evict the least-recently-seen key. A random map-order
 				// eviction could wipe a currently-limited attacker's counter
 				// (resetting their quota) or an active user's tracking.
+				//
+				// Scanning for it is O(maxKeys) under mu, but that branch only
+				// fires when the limiter is at capacity (maxKeys distinct
+				// path:ip keys) — a rare state to sustain for a local-first
+				// app, where the per-request cost stays in the µs range. An
+				// O(1) LRU would put an intrusive linked list on every
+				// request's hot path for a path that almost never runs, so a
+				// linear eviction is the deliberate trade-off. Revisit if a
+				// deployment reports sustained saturation.
 				oldestKey := ""
 				var oldest time.Time
 				for k, t := range rl.lastSeen {

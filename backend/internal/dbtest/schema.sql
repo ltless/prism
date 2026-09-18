@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS users (
 -- (CREATE TABLE IF NOT EXISTS does not alter existing tables.)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
+-- Vault-PIN lockout state lives on the user row (not in Go memory) so a
+-- backend restart cannot reset a brute-force budget mid-attack.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS vault_failed_attempts INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS vault_first_failure_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS vault_locked_until TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS app_config (
     id TEXT PRIMARY KEY DEFAULT 'global',
     ai TEXT,

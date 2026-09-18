@@ -32,6 +32,30 @@ func setupTenantDB(t *testing.T) *db.TenantPool {
 func intPtr(v int) *int       { return &v }
 func strPtr(v string) *string { return &v }
 
+// Tenant connections must be returned to the pool after every request: a lost
+// Close would pin a connection forever and exhaust the pool under load.
+func TestService_List_ReturnsTenantConnectionsToPool(t *testing.T) {
+	sqlDB := dbtest.NewDB(t)
+	_, err := sqlDB.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+		"test-user", "testuser", "hash", "admin")
+	if err != nil {
+		t.Fatalf("insert test user: %v", err)
+	}
+	pool := db.NewTenantPool(sqlDB)
+	svc := NewService(pool, nil)
+
+	before := sqlDB.Stats().InUse
+	for i := 0; i < 50; i++ {
+		if _, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50); err != nil {
+			t.Fatalf("list %d: %v", i, err)
+		}
+	}
+	after := sqlDB.Stats().InUse
+	if after > before {
+		t.Fatalf("tenant connections leaked: InUse before=%d after=%d", before, after)
+	}
+}
+
 func TestService_List_Empty(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)

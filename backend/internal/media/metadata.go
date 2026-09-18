@@ -480,7 +480,7 @@ func readEXIFValue(data []byte, bo binary.ByteOrder, typ uint16, offset int) int
 				raw = raw[:idx]
 			}
 			return string(raw)
-	}
+		}
 	case 3:
 		return int(bo.Uint16(data[offset : offset+2]))
 	case 4, 9:

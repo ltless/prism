@@ -102,19 +102,19 @@ func runMigrations(db *sql.DB) error {
 // truncateAll clears all tables in child-first order.
 func truncateAll(db *sql.DB) error {
 	tables := []string{
-	"media_tags",
-	"media",
-	"folders",
-	"transcode_queue",
-	"error_logs",
-	"app_settings",
-	"app_config",
-	"users",
+		"media_tags",
+		"media",
+		"folders",
+		"transcode_queue",
+		"error_logs",
+		"app_settings",
+		"app_config",
+		"users",
 	}
 	for _, t := range tables {
 		if _, err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE", t)); err != nil {
 			return fmt.Errorf("truncate %s: %w", t, err)
-	}
+		}
 	}
 	return nil
 }

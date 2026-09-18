@@ -67,8 +67,8 @@ func NewService(db *sql.DB, jwt *JWTManager, inviteCode string, requireInvite bo
 	return &Service{
 		db:            db,
 		jwt:           jwt,
-	validate:      validator.New(),
-	inviteCode:    inviteCode,
+		validate:      validator.New(),
+		inviteCode:    inviteCode,
 		requireInvite: requireInvite,
 	}
 }
@@ -107,8 +107,8 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 	return &AuthResponse{
 		Token:    token,
 		UserID:   user.ID,
-	Username: user.Username,
-	Role:     user.Role,
+		Username: user.Username,
+		Role:     user.Role,
 	}, nil
 }
 
@@ -123,20 +123,20 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 	if s.requireInvite {
 		if req.InviteCode == "" {
 			return nil, ErrInviteRequired
-	}
+		}
 		if s.inviteCode == "" {
 			// No code configured but invite is required — reject everything.
 			return nil, ErrInviteInvalid
-	}
+		}
 		if subtle.ConstantTimeCompare([]byte(req.InviteCode), []byte(s.inviteCode)) != 1 {
 			return nil, ErrInviteInvalid
-	}
+		}
 	} else if s.inviteCode != "" {
-	// If RequireInvite is false but a code is set, still validate it
-	// when the user provides one (optional gate).
+		// If RequireInvite is false but a code is set, still validate it
+		// when the user provides one (optional gate).
 		if req.InviteCode != "" && subtle.ConstantTimeCompare([]byte(req.InviteCode), []byte(s.inviteCode)) != 1 {
 			return nil, ErrInviteInvalid
-	}
+		}
 	}
 
 	// Insert directly and rely on the UNIQUE constraint to detect duplicates,
@@ -166,8 +166,8 @@ func (s *Service) Register(req *RegisterRequest) (*AuthResponse, error) {
 	return &AuthResponse{
 		Token:    token,
 		UserID:   id,
-	Username: req.Username,
-	Role:     "user",
+		Username: req.Username,
+		Role:     "user",
 	}, nil
 }
 
@@ -185,7 +185,7 @@ type MeInfo struct {
 func (s *Service) Me(userID string) (*MeInfo, error) {
 	var user MeInfo
 	err := s.db.QueryRow(
-	"SELECT id, username, role, image, cover_image, has_completed_setup FROM users WHERE id = $1",
+		"SELECT id, username, role, image, cover_image, has_completed_setup FROM users WHERE id = $1",
 		userID,
 	).Scan(&user.ID, &user.Username, &user.Role, &user.Image, &user.CoverImage, &user.HasCompletedSetup)
 	if err == sql.ErrNoRows {
@@ -204,8 +204,8 @@ type ChangePasswordRequest struct {
 
 func (s *Service) ChangePassword(userID, oldPassword, newPassword string) error {
 	if err := s.validate.Struct(&ChangePasswordRequest{
-	OldPassword: oldPassword,
-	NewPassword: newPassword,
+		OldPassword: oldPassword,
+		NewPassword: newPassword,
 	}); err != nil {
 		return fmt.Errorf("%w: %w", ErrValidation, err)
 	}

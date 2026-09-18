@@ -20,7 +20,7 @@ type VideoMetadata struct {
 func ExtractVideoMetadata(filePath string) (*VideoMetadata, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	args := []string{
 		"-v", "error",
 		"-select_streams", "v:0",
@@ -37,10 +37,10 @@ func ExtractVideoMetadata(filePath string) (*VideoMetadata, error) {
 
 	var result struct {
 		Streams []struct {
-			Width    int     `json:"width"`
-			Height   int     `json:"height"`
-			Codec    string  `json:"codec_name"`
-			Duration string  `json:"duration"`
+			Width    int    `json:"width"`
+			Height   int    `json:"height"`
+			Codec    string `json:"codec_name"`
+			Duration string `json:"duration"`
 		} `json:"streams"`
 		Format struct {
 			Duration string `json:"duration"`
@@ -97,7 +97,7 @@ func GenerateVideoThumbnail(inputPath, outputPath string) error {
 	}
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	cmd.Stderr = nil // Suppress ffmpeg output
-	
+
 	if err := cmd.Run(); err != nil {
 		// Check if it was a timeout
 		if ctx.Err() == context.DeadlineExceeded {

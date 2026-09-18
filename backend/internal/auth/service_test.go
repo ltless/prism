@@ -27,7 +27,7 @@ func TestService_Login_Valid(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
 	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-	"user-1", "testuser", pwh, "admin")
+		"user-1", "testuser", pwh, "admin")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestService_Login_WrongPassword(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
 	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-	"user-1", "testuser", pwh, "user")
+		"user-1", "testuser", pwh, "user")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestService_Register_DuplicateUsername(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
 	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-	"user-1", "existing", pwh, "user")
+		"user-1", "existing", pwh, "user")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestService_Me_Valid(t *testing.T) {
 	db := setupTestDB(t)
 	pwh := hashPassword(t, "testpass")
 	_, err := db.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
-	"user-1", "testuser", pwh, "admin")
+		"user-1", "testuser", pwh, "admin")
 	if err != nil {
 		t.Fatalf("insert user: %v", err)
 	}

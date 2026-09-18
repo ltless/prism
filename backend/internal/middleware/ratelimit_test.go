@@ -82,6 +82,7 @@ func TestRateLimiter_429DrainsBodyAndSetsRetryAfter(t *testing.T) {
 		t.Fatalf("Retry-After should be within the 1-minute window, got %q", ra)
 	}
 }
+
 // F11: at key capacity the limiter must evict the OLDEST-seen key, not a
 // random map-order one — random eviction can reset a currently-limited
 // attacker's counter mid-attack.

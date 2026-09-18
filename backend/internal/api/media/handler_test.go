@@ -20,6 +20,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
+	"github.com/ltless/prism/internal/db"
+	"github.com/ltless/prism/internal/dbtest"
 	mw "github.com/ltless/prism/internal/media"
 	"github.com/ltless/prism/internal/vault"
 )
@@ -236,44 +238,91 @@ func TestHandler_ServeFile_Unauthorized(t *testing.T) {
 	}
 }
 
-func TestHandler_Nuke_WrongToken(t *testing.T) {
+func TestHandler_Nuke_WrongUsername(t *testing.T) {
 	e, h, token, _ := setupMediaHandler(t)
 	e.POST("/api/v1/media/nuke", h.Nuke)
 
-	req := httptest.NewRequest("POST", "/api/v1/media/nuke", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("X-Nuke-Token", "wrong-token")
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
+	rec := testRequest(e, "POST", "/api/v1/media/nuke", token, "", `{"confirm_username":"someone-else"}`)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d", rec.Code)
 	}
 }
 
-func TestHandler_Nuke_MissingToken(t *testing.T) {
+func TestHandler_Nuke_MissingUsername(t *testing.T) {
 	e, h, token, _ := setupMediaHandler(t)
 	e.POST("/api/v1/media/nuke", h.Nuke)
 
-	req := httptest.NewRequest("POST", "/api/v1/media/nuke", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d", rec.Code)
+	rec := testRequest(e, "POST", "/api/v1/media/nuke", token, "", "")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 }
 
 func TestHandler_Nuke_Valid(t *testing.T) {
-	e, h, token, _ := setupMediaHandler(t)
+	sqlDB := dbtest.NewDB(t)
+	for _, u := range []struct{ id, username string }{
+		{"test-user", "testuser"},
+		{"other-user", "other"},
+	} {
+		if _, err := sqlDB.Exec("INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, $3, $4)",
+			u.id, u.username, "hash", "admin"); err != nil {
+			t.Fatalf("insert user %s: %v", u.id, err)
+		}
+	}
+	pool := db.NewTenantPool(sqlDB)
+	svc := NewService(pool, nil)
+	h := NewHandler(svc, mw.NewStorage(t.TempDir()), "test-nuke-token", vault.NewManager("test-secret"))
+
+	jwt := auth.NewJWTManager("test-secret")
+	token, err := jwt.Generate("test-user", "testuser", "admin")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+
+	mine, _, err := svc.Create("test-user", "", "mine.jpg", "Mine", "image/jpeg", "h-nuke-mine", 100, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create own item: %v", err)
+	}
+	theirs, _, err := svc.Create("other-user", "", "theirs.jpg", "Theirs", "image/jpeg", "h-nuke-theirs", 100, nil, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("create other item: %v", err)
+	}
+
+	e := echo.New()
+	e.Use(jwt.Middleware)
 	e.POST("/api/v1/media/nuke", h.Nuke)
 
-	req := httptest.NewRequest("POST", "/api/v1/media/nuke", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("X-Nuke-Token", "test-nuke-token")
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
+	rec := testRequest(e, "POST", "/api/v1/media/nuke", token, "", `{"confirm_username":"testuser"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if _, err := svc.Get("test-user", mine.ID); err == nil {
+		t.Fatal("expected own media to be wiped")
+	}
+	if _, err := svc.Get("other-user", theirs.ID); err != nil {
+		t.Fatal("expected other user's media to survive the wipe")
+	}
+}
+
+func TestHandler_Nuke_DisabledWithoutToken(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+	h := NewHandler(svc, mw.NewStorage(t.TempDir()), "", vault.NewManager("test-secret"))
+
+	jwt := auth.NewJWTManager("test-secret")
+	token, err := jwt.Generate("test-user", "testuser", "admin")
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+
+	e := echo.New()
+	e.Use(jwt.Middleware)
+	e.POST("/api/v1/media/nuke", h.Nuke)
+
+	rec := testRequest(e, "POST", "/api/v1/media/nuke", token, "", `{"confirm_username":"testuser"}`)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 when NUKE_CONFIRMATION_TOKEN is unset, got %d", rec.Code)
 	}
 }
 

@@ -632,11 +632,7 @@ func (h *Handler) BulkFavorite(c echo.Context) error {
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
-	val := 0
-	if body.IsFavorite {
-		val = 1
-	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_favorite", val); err != nil {
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldFavorite, body.IsFavorite); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
@@ -659,7 +655,7 @@ func (h *Handler) BulkTrash(c echo.Context) error {
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_trash", 1); err != nil {
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldTrash, true); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
@@ -682,7 +678,7 @@ func (h *Handler) BulkRestore(c echo.Context) error {
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_trash", 0); err != nil {
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldTrash, false); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
@@ -773,11 +769,7 @@ func (h *Handler) BulkVault(c echo.Context) error {
 			return err
 		}
 	}
-	val := 0
-	if body.IsVault {
-		val = 1
-	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, "is_vault", val); err != nil {
+	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldVault, body.IsVault); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
@@ -907,15 +899,23 @@ func (h *Handler) Nuke(c echo.Context) error {
 		return err
 	}
 
-	// Server-side confirmation gate: the frontend validates the token too,
-	// but it must never be the only line of defense for a destructive op.
-	// No token configured = feature disabled.
+	// Feature switch: no token configured = endpoint disabled. Fail closed.
 	if h.nukeToken == "" {
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	}
-	provided := c.Request().Header.Get("X-Nuke-Token")
-	if subtle.ConstantTimeCompare([]byte(provided), []byte(h.nukeToken)) != 1 {
-		return echo.NewHTTPError(http.StatusForbidden, "invalid confirmation token")
+
+	// Identity confirmation: the body must echo the caller's own username,
+	// compared constant-time against the JWT claims. Protects against
+	// accidental clicks and CSRF without a shared secret that every user
+	// would learn permanently.
+	var body struct {
+		ConfirmUsername string `json:"confirm_username"`
+	}
+	if err := c.Bind(&body); err != nil || body.ConfirmUsername == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "confirm_username is required")
+	}
+	if subtle.ConstantTimeCompare([]byte(body.ConfirmUsername), []byte(claims.Username)) != 1 {
+		return echo.NewHTTPError(http.StatusForbidden, "username confirmation mismatch")
 	}
 
 	if _, err := h.svc.DeleteAll(claims.UserID); err != nil {

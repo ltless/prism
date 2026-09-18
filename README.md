@@ -183,7 +183,7 @@ everything under `/api/v1`, all JSON, all behind the same JWT cookie:
 | media | `GET/POST /media` `GET/PATCH/DELETE /media/:id` `PATCH /media/hash/:hash` `GET /media/files/*` `POST /media/:id/save-editor` |
 | bulk ops | `PUT /bulk/move` `POST /bulk/favorite` `POST /bulk/trash` `POST /bulk/restore` `POST /bulk/vault` `POST /empty-trash` `POST /resolve-duplicate` |
 | library views | `GET /dashboard` `GET /duplicates` `GET /search` `GET /count/tagged` `GET /count/scored` |
-| self-service wipe | `POST /media/nuke` `POST /media/auto-cleanup` — any authenticated user, **own data only**, nuke gated by `X-Nuke-Token` |
+| self-service wipe | `POST /media/nuke` `POST /media/auto-cleanup` — any authenticated user, **own data only**, nuke requires typing your own username (compared server-side against JWT claims) |
 | admin | `PUT /config` `PUT /config/storage-default` `PUT /users/me/storage-limit` |
 | users | `GET/PUT /users/me` `PUT /users/me/username` `POST /users/me/profile-image` `POST /users/me/setup-complete` `GET /users/me/storage-usage` |
 | vault | `POST /users/me/vault-pin` `POST /users/me/vault-pin/verify` `DELETE /users/me/vault-pin` `GET /users/me/vault-pin/status` |
@@ -200,7 +200,7 @@ everything under `/api/v1`, all JSON, all behind the same JWT cookie:
 - **invites:** constant-time comparison, required by default.
 - **uploads:** extension allowlist + magic-byte validation on every path that writes media files, including the editor.
 - **rate limits:** 100/min global, 10/min auth, per-IP. in-memory; resets on restart, like your motivation.
-- **library wipe:** self-service, per-account — any authenticated user can wipe **their own** library, gated by the `NUKE_CONFIRMATION_TOKEN` header (server-side constant-time check). not admin-only: it only ever operates on the caller's own data. unset token = endpoint disabled. fail closed, always.
+- **library wipe:** self-service, per-account — any authenticated user can wipe **their own** library by typing their username (constant-time match against the JWT claims). not admin-only: it only ever operates on the caller's own data. `NUKE_CONFIRMATION_TOKEN` is a feature switch: unset = endpoint returns 404. fail closed, always.
 - **threat model:** unauthenticated attackers, curious non-admin users, and yourself at 3am. not modeled: state adversaries, compromised servers, rogue admins.
 
 don't expose ports 8080 or 5432 to the internet. put a reverse proxy in front of port 3000 and let it do TLS.
@@ -232,7 +232,7 @@ media.yourdomain.com {
 | `GO_API_URL` | `.env.local` | default `http://localhost:8080` |
 | `REQUIRE_INVITE` | `backend/.env` | `true` (default). don't lower it unless you trust the internet. |
 | `REGISTRATION_INVITE_CODE` | `backend/.env` | the code new users must enter. |
-| `NUKE_CONFIRMATION_TOKEN` | `backend/.env` | required for library wipe. `openssl rand -hex 32`. |
+| `NUKE_CONFIRMATION_TOKEN` | `backend/.env` | feature switch for library wipe — set any random value to enable, unset/empty to disable (endpoint returns 404). `openssl rand -hex 32`. |
 | `STORAGE_PATH` | `backend/.env` | default `../storage/users`. keep Next and Go on the same root. |
 | `TRUST_PROXY` | `backend/.env` | `true` ONLY behind a proxy you control — enables XFF-based IP extraction for rate limiting. |
 | `NEXT_ALLOWED_ORIGINS` | `.env.local` | your domain, for dev-origin allowlisting. |

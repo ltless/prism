@@ -38,10 +38,21 @@ func (s *Storage) ThumbDir(userID string) string {
 	return s.thumbDir(userID)
 }
 
+// containedIn reports whether target lies inside dir (or equals it). Never
+// use bare strings.HasPrefix for this: with dir="/storage/users",
+// "/storage/users-evil" shares the prefix but is clearly outside.
+func containedIn(target, dir string) bool {
+	rel, err := filepath.Rel(dir, target)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (!strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel))
+}
+
 func (s *Storage) mediaDir(userID string) string {
 	base := filepath.Join(s.basePath, userID)
 	clean := filepath.Clean(base)
-	if !strings.HasPrefix(clean, filepath.Clean(s.basePath)) {
+	if !containedIn(clean, filepath.Clean(s.basePath)) {
 		return filepath.Join(s.basePath, sanitizePath(userID), "media")
 	}
 	return filepath.Join(clean, "media")
@@ -50,12 +61,17 @@ func (s *Storage) mediaDir(userID string) string {
 func (s *Storage) thumbDir(userID string) string {
 	base := filepath.Join(s.basePath, userID)
 	clean := filepath.Clean(base)
-	if !strings.HasPrefix(clean, filepath.Clean(s.basePath)) {
+	if !containedIn(clean, filepath.Clean(s.basePath)) {
 		return filepath.Join(s.basePath, sanitizePath(userID), "media", "thumbnails")
 	}
 	return filepath.Join(clean, "media", "thumbnails")
 }
 
+// sanitizePath strips path separators and ".." so a hostile userID cannot
+// walk out of basePath. NOTE: a single-pass ReplaceAll is fragile in general
+// ("....//" collapses to "../" after one round) — it is only safe here
+// because the result is re-validated by containedIn before use. For new
+// code prefer an allowlist of characters.
 func sanitizePath(p string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(p, "..", ""), "/", "")
 }
@@ -117,7 +133,7 @@ func (s *Storage) SaveProfileImage(userID string, data []byte, ext string) (stri
 		return "", fmt.Errorf("resolve profile path: %w", err)
 	}
 	absDir, err := filepath.Abs(mediaDir)
-	if err != nil || !strings.HasPrefix(absPath, absDir+string(filepath.Separator)) {
+	if err != nil || !containedIn(absPath, absDir) {
 		return "", fmt.Errorf("invalid profile path")
 	}
 	if err := os.WriteFile(absPath, data, 0644); err != nil {
@@ -219,7 +235,16 @@ func (s *Storage) ServeFile(c echo.Context, userID, filePath string) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "resolve media dir")
 	}
-	if !strings.HasPrefix(absPath, mediaDir+string(filepath.Separator)) && absPath != mediaDir {
+	// Resolve symlinks on both sides before the containment check: a
+	// symlink inside mediaDir pointing outside would pass a bare prefix
+	// test. A missing target is not a security failure — the Stat below
+	// turns it into a 404.
+	if resolvedPath, perr := filepath.EvalSymlinks(absPath); perr == nil {
+		if resolvedDir, derr := filepath.EvalSymlinks(mediaDir); derr == nil {
+			absPath, mediaDir = resolvedPath, resolvedDir
+		}
+	}
+	if !containedIn(absPath, mediaDir) {
 		return echo.NewHTTPError(403, "forbidden")
 	}
 
@@ -314,7 +339,7 @@ func (s *Storage) ServeThumbnail(c echo.Context, userID, filename string) error 
 		return echo.NewHTTPError(http.StatusInternalServerError, "resolve path")
 	}
 
-	if absPath != thumbDir && !strings.HasPrefix(absPath, thumbDir+string(filepath.Separator)) {
+	if !containedIn(absPath, thumbDir) {
 		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
 	}
 
@@ -350,8 +375,15 @@ func (s *Storage) ResolveUserMediaPath(userID, filePath string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("resolve path: %w", err)
 	}
-
-	if absPath != mediaDir && !strings.HasPrefix(absPath, mediaDir+string(filepath.Separator)) {
+	// Resolve symlinks on both sides before the containment check — same
+	// rationale as ServeFile. A not-yet-existing target is not a security
+	// failure (callers resolve paths before creating files).
+	if resolvedPath, perr := filepath.EvalSymlinks(absPath); perr == nil {
+		if resolvedDir, derr := filepath.EvalSymlinks(mediaDir); derr == nil {
+			absPath, mediaDir = resolvedPath, resolvedDir
+		}
+	}
+	if !containedIn(absPath, mediaDir) {
 		return "", fmt.Errorf("forbidden: path outside media dir")
 	}
 	return absPath, nil

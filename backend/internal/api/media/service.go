@@ -620,22 +620,39 @@ func (s *Service) BulkMove(userID string, mediaIDs []string, folderID *string) e
 	return err
 }
 
-func (s *Service) BulkSetField(userID string, mediaIDs []string, field string, value int) error {
+// bulkField is a boolean media column that BulkSetField may update. A closed
+// type: values outside the constants below cannot be formed outside this
+// package, so a column name can never arrive from user input.
+type bulkField string
+
+const (
+	FieldFavorite bulkField = "is_favorite"
+	FieldTrash    bulkField = "is_trash"
+	FieldVault    bulkField = "is_vault"
+)
+
+func (s *Service) BulkSetField(userID string, mediaIDs []string, field bulkField, value bool) error {
+	switch field {
+	case FieldFavorite, FieldTrash, FieldVault:
+	default:
+		// Unreachable through the public API today; a safety net for future
+		// callers, not a validation of user input.
+		return fmt.Errorf("invalid bulk field: %q", field)
+	}
 	tdb, err := s.pool.Get(userID)
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 	now := time.Now().Unix()
-	boolVal := value != 0
 	placeholders := make([]string, len(mediaIDs))
 	args := make([]interface{}, 0, len(mediaIDs)+3)
-	args = append(args, boolVal, now, userID) // $1, $2, $3
+	args = append(args, value, now, userID) // $1, $2, $3
 	for i, id := range mediaIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+4)
 		args = append(args, id)
 	}
-	query := fmt.Sprintf("UPDATE media SET %s = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", field, strings.Join(placeholders, ","))
+	query := fmt.Sprintf("UPDATE media SET %s = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", string(field), strings.Join(placeholders, ","))
 	_, err = tdb.Exec(query, args...)
 	return err
 }

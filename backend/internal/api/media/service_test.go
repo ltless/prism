@@ -322,6 +322,22 @@ func TestService_BulkMove(t *testing.T) {
 	}
 }
 
+func TestService_BulkSetField_RejectsUnknownField(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+
+	// A column from user input must never reach the query. The closed
+	// bulkField type makes this a compile-time guarantee for callers; the
+	// switch stays as a runtime safety net.
+	err := svc.BulkSetField("test-user", []string{"asdf"}, bulkField("password_hash"), true)
+	if err == nil {
+		t.Fatal("expected error for arbitrary column name")
+	}
+	if !strings.Contains(err.Error(), "invalid bulk field") {
+		t.Fatalf("expected invalid bulk field error, got: %v", err)
+	}
+}
+
 func TestService_List_Search(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)

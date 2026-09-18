@@ -2,6 +2,7 @@ package media
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -212,6 +213,31 @@ func TestServeThumbnail_Valid(t *testing.T) {
 	}
 }
 
+func TestResolveUserMediaPath_SymlinkEscape(t *testing.T) {
+	tmpDir := t.TempDir()
+	s := NewStorage(tmpDir)
+	userID := "testuser"
+	mediaDir := s.mediaDir(userID)
+	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	secret := filepath.Join(tmpDir, "..", fmt.Sprintf("prism-secret-%d", os.Getpid()))
+	if err := os.WriteFile(secret, []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Remove(secret) })
+
+	link := filepath.Join(mediaDir, "link.txt")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+
+	if _, err := s.ResolveUserMediaPath(userID, "link.txt"); err == nil {
+		t.Fatal("expected error for symlink escaping the media dir")
+	}
+}
+
 func TestResolveUserMediaPath_Valid(t *testing.T) {
 	s := NewStorage(t.TempDir())
 	resolved, err := s.ResolveUserMediaPath("testuser", "photo.jpg")
@@ -251,6 +277,90 @@ func TestMediaDir_TraversalUserID(t *testing.T) {
 		// Acceptable — it was sanitized to stay inside base
 	} else {
 		t.Fatalf("mediaDir escaped base path: %s is not under %s", absDir, safeBase)
+	}
+}
+
+func TestContainedIn(t *testing.T) {
+	cases := []struct {
+		name   string
+		target string
+		dir    string
+		want   bool
+	}{
+		{"direct child", "/storage/users/alice/media/photo.jpg", "/storage/users/alice", true},
+		{"equals dir", "/storage/users/alice", "/storage/users/alice", true},
+		{"nested child", "/storage/users/alice/media/thumb/1.jpg", "/storage/users/alice/media", true},
+		{"prefix sibling", "/storage/users-evil/photo.jpg", "/storage/users", false},
+		{"overlapping name", "/storage/usersevil", "/storage/users", false},
+		{"outside tree", "/etc/passwd", "/storage/users", false},
+		{"traversal", "../../etc/passwd", "/storage/users", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := containedIn(tc.target, tc.dir); got != tc.want {
+				t.Fatalf("containedIn(%q, %q) = %v, want %v", tc.target, tc.dir, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestServeFile_SymlinkEscape(t *testing.T) {
+	tmpDir := t.TempDir()
+	s := NewStorage(tmpDir)
+	c, _ := newEchoContext()
+
+	userID := "testuser"
+	mediaDir := s.mediaDir(userID)
+	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	secret := filepath.Join(tmpDir, "secret.txt")
+	if err := os.WriteFile(secret, []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	link := filepath.Join(mediaDir, "evil.jpg")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+
+	err := s.ServeFile(c, userID, "evil.jpg")
+	if err == nil {
+		t.Fatal("expected error for symlink escaping the media dir")
+	}
+	he, ok := err.(*echo.HTTPError)
+	if !ok || he.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got: %v", err)
+	}
+}
+
+func TestServeFile_SymlinkInsideMediaDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	s := NewStorage(tmpDir)
+	c, rec := newEchoContext()
+
+	userID := "testuser"
+	mediaDir := s.mediaDir(userID)
+	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	real := filepath.Join(mediaDir, "real.jpg")
+	if err := os.WriteFile(real, []byte("fake jpg data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(mediaDir, "alias.jpg")
+	if err := os.Symlink(real, alias); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+
+	err := s.ServeFile(c, userID, "alias.jpg")
+	if err != nil {
+		t.Fatalf("expected symlink inside media dir to serve, got: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
 	}
 }
 

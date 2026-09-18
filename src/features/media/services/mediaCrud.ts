@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { goFetch } from "@/lib/api";
 import { safeAction } from "@/core/utils/action";
-import crypto from "crypto";
 
 export async function deleteMediaAction(id: string) {
   return safeAction("deleteMedia", async () => {
@@ -15,23 +14,17 @@ export async function deleteMediaAction(id: string) {
   });
 }
 
-export async function nukeLibraryAction(confirmToken?: string) {
-  const expected = process.env.NUKE_CONFIRMATION_TOKEN;
-  if (!expected) {
-    return { success: false, error: "Nuke feature is disabled (no confirmation token configured)" };
-  }
-  const provided = confirmToken ?? "";
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    return { success: false, error: "Invalid confirmation token" };
+export async function nukeLibraryAction(confirmUsername: string) {
+  const name = confirmUsername.trim();
+  if (!name) {
+    return { success: false, error: "Type your username to confirm" };
   }
   return safeAction("nukeLibrary", async () => {
-    // Server-side (Next) check passed — Go independently validates the same
-    // token so the endpoint cannot be hit with a bare authenticated request.
+    // Go independently verifies the username against the JWT claims, so the
+    // endpoint cannot be hit with a bare authenticated request.
     await goFetch("/api/v1/media/nuke", {
       method: "POST",
-      headers: { "X-Nuke-Token": expected },
+      body: { confirm_username: name },
     });
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/duplicates");

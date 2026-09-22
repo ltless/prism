@@ -73,6 +73,13 @@ func NewDB(t *testing.T) *sql.DB {
 	if err := db.Ping(); err != nil {
 		t.Fatalf("ping test db: %v", err)
 	}
+	var superuser, bypassRLS bool
+	if err := db.QueryRow("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user").Scan(&superuser, &bypassRLS); err != nil {
+		t.Fatalf("check test db role: %v", err)
+	}
+	if superuser || bypassRLS {
+		t.Fatalf("test db role %q bypasses RLS; set PRISM_TEST_DB to a non-superuser, non-bypass role", currentUser(db, t))
+	}
 
 	if err := runMigrations(db); err != nil {
 		t.Fatalf("run migrations: %v", err)
@@ -88,6 +95,15 @@ func NewDB(t *testing.T) *sql.DB {
 	})
 
 	return db
+}
+
+func currentUser(db *sql.DB, t *testing.T) string {
+	t.Helper()
+	var user string
+	if err := db.QueryRow("SELECT current_user").Scan(&user); err != nil {
+		t.Fatalf("query test db role: %v", err)
+	}
+	return user
 }
 
 // runMigrations executes the schema SQL to ensure all tables exist.

@@ -19,7 +19,7 @@ interface MobileTabBarProps {
 
 export function MobileTabBar({ tabs, activeTab, onTabChange }: MobileTabBarProps) {
  return (
- <div className="md:hidden flex items-center justify-around px-2 py-2 border-t border-main-border/50 bg-surface-bg shrink-0">
+  <div className="md:hidden flex items-center justify-around px-2 py-2 border-t border-main-border/50 bg-surface-bg shrink-0" aria-label="Settings sections">
  {tabs.map((tab) => {
  const Icon = iconMap[tab.icon];
  return (

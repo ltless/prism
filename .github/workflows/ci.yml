@@ -49,7 +49,7 @@ jobs:
             GRANT ALL ON SCHEMA public TO prism;"
       - run: pnpm lint
       - name: Security audit (npm)
-        run: pnpm audit --audit-level=high || true
+        run: pnpm audit --prod --audit-level=high
       - name: Go vet
         working-directory: backend
         run: go vet ./...

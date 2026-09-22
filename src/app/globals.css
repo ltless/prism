@@ -97,6 +97,13 @@
     @apply border-main-border;
   }
 
+  /* Native WebKit search cancel button (blue X in Chrome) — we render our own */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
   button, [role="button"]:not(.no-press-scale), a[role="button"] {
     &:active:not(:disabled) {
       transform: scale(0.98);

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { meResponseSchema, validateApiResponse } from "@/lib/apiSchemas";
 
 interface User {
@@ -33,6 +34,7 @@ interface LoginResponse {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
@@ -132,8 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ignore — clear local state anyway
     }
     setUser(null);
-    window.location.href = "/login";
-  }, []);
+    router.push("/login");
+  }, [router]);
 
   const value = useMemo(
     () => ({ user, login, register, logout, isLoading, refreshProfile }),

@@ -124,25 +124,20 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Top bar */}
-      <div className="flex shrink-0 border-b border-main-border">
-        <div className="w-10 shrink-0 border-r border-main-border" />
-        <div className="flex-1">
-          <EditorTopBar
-            onClose={onClose}
-            onOpenLibrary={() => setIsLibraryOpen(true)}
-            showRulers={showRulers}
-            onToggleRulers={() => setShowRulers((prev) => !prev)}
-            onSaveCopy={() => handleSave(false)}
-            onOverwrite={() => handleSave(true)}
-            onResetAll={commitResetAll}
-            onAutoTone={() => handleAutoAdjustStub("Auto Tone")}
-            onAutoContrast={() => handleAutoAdjustStub("Auto Contrast")}
-            onAutoColor={() => handleAutoAdjustStub("Auto Color")}
-            isSaving={isSaving}
-            savingMode={saveLoading}
-          />
-        </div>
-      </div>
+      <EditorTopBar
+        onClose={onClose}
+        onOpenLibrary={() => setIsLibraryOpen(true)}
+        showRulers={showRulers}
+        onToggleRulers={() => setShowRulers((prev) => !prev)}
+        onSaveCopy={() => handleSave(false)}
+        onOverwrite={() => handleSave(true)}
+        onResetAll={commitResetAll}
+        onAutoTone={() => handleAutoAdjustStub("Auto Tone")}
+        onAutoContrast={() => handleAutoAdjustStub("Auto Contrast")}
+        onAutoColor={() => handleAutoAdjustStub("Auto Color")}
+        isSaving={isSaving}
+        savingMode={saveLoading}
+      />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left toolbar */}

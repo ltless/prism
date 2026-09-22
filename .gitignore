@@ -17,3 +17,6 @@ outputs/
 test-results/
 __pycache__/
 package-lock.json
+
+# local tool state
+.entroly/

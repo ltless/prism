@@ -46,7 +46,7 @@ export function MediaCardThumb({
         onError={() => setImgError(true)}
         onLoad={() => setImgLoaded(true)}
         className={cn(
-          "object-cover select-none pointer-events-none transition-[opacity,filter] duration-500 ease-out-expo",
+          "object-cover select-none pointer-events-none transition-[opacity,filter,transform] duration-500 ease-out-expo group-hover/card:scale-[1.03]",
           imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-sm",
           isDeleting ? "opacity-50 grayscale blur-sm" : isSelected ? "opacity-80" : "",
           isCut ? "opacity-40 grayscale" : ""
@@ -116,10 +116,10 @@ export function CardHoverOverlay({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-transparent flex items-end p-4"
+          className="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent flex items-end p-2.5"
         >
-          <div className="flex flex-col gap-1 w-full">
-            <p className="text-xs text-white font-bold truncate antialiased">{title}</p>
+          <div className="flex flex-col gap-0.5 w-full">
+            <p className="text-xs text-white font-semibold truncate antialiased">{title}</p>
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-white/70 font-bold antialiased">{dimensions}</span>
               <div className="flex items-center gap-1">

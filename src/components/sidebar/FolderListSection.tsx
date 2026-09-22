@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,14 +12,12 @@ import { m } from "motion/react";
 
 interface FolderListSectionProps {
   folders: FolderType[];
-  foldersExpanded: boolean;
   dragOverFolderId: string | null;
   onDragOver: (id: string | null) => void;
   onMoveMedia: ((ids: string[], folderId: string | null) => void) | undefined;
-  isExpanded: boolean;
 }
 
-export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, onDragOver, onMoveMedia, isExpanded }: FolderListSectionProps) {
+export function FolderListSection({ folders, dragOverFolderId, onDragOver, onMoveMedia }: FolderListSectionProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeFolderId = searchParams.get('f');
@@ -104,22 +100,11 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
     router.refresh();
   };
 
-  const listOpen = !isExpanded || foldersExpanded;
-
   return (
     <>
-      {/* rail mode always shows folders; expanded mode folds via grid rows — same trick as the section header */}
-      <div
-        className="grid transition-[grid-template-rows,opacity] duration-300 ease-out-expo"
-        style={{ gridTemplateRows: listOpen ? "1fr" : "0fr", opacity: listOpen ? 1 : 0 }}
-        aria-hidden={!listOpen}
-      >
-        <div className="overflow-hidden min-h-0">
-          <div className={cn("pb-1", isExpanded && "space-y-px")}>
+      <div className="space-y-0.5">
             {folders.length === 0 ? (
-              isExpanded ? (
-                <p className="text-[10px] text-muted-text/50 px-2 italic py-2 text-center">No folders yet</p>
-              ) : null
+              <p className="text-[11px] text-muted-text/50 px-3.5 py-2">No folders yet</p>
             ) : (
               folders.map(folder => {
                 const color = FOLDER_COLORS[folder.color || 'zinc'];
@@ -127,18 +112,18 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                 const isSmart = !!folder.smartFilter;
                 const isOver = dragOverFolderId === folder.id && !isSmart;
                 const isActive = isSelected || isOver;
-                const isEditing = editingFolderId === folder.id && isExpanded;
+                const isEditing = editingFolderId === folder.id;
 
                 if (isEditing) {
                   return (
                     <div
                       key={folder.id}
-                      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md"
+                      className="flex items-center h-9 mx-2 gap-2.5 pl-2 pr-2.5 rounded-xl"
                       style={{ backgroundColor: `${color}08`, color }}
                     >
-                      <div className="w-5 h-5 flex items-center justify-center shrink-0" style={{ color }}>
-                        {isSmart ? <Sparkle size={12} weight="fill" /> : <Folder size={12} weight="fill" />}
-                      </div>
+                      <span className="flex items-center justify-center w-5 h-5 shrink-0" style={{ color }}>
+                        {isSmart ? <Sparkle size={16} weight="fill" /> : <Folder size={16} weight="fill" />}
+                      </span>
                       <input
                         autoFocus
                         value={editingName}
@@ -151,7 +136,7 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                         onBlur={commitRename}
                         placeholder="Folder name"
                         aria-label="Folder name"
-                        className="flex-1 bg-transparent border border-main-border/40 rounded-md px-1.5 py-0.5 text-[11px] text-main-text outline-none focus:border-primary/50 transition-colors"
+                        className="flex-1 min-w-0 bg-transparent border border-main-border/40 rounded-md px-1.5 py-0.5 text-[12px] text-main-text outline-none focus:border-primary/50 transition-colors"
                       />
                     </div>
                   );
@@ -168,67 +153,54 @@ export function FolderListSection({ folders, foldersExpanded, dragOverFolderId, 
                       title={isSmart ? `${folder.name} (smart folder)` : folder.name}
                       aria-current={isSelected ? "page" : undefined}
                       className={cn(
-                        "relative flex items-center w-full h-8 gap-2.5 rounded-lg cursor-pointer min-w-0",
-                        "transition-[padding,margin,background-color,border-radius] duration-300 ease-out-expo",
-                        isExpanded ? "mx-0 px-2.5 rounded-md" : "mx-2 pl-3.5 pr-0",
-                        isActive ? "" : "text-muted-text hover:bg-surface-bg"
+                        "relative flex items-center w-full h-9 gap-2.5 pl-2 pr-2.5 rounded-xl cursor-pointer min-w-0",
+                        "transition-[background-color,color] duration-150",
+                        isActive
+                          ? "bg-surface-bg text-main-text shadow-sm"
+                          : "text-muted-text hover:bg-surface-bg/70 hover:text-main-text"
                       )}
-                      style={isActive ? {
-                        backgroundColor: isExpanded ? `${color}08` : "var(--surface-bg)",
-                        color
-                      } : undefined}
                     >
-                      {isSelected && !isExpanded && (
+                      {isSelected && (
                         <m.span
                           layoutId="sidebar-active-indicator"
                           transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                          className="absolute left-0 top-1/2 -mt-2 w-[3px] h-4 rounded-full bg-main-text"
+                          className="absolute left-0 top-1/2 -mt-2.5 w-[3px] h-5 rounded-full bg-primary"
                         />
                       )}
                       <span
-                        className={cn(
-                          "flex items-center justify-center w-5 h-5 shrink-0 transition-transform duration-300 ease-out-expo",
-                          isExpanded ? "scale-75" : "scale-100 group-hover/folder:scale-110"
-                        )}
+                        className="flex items-center justify-center w-5 h-5 shrink-0 transition-transform duration-200 group-hover/folder:scale-110"
                         style={{ color }}
                       >
                         {isSmart
                           ? <Sparkle size={16} weight={isActive ? "fill" : "light"} />
                           : <Folder size={16} weight={isActive ? "fill" : "light"} />}
                       </span>
-                      <span
-                        className="overflow-hidden whitespace-nowrap font-medium truncate flex-1 text-[11px] transition-[max-width,opacity] duration-300 ease-out-expo"
-                        style={{ maxWidth: isExpanded ? "12rem" : "0rem", opacity: isExpanded ? 1 : 0 }}
-                      >
+                      <span className="overflow-hidden whitespace-nowrap font-medium truncate flex-1 text-[12px]">
                         {folder.name}
                       </span>
                     </Link>
-                    {isExpanded && (
-                      <div className="absolute right-0.5 top-1/2 -translate-y-1/2 flex items-center gap-px opacity-0 group-hover/folder:opacity-100 focus-within:opacity-100 transition-opacity duration-100">
-                        <button
-                          type="button"
-                          aria-label={`Rename ${folder.name}`}
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(folder); }}
-                          className="p-0.5 rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer"
-                        >
-                          <Pencil size={10} weight="light" />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Delete ${folder.name}`}
-                          onClick={(e) => handleDelete(folder.id, e)}
-                          className="p-0.5 rounded-md text-muted-text hover:text-rose-500 hover:bg-surface-bg cursor-pointer"
-                        >
-                          <Trash size={10} weight="light" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-px opacity-0 group-hover/folder:opacity-100 focus-within:opacity-100 transition-opacity duration-100">
+                      <button
+                        type="button"
+                        aria-label={`Rename ${folder.name}`}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(folder); }}
+                        className="p-0.5 rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer"
+                      >
+                        <Pencil size={11} weight="light" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${folder.name}`}
+                        onClick={(e) => handleDelete(folder.id, e)}
+                        className="p-0.5 rounded-md text-muted-text hover:text-rose-500 hover:bg-surface-bg cursor-pointer"
+                      >
+                        <Trash size={11} weight="light" />
+                      </button>
+                    </div>
                   </div>
                 );
               })
             )}
-          </div>
-        </div>
       </div>
       {ConfirmDialog}
     </>

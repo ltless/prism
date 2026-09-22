@@ -2,7 +2,6 @@
 
 import { useMemo, memo, useState, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Check } from "@phosphor-icons/react";
 import { MediaCard } from "../MediaCard";
 import { MediaItem, Folder } from "../../types";
 import { cn } from "@/core/utils/cn";
@@ -89,11 +88,6 @@ const MediaCell = memo(function MediaCell({
         onDelete={onDelete}
         folders={folders}
       />
-      {isSelected && (
-        <div className="absolute top-3 left-3 z-10 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg border-2 border-white pointer-events-none ">
-          <Check size={12} weight="bold" className="text-primary-foreground" />
-        </div>
-      )}
     </div>
   );
 });

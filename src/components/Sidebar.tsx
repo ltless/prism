@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import {
   SquaresFour,
   Clock,
@@ -10,47 +9,31 @@ import {
   Lock,
   Trash,
   X,
-  CaretLeft
+  CaretLeft,
+  PencilSimple
 } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import type { Folder as FolderType } from "@/features/media/types";
-import { FolderModal } from "@/features/media/components/FolderModal";
 import { m, AnimatePresence } from "motion/react";
 import { useSidebar } from "@/components/sidebar-context";
-import { SidebarMenuSections } from "@/components/sidebar/SidebarMenuSections";
+import { SidebarNavItem } from "@/components/sidebar/SidebarNavItem";
+import { SidebarFolders } from "@/components/sidebar/SidebarFolders";
 import { SIDEBAR_WIDTH, SIDEBAR_COLLAPSED_WIDTH } from "@/components/sidebar/constants";
 
-const menuSections = [
-  {
-    title: 'Space',
-    items: [
-      { name: 'Library', icon: SquaresFour, path: '/dashboard' },
-      { name: 'Recent', icon: Clock, path: '/dashboard?v=recent' },
-      { name: 'Favorite', icon: Star, path: '/dashboard?v=favorite' },
-      { name: 'Vault', icon: Lock, path: '/dashboard/vault' },
-      { name: 'Trash', icon: Trash, path: '/dashboard/trash' }
-    ]
-  },
-  {
-    title: 'Folders',
-    isFolderSection: true,
-    items: []
-  },
-  {
-    title: 'Tools',
-    items: [
-      { name: 'Duplicates', icon: Copy, path: '/dashboard/duplicates' }
-    ]
-  }
+const mainItems = [
+  { name: 'Library', icon: SquaresFour, path: '/dashboard' },
+  { name: 'Recent', icon: Clock, path: '/dashboard?v=recent' },
+  { name: 'Favorite', icon: Star, path: '/dashboard?v=favorite' },
+  { name: 'Vault', icon: Lock, path: '/dashboard/vault' },
+  { name: 'Trash', icon: Trash, path: '/dashboard/trash' }
+];
+
+const toolItems = [
+  { name: 'Editor', icon: PencilSimple, path: '/editor' },
+  { name: 'Duplicates', icon: Copy, path: '/dashboard/duplicates' }
 ];
 
 export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[], onMoveMedia?: (ids: string[], folderId: string | null) => void }) {
-  const searchParams = useSearchParams();
-  const activeFolderId = searchParams.get('f');
-  const [foldersExpanded, setFoldersExpanded] = useState(true);
-  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
-  const [showFolderModal, setShowFolderModal] = useState(false);
-
   const { isMobileOpen, setMobileOpen, isCollapsed, toggleCollapsed } = useSidebar();
 
   useEffect(() => {
@@ -63,18 +46,6 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
   }, [isMobileOpen, setMobileOpen]);
 
   const isExpanded = !isCollapsed;
-
-  const sharedProps = {
-    sections: menuSections,
-    activeFolderId,
-    folders,
-    foldersExpanded,
-    setFoldersExpanded,
-    dragOverFolderId,
-    setDragOverFolderId,
-    onMoveMedia,
-    onCreateFolder: () => setShowFolderModal(true),
-  };
 
   return (
     <>
@@ -92,24 +63,34 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
         )}
       </AnimatePresence>
 
-      {/* Desktop sidebar */}
+      {/* Desktop rail — collapsed = icons only, toggle expands to full labels */}
       <aside
         className={cn(
-          "hidden md:flex flex-col z-sidebar fixed top-0 bottom-0 left-0",
-          "bg-app-bg border-r border-main-border/30",
-          "transition-[width] duration-300 ease-out-expo"
+          "hidden md:flex flex-col z-sidebar fixed top-0 bottom-0 left-0 border-r",
+          "transition-[width] duration-300 ease-out-expo",
+          "bg-panel-bg/80 border-main-border/40 shadow-[4px_0_20px_rgba(0,0,0,0.02)]"
         )}
         style={{ width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH }}
       >
-        <div className="flex-1 overflow-y-auto custom-scroll overflow-x-hidden pt-4">
-          <SidebarMenuSections {...sharedProps} isExpanded={isExpanded} />
-        </div>
+        <nav className="flex-1 flex flex-col pt-3 overflow-y-auto custom-scroll overflow-x-hidden">
+          {mainItems.map((item) => (
+            <SidebarNavItem key={item.path} item={item} isExpanded={isExpanded} />
+          ))}
 
-        {/* Edge toggle — right side, vertically centered */}
+          <SidebarFolders folders={folders} isExpanded={isExpanded} onMoveMedia={onMoveMedia} />
+
+          <div className={cn("h-px bg-main-border/50 my-2", isExpanded ? "mx-4" : "w-6 mx-auto")} />
+
+          {toolItems.map((item) => (
+            <SidebarNavItem key={item.path} item={item} isExpanded={isExpanded} />
+          ))}
+        </nav>
+
+        {/* Edge toggle — collapse to icon rail / pin open */}
         <button
           type="button"
           onClick={toggleCollapsed}
-          aria-label={isCollapsed ? "Pin sidebar open" : "Collapse to rail"}
+          aria-label={isCollapsed ? "Pin sidebar open" : "Collapse to icon rail"}
           title={isCollapsed ? "Pin open" : "Collapse"}
           className={cn(
             "absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 z-10",
@@ -127,7 +108,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
         </button>
       </aside>
 
-      {/* Mobile sidebar */}
+      {/* Mobile drawer */}
       <AnimatePresence>
         {isMobileOpen && (
           <m.aside
@@ -135,7 +116,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-y-0 left-0 w-64 flex flex-col bg-app-bg z-mobile-sidebar md:hidden"
+            className="fixed inset-y-0 left-0 w-72 flex flex-col bg-panel-bg z-mobile-sidebar md:hidden border-r border-main-border/40 shadow-2xl"
           >
             <button
               type="button"
@@ -146,14 +127,24 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[],
               <X size={14} weight="light" />
             </button>
 
-            <div className="flex-1 overflow-y-auto px-2 pt-4 custom-scroll">
-              <SidebarMenuSections {...sharedProps} isExpanded={true} />
+            <div className="flex-1 overflow-y-auto px-2 pt-4 pb-3 custom-scroll">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-text/70 mb-2 px-2">Space</h3>
+              {mainItems.map((item) => (
+                <SidebarNavItem key={item.path} item={item} isExpanded />
+              ))}
+
+              <div className="h-px bg-main-border/50 mx-3 my-3" />
+              <SidebarFolders folders={folders} isExpanded onMoveMedia={onMoveMedia} />
+
+              <div className="h-px bg-main-border/50 mx-3 my-3" />
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-text/70 mb-2 px-2">Tools</h3>
+              {toolItems.map((item) => (
+                <SidebarNavItem key={item.path} item={item} isExpanded />
+              ))}
             </div>
           </m.aside>
         )}
       </AnimatePresence>
-
-      {showFolderModal && <FolderModal onClose={() => setShowFolderModal(false)} />}
     </>
   );
 }

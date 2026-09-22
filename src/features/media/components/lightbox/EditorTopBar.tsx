@@ -1,10 +1,9 @@
 "use client";
 
-import { List, Sun, Moon, Check, Spinner } from "@phosphor-icons/react";
+import { Sun, Moon, Check, Spinner, ArrowLeft } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
 import { m, AnimatePresence } from "motion/react";
-import { useSidebar } from "@/components/sidebar-context";
 import { useTheme } from "@/components/ThemeProvider";
 import { UserMenu } from "@/components/topbar/UserMenu";
 import { useState, useRef, useEffect, useEffectEvent } from "react";
@@ -39,7 +38,7 @@ function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, sa
       <button
         type="button"
         onClick={isOpen ? onClose : onTrigger}
-        className="px-2 py-1 text-[11px] font-medium text-muted-text hover:text-main-text hover:bg-surface-bg rounded-md cursor-pointer"
+        className="h-8 px-2.5 text-xs font-medium text-muted-text hover:text-main-text hover:bg-surface-bg rounded-lg cursor-pointer"
       >
         {menu.label}
       </button>
@@ -97,9 +96,10 @@ interface EditorTopBarProps {
 export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRulers, onSaveCopy, onOverwrite, onResetAll, onAutoTone, onAutoContrast, onAutoColor, isSaving, savingMode }: EditorTopBarProps) {
   const { session, isLoading: authLoading } = useEffectiveSession();
   const { theme, setTheme } = useTheme();
-  const { setMobileOpen } = useSidebar();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  const ghostBtn = "w-8 h-8 flex items-center justify-center rounded-lg text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer";
 
   const menus: MenuGroup[] = [
     {
@@ -149,26 +149,10 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
 
   return (
     <>
-      <header className="w-full flex items-center justify-between px-4 md:px-6 py-2.5 bg-app-bg">
+      <header className="w-full flex shrink-0 items-center justify-between gap-3 h-12 px-4 md:px-5 bg-app-bg/80 backdrop-blur-md">
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open sidebar"
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer"
-          >
-            <List size={15} weight="light" />
-          </button>
-
-          <Link href="/dashboard" className="flex items-center gap-2 mr-3 group/logo" title="Back to Dashboard">
-            <div className="relative flex items-center justify-center shrink-0">
-              <div className="border border-main-text/80 rotate-45 w-4 h-4 flex items-center justify-center transition-[border-color,transform] duration-500 group-hover/logo:border-primary group-hover/logo:rotate-[135deg]">
-                <div className="bg-main-text/80 w-1 h-1 transition-colors duration-500 group-hover/logo:bg-primary" />
-              </div>
-            </div>
-            <span className="text-main-text font-semibold tracking-[0.25em] text-xs uppercase transition-colors duration-200 group-hover/logo:text-primary">
-              Prism
-            </span>
+          <Link href="/dashboard" title="Back to dashboard" aria-label="Back to dashboard" className={ghostBtn}>
+            <ArrowLeft size={15} weight="light" />
           </Link>
 
           <nav className="flex items-center">
@@ -202,7 +186,7 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
             type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-text hover:text-main-text hover:bg-surface-bg cursor-pointer overflow-hidden"
+            className={`${ghostBtn} overflow-hidden`}
           >
             <AnimatePresence mode="wait">
               {theme === "dark" ? (

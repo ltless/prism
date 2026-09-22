@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { X, MagnifyingGlass } from "@phosphor-icons/react";
 import { MediaItem } from "../../types";
-import { logger } from "@/core/utils/logger";
 
 interface LibraryPickerProps {
   onSelect: (item: MediaItem) => void;
@@ -13,45 +13,49 @@ interface LibraryPickerProps {
 
 const PAGE_SIZE = 60;
 
+type ListResponse = { items?: MediaItem[]; total?: number };
+
 export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const query = useInfiniteQuery({
+    queryKey: ["library-picker"],
+    queryFn: async ({ pageParam }): Promise<ListResponse> => {
+      const res = await fetch(`/api/v1/media?page=${pageParam}&limit=${PAGE_SIZE}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((n, p) => n + (p.items?.length || 0), 0);
+      return loaded < (lastPage.total || 0) ? allPages.length + 1 : undefined;
+    },
+  });
+
+  const items = query.data ? query.data.pages.flatMap((p) => p.items || []) : [];
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
 
   useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/v1/media?page=1&limit=${PAGE_SIZE}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data) => {
-        if (cancelled) return;
-        setItems(data.items || []);
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError("Failed to load library");
-        setItems([]);
-        logger.warn("LibraryPicker fetch failed", { error: String(err) });
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    // No close() in cleanup: it fires the native close event, which triggers
+    // onClose and unmounts the picker — StrictMode's double-invoked effects
+    // turn that into an open/close loop. Unmounting removes the dialog anyway.
+    dialogRef.current?.showModal();
   }, []);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    dialog.showModal();
-    return () => {
-      dialog.close();
-    };
-  }, []);
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) fetchNextPage();
+      },
+      { rootMargin: "400px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const filtered = search
     ? items.filter((item) => item.title?.toLowerCase().includes(search.toLowerCase()))
@@ -87,12 +91,12 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll p-4">
-        {loading ? (
+        {query.isLoading ? (
           <p className="text-sm text-muted-text text-center py-8">Loading...</p>
-        ) : error ? (
+        ) : query.isError ? (
           <div className="text-center py-8 space-y-2">
-            <p className="text-sm text-muted-text">{error}</p>
-            <button onClick={() => { setLoading(true); fetch(`/api/v1/media?page=1&limit=${PAGE_SIZE}`).then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))).then(d => { setItems(d.items || []); setError(null); }).catch(() => setError("Failed to load library")).finally(() => setLoading(false)); }} type="button" className="text-sm text-primary hover:underline cursor-pointer">Retry</button>
+            <p className="text-sm text-muted-text">Failed to load library</p>
+            <button onClick={() => query.refetch()} type="button" className="text-sm text-primary hover:underline cursor-pointer">Retry</button>
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-text text-center py-8">No photos found</p>
@@ -104,12 +108,16 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
                 type="button"
                 onClick={() => onSelect(item)}
                 aria-label={`Select ${item.title || "image"}`}
-                className="aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-[border-color,box-shadow]"
+                className="relative aspect-square rounded-lg overflow-hidden border border-main-border hover:border-primary hover:ring-2 hover:ring-primary/40 cursor-pointer transition-[border-color,box-shadow]"
               >
                 <Image src={`/api/v1/media/files/${item.filePath}?thumb=1`} alt={item.title} fill loading="lazy" decoding="async" sizes="(max-width: 560px) 20vw, 96px" className="w-full h-full object-cover" unoptimized />
               </button>
             ))}
           </div>
+        )}
+        <div ref={sentinelRef} className="h-px" />
+        {query.isFetchingNextPage && (
+          <p className="text-sm text-muted-text text-center py-3">Loading more…</p>
         )}
       </div>
     </dialog>

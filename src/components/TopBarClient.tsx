@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useEffect, useRef } from "react";
-import { MagnifyingGlass, ArrowUp, X, List, Spinner, Sun, Moon } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, List, Spinner, Sun, Moon, UploadSimple } from "@phosphor-icons/react";
 import { m, AnimatePresence } from "motion/react";
 import { SettingsModal } from "@/features/settings/components/SettingsModal";
 import { useSidebar } from "@/components/sidebar-context";
@@ -41,64 +39,91 @@ export function TopBar() {
 
   const { searchQuery, handleSearchChange, handleSearchSubmit } = useTopBarSearch();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const desktopSearchRef = useRef<HTMLInputElement>(null);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (window.matchMedia("(min-width: 768px)").matches) {
+          desktopSearchRef.current?.focus();
+          desktopSearchRef.current?.select();
+        } else {
+          setMobileSearchOpen(true);
+          setTimeout(() => mobileSearchRef.current?.focus(), 100);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
+  const ghostBtn = "w-8 h-8 flex items-center justify-center rounded-lg text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer";
 
   return (
     <>
       <div className="sticky top-0 z-topbar w-full pointer-events-none">
-        <header className="w-full flex items-center justify-between px-4 md:px-6 py-2 bg-app-bg pointer-events-auto">
-          <div className="flex items-center gap-1.5">
+        <header className="w-full flex items-center gap-3 h-12 px-4 md:px-5 bg-app-bg/80 backdrop-blur-md pointer-events-auto">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
               aria-label="Open sidebar"
-              className="md:hidden w-7 h-7 flex items-center justify-center rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
+              className={`md:hidden ${ghostBtn}`}
             >
-              <List size={14} weight="light" />
+              <List size={15} weight="light" />
             </button>
 
             {effectiveSession?.user?.role === "admin" && (
-              <div className="hidden md:block">
+              <div className="hidden lg:block">
                 <TopBarStats stats={stats} />
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setTimeout(() => mobileSearchRef.current?.focus(), 100); }}
-              aria-label="Toggle search"
-              className="md:hidden w-7 h-7 flex items-center justify-center rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer"
-            >
-              <MagnifyingGlass size={13} weight="light" />
-            </button>
-
-            <form onSubmit={handleSearchSubmit} className="relative group hidden md:block" role="search">
+          <div className="flex-1 flex justify-center min-w-0">
+            <form onSubmit={handleSearchSubmit} className="relative group w-full max-w-sm hidden md:block" role="search">
               <label htmlFor="topbar-search" className="sr-only">Search</label>
-              <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-text/40 group-focus-within:text-muted-text transition-colors" weight="light" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-text/60 group-focus-within:text-main-text transition-colors pointer-events-none" weight="light" />
               <input
                 id="topbar-search"
+                ref={desktopSearchRef}
                 type="search"
                 name="search"
                 autoComplete="off"
                 spellCheck={false}
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search..."
-                className="bg-transparent border-0 rounded-md py-1 pl-7 pr-6 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-[width,background-color] duration-200 w-32 focus:w-56"
+                placeholder="Search library"
+                className="w-full bg-surface-bg/50 border border-main-border/25 rounded-full h-8 pl-9 pr-14 text-xs font-medium text-main-text placeholder:text-muted-text/50 focus:outline-none focus:bg-surface-bg focus:border-primary/40 transition-colors"
               />
               {searchQuery ? (
                 <button
                   type="button"
                   onClick={() => handleSearchChange('')}
                   aria-label="Clear search"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-text/30 hover:text-muted-text cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-text/40 hover:text-main-text cursor-pointer"
                 >
-                  <X size={10} weight="light" />
+                  <X size={11} weight="light" />
                 </button>
-              ) : null}
+              ) : (
+                <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 px-1.5 flex items-center rounded-md border border-main-border/40 bg-panel-bg/80 text-[10px] font-semibold text-muted-text/70 pointer-events-none select-none">
+                  ⌘K
+                </kbd>
+              )}
             </form>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setTimeout(() => mobileSearchRef.current?.focus(), 100); }}
+              aria-label="Toggle search"
+              className={`md:hidden ${ghostBtn}`}
+            >
+              <MagnifyingGlass size={14} weight="light" />
+            </button>
 
             <input
               type="file"
@@ -113,12 +138,13 @@ export function TopBar() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Upload files"
-              className="w-7 h-7 flex items-center justify-center rounded-md transition-colors cursor-pointer text-muted-text hover:text-main-text hover:bg-surface-bg"
+              title="Upload files"
+              className={ghostBtn}
             >
               {isUploading ? (
-                <Spinner size={13} weight="bold" className="animate-spin text-primary" />
+                <Spinner size={14} weight="bold" className="animate-spin text-primary" />
               ) : (
-                <ArrowUp size={13} weight="light" />
+                <UploadSimple size={15} weight="light" />
               )}
             </button>
 
@@ -126,7 +152,7 @@ export function TopBar() {
               type="button"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer overflow-hidden"
+              className={`${ghostBtn} overflow-hidden`}
             >
               <AnimatePresence mode="wait">
                 {theme === "dark" ? (
@@ -137,7 +163,7 @@ export function TopBar() {
                     exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
                     transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
                   >
-                    <Sun size={13} weight="light" />
+                    <Sun size={14} weight="light" />
                   </m.div>
                 ) : (
                   <m.div
@@ -147,7 +173,7 @@ export function TopBar() {
                     exit={{ rotate: -90, opacity: 0, scale: 0.5 }}
                     transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
                   >
-                    <Moon size={13} weight="light" />
+                    <Moon size={14} weight="light" />
                   </m.div>
                 )}
               </AnimatePresence>
@@ -169,11 +195,11 @@ export function TopBar() {
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               style={{ transformOrigin: "top" }}
               onSubmit={handleSearchSubmit}
-              className="md:hidden px-3 pb-2 bg-app-bg"
+              className="md:hidden px-3 pb-2 bg-app-bg/80 backdrop-blur-md"
             >
               <div className="relative">
                 <label htmlFor="mobile-search" className="sr-only">Search</label>
-                <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-text/30" weight="light" />
+                <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-text/50 pointer-events-none" weight="light" />
                 <input
                   id="mobile-search"
                   ref={mobileSearchRef}
@@ -183,17 +209,17 @@ export function TopBar() {
                   spellCheck={false}
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full bg-surface-bg/50 border-0 rounded-md py-2 pl-8 pr-8 text-[11px] font-medium text-main-text placeholder:text-muted-text/30 focus:outline-none focus:bg-surface-bg transition-colors"
+                  placeholder="Search library"
+                  className="w-full bg-surface-bg/60 border border-main-border/25 rounded-full py-2 pl-9 pr-9 text-xs font-medium text-main-text placeholder:text-muted-text/50 focus:outline-none focus:bg-surface-bg focus:border-primary/40 transition-colors"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => { handleSearchChange(''); setMobileSearchOpen(false); }}
                     aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-text/30 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text/40 cursor-pointer"
                   >
-                    <X size={10} weight="light" />
+                    <X size={11} weight="light" />
                   </button>
                 )}
               </div>

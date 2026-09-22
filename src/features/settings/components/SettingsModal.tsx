@@ -18,10 +18,10 @@ interface SettingsModalProps {
 }
 
 const tabs = [
-  { id: "general" as Tab, label: "General", icon: "User" as const },
-  { id: "security" as Tab, label: "Security", icon: "Shield" as const },
-  { id: "storage" as Tab, label: "Storage", icon: "HardDrive" as const },
-  { id: "about" as Tab, label: "About", icon: "Info" as const },
+  { id: "general" as Tab, label: "General", description: "Profile and appearance", icon: "User" as const },
+  { id: "security" as Tab, label: "Security", description: "Password and vault access", icon: "Shield" as const },
+  { id: "storage" as Tab, label: "Storage", description: "Usage and quotas", icon: "HardDrive" as const },
+  { id: "about" as Tab, label: "About", description: "Version and resources", icon: "Info" as const },
 ];
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -65,15 +65,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: animate ? 0.98 : 1, opacity: 0, y: animate ? 12 : 0 }}
             transition={{ duration: animate, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-4xl h-full md:h-[640px] bg-panel-bg rounded-t-2xl md:rounded-2xl border border-main-border/50 shadow-2xl overflow-hidden flex flex-col md:flex-row"
+            className="relative w-full max-w-5xl h-full md:h-[min(720px,calc(100vh-2rem))] bg-panel-bg rounded-t-2xl md:rounded-2xl border border-main-border/50 shadow-2xl overflow-hidden flex flex-col md:flex-row"
           >
             <SettingsSidebar tabs={tabs} activeTab={activeTab} onTabChange={(tab: string) => setActiveTab(tab as Tab)} />
 
             <div className="flex-1 flex flex-col min-w-0 bg-panel-bg">
               <header className="h-14 md:h-14 flex items-center justify-between px-4 md:px-6 border-b border-main-border/50 shrink-0">
-                <h2 id="settings-modal-title" className="text-sm font-semibold text-main-text">
-                  {tabs.find(t => t.id === activeTab)?.label}
-                </h2>
+                <div className="min-w-0">
+                  <h2 id="settings-modal-title" className="text-sm font-semibold text-main-text">
+                    {tabs.find(t => t.id === activeTab)?.label}
+                  </h2>
+                  <p className="text-[11px] text-muted-text truncate">
+                    {tabs.find(t => t.id === activeTab)?.description}
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={onClose}
@@ -84,7 +89,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </button>
               </header>
 
-              <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-24 md:pb-6 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-24 md:pb-8 custom-scrollbar">
                 <SettingsTabContent
                   activeTab={activeTab}
                   session={session}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, memo, useMemo } from "react";
-import { Folder, Trash, Heart, FolderSimple, Download, Hash, Pencil, Lock, LockOpen } from "@phosphor-icons/react";
+import { Folder, Trash, Heart, FolderSimple, Download, Hash, Pencil, Lock, LockOpen, Star, Check } from "@phosphor-icons/react";
 import { m } from "motion/react";
 import { ContextMenu } from "./ContextMenu";
 import { cn } from "@/core/utils/cn";
@@ -139,6 +139,8 @@ export const MediaCard = memo(function MediaCard({
     startCardDrag(e, idsToMove, imageUrl, sel.thumbs);
   };
 
+  const showOverlay = isHovered || isTapped;
+
   const cardBody = (
     <div
       draggable
@@ -150,7 +152,7 @@ export const MediaCard = memo(function MediaCard({
         whileTap={reduced ? {} : { scale: 0.97 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
         className={cn(
-          "aspect-square bg-surface-bg rounded-xl overflow-hidden group relative cursor-pointer border shadow-sm",
+          "group/card aspect-square bg-surface-bg rounded-xl overflow-hidden group relative cursor-pointer border shadow-sm",
           isSelected ? "border-primary ring-2 ring-primary/10 scale-[0.98]" : "border-transparent hover:border-main-border/40"
         )}
         onMouseEnter={handleMouseEnter}
@@ -173,8 +175,34 @@ export const MediaCard = memo(function MediaCard({
           transcodeStatus={transcodeStatus}
         />
 
+        {isSelected && (
+          <m.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 500, damping: 25 }}
+            className="absolute top-2 left-2 z-20 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg border-2 border-white pointer-events-none"
+          >
+            <Check size={12} weight="bold" className="text-primary-foreground" />
+          </m.div>
+        )}
+
+        {!showOverlay && (isFav || item.isVault) && (
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 pointer-events-none">
+            {item.isVault && (
+              <span className="w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                <Lock size={12} weight="fill" className="text-white/90" />
+              </span>
+            )}
+            {isFav && (
+              <span className="w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                <Star size={12} weight="fill" className="text-yellow-400" />
+              </span>
+            )}
+          </div>
+        )}
+
         <CardHoverOverlay
-          visible={isHovered || isTapped}
+          visible={showOverlay}
           title={item.title}
           dimensions={item.width ? `${item.width}x${item.height}` : ""}
           isFav={isFav}

@@ -44,7 +44,7 @@ export function AboutTab() {
      <div className="h-px bg-main-border/30" />
      <div className="flex justify-between items-center py-0.5">
       <span className="text-muted-text">Data Architecture</span>
-      <span className="text-main-text font-semibold">SQLite + Drizzle ORM</span>
+       <span className="text-main-text font-semibold">Go + PostgreSQL</span>
      </div>
      <div className="h-px bg-main-border/30" />
      <div className="flex justify-between items-center py-0.5">

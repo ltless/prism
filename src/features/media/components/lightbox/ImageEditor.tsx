@@ -120,7 +120,7 @@ export function ImageEditor({ item: initialItem, onClose, onSuccess }: ImageEdit
 
   return (
     <div
-      className="flex flex-col w-full h-full bg-app-bg"
+      className="flex flex-col w-full h-full bg-[#070708]"
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Top bar */}

@@ -1,7 +1,10 @@
 "use client";
 
-import { Shield, ShieldSlash, Spinner, Check } from "@phosphor-icons/react";
+import { Spinner } from "@phosphor-icons/react";
 import { PinInput } from "./PinInput";
+
+const ghostBtn =
+  "flex-1 rounded-lg border border-main-border bg-surface-bg px-3 py-1.5 text-[12px] text-muted-text transition-colors hover:text-main-text cursor-pointer";
 
 function ActionButton(props: {
   loading: boolean;
@@ -17,25 +20,20 @@ function ActionButton(props: {
       onClick={onClick}
       disabled={disabled}
       className={danger
-        ? "flex-1 px-4 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-[11px] font-medium hover:bg-rose-500/15 disabled:opacity-50 transition-colors cursor-pointer"
-        : "flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:opacity-90 disabled:opacity-50 transition-colors cursor-pointer"}
+        ? "flex-1 rounded-lg bg-rose-500 px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-40 cursor-pointer"
+        : "flex-1 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground disabled:opacity-40 cursor-pointer"}
     >
-      {loading ? <Spinner size={12} weight="light" className="animate-spin mx-auto" /> : danger ? label : (
-        <>
-          <Check size={12} weight="fill" />
-          {label}
-        </>
-      )}
+      {loading ? <Spinner size={12} weight="light" className="mx-auto animate-spin" /> : label}
     </button>
   );
 }
 
-function IconHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
+function Step({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <>
-      {icon}
-      <p className="text-[13px] font-medium text-main-text">{title}</p>
-    </>
+    <div className="flex flex-col items-center gap-4">
+      <p className="text-[12px] text-muted-text">{title}</p>
+      {children}
+    </div>
   );
 }
 
@@ -51,23 +49,19 @@ export function SetPinFlow({ pinInput, pinConfirm, setPinInput, setPinConfirm, s
 }) {
   if (step === 0) {
     return (
-      <div className="flex flex-col items-center gap-5">
-        <IconHeader icon={<Shield size={24} weight="light" className="text-primary" />} title="Set Vault PIN" />
-        <PinInput value={pinInput} onChange={(v) => { setPinInput(v); if (v.length === 6) setStep(1); }} maxLength={6} label="Enter PIN" />
-      </div>
+      <Step title="Enter a 6-digit PIN">
+        <PinInput value={pinInput} onChange={(v) => { setPinInput(v); if (v.length === 6) setStep(1); }} maxLength={6} />
+      </Step>
     );
   }
   return (
-    <div className="flex flex-col items-center gap-5">
-      <IconHeader icon={<Shield size={24} weight="light" className="text-primary" />} title="Confirm PIN" />
-      <PinInput value={pinConfirm} onChange={setPinConfirm} maxLength={6} label="Re-enter PIN" />
-      <div className="flex gap-2 w-full mt-4">
-        <button type="button" onClick={() => { setStep(0); setPinConfirm(""); }} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
-          Back
-        </button>
+    <Step title="Enter it again">
+      <PinInput value={pinConfirm} onChange={setPinConfirm} maxLength={6} />
+      <div className="mt-1 flex w-full gap-2">
+        <button type="button" onClick={() => { setStep(0); setPinConfirm(""); }} className={ghostBtn}>Back</button>
         <ActionButton loading={loading} disabled={loading || pinConfirm.length !== 6 || pinInput !== pinConfirm} label="Set PIN" onClick={setPin} />
       </div>
-    </div>
+    </Step>
   );
 }
 
@@ -85,34 +79,27 @@ export function ChangePinFlow({ pinOld, pinInput, pinConfirm, setPinOld, setPinI
 }) {
   if (step === 0) {
     return (
-      <div className="flex flex-col items-center gap-5">
-        <IconHeader icon={<Shield size={24} weight="light" className="text-primary" />} title="Current PIN" />
-        <PinInput value={pinOld} onChange={(v) => { setPinOld(v); if (v.length === 6) setStep(1); }} maxLength={6} label="Enter current PIN" />
-      </div>
+      <Step title="Current PIN">
+        <PinInput value={pinOld} onChange={(v) => { setPinOld(v); if (v.length === 6) setStep(1); }} maxLength={6} />
+      </Step>
     );
   }
   if (step === 1) {
     return (
-      <div className="flex flex-col items-center gap-5">
-        <IconHeader icon={<Shield size={24} weight="light" className="text-primary" />} title="New PIN" />
-        <PinInput value={pinInput} onChange={(v) => { setPinInput(v); if (v.length === 6) setStep(2); }} maxLength={6} label="Enter new PIN" />
-        <button type="button" onClick={() => { setStep(0); setPinInput(""); }} className="w-full px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer mt-4">
-          Back
-        </button>
-      </div>
+      <Step title="New PIN">
+        <PinInput value={pinInput} onChange={(v) => { setPinInput(v); if (v.length === 6) setStep(2); }} maxLength={6} />
+        <button type="button" onClick={() => { setStep(0); setPinInput(""); }} className={`${ghostBtn} mt-1 w-full`}>Back</button>
+      </Step>
     );
   }
   return (
-    <div className="flex flex-col items-center gap-5">
-      <IconHeader icon={<Shield size={24} weight="light" className="text-primary" />} title="Confirm New PIN" />
-      <PinInput value={pinConfirm} onChange={setPinConfirm} maxLength={6} label="Re-enter new PIN" />
-      <div className="flex gap-2 w-full mt-4">
-        <button type="button" onClick={() => { setStep(1); setPinConfirm(""); }} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
-          Back
-        </button>
+    <Step title="Enter the new PIN again">
+      <PinInput value={pinConfirm} onChange={setPinConfirm} maxLength={6} />
+      <div className="mt-1 flex w-full gap-2">
+        <button type="button" onClick={() => { setStep(1); setPinConfirm(""); }} className={ghostBtn}>Back</button>
         <ActionButton loading={loading} disabled={loading || pinConfirm.length !== 6 || pinInput !== pinConfirm} label="Change PIN" onClick={changePin} />
       </div>
-    </div>
+    </Step>
   );
 }
 
@@ -124,16 +111,12 @@ export function RemovePinBody({ pinOld, setPinOld, loading, removePin, onClose }
   onClose: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-5">
-      <IconHeader icon={<ShieldSlash size={24} weight="light" className="text-red-400" />} title="Remove Vault PIN" />
-      <p className="text-[11px] text-muted-text text-center">Enter your current PIN to remove it</p>
+    <Step title="Enter your current PIN. Private media stays locked until you set a new one.">
       <PinInput value={pinOld} onChange={setPinOld} maxLength={6} />
-      <div className="flex gap-2 w-full mt-4">
-        <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-surface-bg border border-main-border/50 text-muted-text rounded-lg text-[11px] font-medium hover:text-main-text transition-colors cursor-pointer">
-          Cancel
-        </button>
+      <div className="mt-1 flex w-full gap-2">
+        <button type="button" onClick={onClose} className={ghostBtn}>Cancel</button>
         <ActionButton loading={loading} disabled={loading || pinOld.length !== 6} label="Remove" danger onClick={removePin} />
       </div>
-    </div>
+    </Step>
   );
 }

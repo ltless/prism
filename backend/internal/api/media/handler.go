@@ -1,8 +1,10 @@
 package media
 
 import (
+	"github.com/ltless/prism/internal/audit"
 	mw "github.com/ltless/prism/internal/media"
 	"github.com/ltless/prism/internal/vault"
+	"sync"
 	"time"
 )
 
@@ -42,24 +44,83 @@ func (p *processingPool) acquire() bool {
 
 func (p *processingPool) release() { <-p.sem }
 
-type Handler struct {
-	svc       *Service
-	storage   *mw.Storage
-	nukeToken string
-	pool      *processingPool
-	vaultMgr  *vault.Manager
+// defaultServeConcurrency caps how many expensive decrypt+stream serves
+// (originals) one user may hold open at once. Thumbnails are plaintext and
+// exempt. Tune to actual hardware when needed.
+const defaultServeConcurrency = 4
+
+// serveLimiter bounds per-user concurrent expensive media serves (H-05).
+// Every original-file request decrypts to a temp plaintext copy — CPU, disk
+// I/O, and bandwidth per request — so a single account must not be able to
+// open unbounded concurrent streams.
+type serveLimiter struct {
+	mu    sync.Mutex
+	slots map[string]chan struct{}
+	limit int
 }
 
-func NewHandler(svc *Service, storage *mw.Storage, nukeToken string, vaultMgr *vault.Manager, processingConcurrency ...int) *Handler {
+func newServeLimiter(limit int) *serveLimiter {
+	if limit < 1 {
+		limit = 1
+	}
+	return &serveLimiter{slots: make(map[string]chan struct{}), limit: limit}
+}
+
+// tryAcquire takes a slot without waiting; false means the user already
+// holds the maximum concurrent expensive serves.
+func (l *serveLimiter) tryAcquire(userID string) bool {
+	l.mu.Lock()
+	ch := l.slots[userID]
+	if ch == nil {
+		ch = make(chan struct{}, l.limit)
+		l.slots[userID] = ch
+	}
+	l.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+// release returns a slot. Entries live for the process lifetime — one small
+// channel per user, bounded by the user count.
+func (l *serveLimiter) release(userID string) {
+	l.mu.Lock()
+	ch := l.slots[userID]
+	l.mu.Unlock()
+	if ch == nil {
+		return
+	}
+	select {
+	case <-ch:
+	default:
+	}
+}
+
+type Handler struct {
+	svc        *Service
+	storage    *mw.Storage
+	nukeToken  string
+	pool       *processingPool
+	serveLimit *serveLimiter
+	vaultMgr   *vault.Manager
+	audit      *audit.Recorder
+}
+
+func NewHandler(svc *Service, storage *mw.Storage, nukeToken string, vaultMgr *vault.Manager, auditRec *audit.Recorder, processingConcurrency ...int) *Handler {
 	concurrency := defaultProcessingConcurrency
 	if len(processingConcurrency) > 0 && processingConcurrency[0] > 0 {
 		concurrency = processingConcurrency[0]
 	}
 	return &Handler{
-		svc:       svc,
-		storage:   storage,
-		nukeToken: nukeToken,
-		pool:      newProcessingPool(concurrency, processingAcquireTimeout),
-		vaultMgr:  vaultMgr,
+		svc:        svc,
+		storage:    storage,
+		nukeToken:  nukeToken,
+		pool:       newProcessingPool(concurrency, processingAcquireTimeout),
+		serveLimit: newServeLimiter(defaultServeConcurrency),
+		vaultMgr:   vaultMgr,
+		audit:      auditRec,
 	}
 }

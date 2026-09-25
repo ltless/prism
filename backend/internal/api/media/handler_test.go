@@ -2,8 +2,10 @@ package media
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ltless/prism/internal/audit"
 	"io"
 	"log"
 	"mime/multipart"
@@ -40,7 +42,7 @@ func setupMediaHandler(t *testing.T) (*echo.Echo, *Handler, string, *auth.JWTMan
 
 	storage := newTestStorage(t.TempDir())
 	svc := NewService(pool, nil)
-	handler := NewHandler(svc, storage, "test-nuke-token", vault.NewManager("test-secret"))
+	handler := NewHandler(svc, storage, "test-nuke-token", vault.NewManager("test-secret"), audit.NewRecorder(nil))
 
 	e := echo.New()
 	e.Use(jwt.Middleware)
@@ -106,7 +108,7 @@ func TestHandler_CreateAndGet(t *testing.T) {
 	token, _ := jwt.Generate("test-user", "testuser", "admin")
 
 	svc := NewService(sharedPool, nil)
-	h := NewHandler(svc, storage, "test-nuke-token", vault.NewManager("test-secret"))
+	h := NewHandler(svc, storage, "test-nuke-token", vault.NewManager("test-secret"), audit.NewRecorder(nil))
 	e := echo.New()
 	e.Use(jwt.Middleware)
 	e.POST("/api/v1/media", h.Upload)
@@ -149,7 +151,7 @@ func TestHandler_Update_Valid(t *testing.T) {
 	e.PATCH("/api/v1/media/:id", h.Update)
 
 	svc := NewService(setupTenantDB(t), nil)
-	item, _, _ := svc.Create("test-user", "", "test.jpg", "Old", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
+	item, _, _ := svc.Create(context.Background(), "test-user", "", "test.jpg", "Old", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 
 	body := `{"title":"New Title"}`
 	req := httptest.NewRequest("PATCH", "/api/v1/media/"+item.ID, strings.NewReader(body))
@@ -273,7 +275,7 @@ func TestHandler_Nuke_Valid(t *testing.T) {
 	}
 	pool := db.NewTenantPool(sqlDB)
 	svc := NewService(pool, nil)
-	h := NewHandler(svc, newTestStorage(t.TempDir()), "test-nuke-token", vault.NewManager("test-secret"))
+	h := NewHandler(svc, newTestStorage(t.TempDir()), "test-nuke-token", vault.NewManager("test-secret"), audit.NewRecorder(nil))
 
 	jwt := auth.NewJWTManager("test-secret")
 	token, err := jwt.Generate("test-user", "testuser", "admin")
@@ -281,11 +283,11 @@ func TestHandler_Nuke_Valid(t *testing.T) {
 		t.Fatalf("generate token: %v", err)
 	}
 
-	mine, _, err := svc.Create("test-user", "", "mine.jpg", "Mine", "image/jpeg", "h-nuke-mine", 100, nil, nil, nil, nil, nil, nil)
+	mine, _, err := svc.Create(context.Background(), "test-user", "", "mine.jpg", "Mine", "image/jpeg", "h-nuke-mine", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("create own item: %v", err)
 	}
-	theirs, _, err := svc.Create("other-user", "", "theirs.jpg", "Theirs", "image/jpeg", "h-nuke-theirs", 100, nil, nil, nil, nil, nil, nil)
+	theirs, _, err := svc.Create(context.Background(), "other-user", "", "theirs.jpg", "Theirs", "image/jpeg", "h-nuke-theirs", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("create other item: %v", err)
 	}
@@ -299,10 +301,10 @@ func TestHandler_Nuke_Valid(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	if _, err := svc.Get("test-user", mine.ID); err == nil {
+	if _, err := svc.Get(context.Background(), "test-user", mine.ID); err == nil {
 		t.Fatal("expected own media to be wiped")
 	}
-	if _, err := svc.Get("other-user", theirs.ID); err != nil {
+	if _, err := svc.Get(context.Background(), "other-user", theirs.ID); err != nil {
 		t.Fatal("expected other user's media to survive the wipe")
 	}
 }
@@ -310,7 +312,7 @@ func TestHandler_Nuke_Valid(t *testing.T) {
 func TestHandler_Nuke_DisabledWithoutToken(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	h := NewHandler(svc, newTestStorage(t.TempDir()), "", vault.NewManager("test-secret"))
+	h := NewHandler(svc, newTestStorage(t.TempDir()), "", vault.NewManager("test-secret"), audit.NewRecorder(nil))
 
 	jwt := auth.NewJWTManager("test-secret")
 	token, err := jwt.Generate("test-user", "testuser", "admin")
@@ -424,12 +426,12 @@ func TestHandler_EmptyTrash_ReturnsFastDeletesAsync(t *testing.T) {
 	}
 
 	// Seed DB rows pointing at the files above, all in trash.
-	tdb, err := h.svc.pool.Get("test-user")
+	tdb, err := h.svc.pool.Get(context.Background(), "test-user")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
 	for i := 0; i < items; i++ {
-		if _, err := tdb.Exec(
+		if _, err := tdb.Exec(context.Background(),
 			`INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash, is_trash, created_at, updated_at)
 			 VALUES ($1, $2, $3, $4, 'image/jpeg', 1, $5, TRUE, 0, 0)`,
 			fmt.Sprintf("id%d", i), "test-user", "T", fmt.Sprintf("file%d.jpg", i), fmt.Sprintf("hz%d", i)); err != nil {
@@ -538,10 +540,10 @@ func TestHandler_VaultPin_LockoutPersistedAndShared(t *testing.T) {
 	// Wire a media service with its global DB set, exactly as router.go does.
 	mediaSvc := NewService(db.NewTenantPool(sqlDB), nil)
 	mediaSvc.SetGlobalDB(&db.GlobalDB{DB: sqlDB})
-	mediaH := NewHandler(mediaSvc, newTestStorage(t.TempDir()), "test-nuke-token", vault.NewManager("test-secret"))
+	mediaH := NewHandler(mediaSvc, newTestStorage(t.TempDir()), "test-nuke-token", vault.NewManager("test-secret"), audit.NewRecorder(nil))
 
 	usersSvc := users.NewService(&db.GlobalDB{DB: sqlDB}, nil)
-	usersH := users.NewHandler(usersSvc, nil, vault.NewManager("test-secret"))
+	usersH := users.NewHandler(usersSvc, nil, vault.NewManager("test-secret"), audit.NewRecorder(nil))
 
 	jwt := auth.NewJWTManager("test-secret")
 	token, _ := jwt.Generate("test-user", "testuser", "admin")
@@ -584,11 +586,11 @@ func TestHandler_VaultPin_LockoutPersistedAndShared(t *testing.T) {
 func TestHandler_VaultList_Gated(t *testing.T) {
 	e, h, token, _ := setupMediaHandler(t)
 
-	item, _, err := h.svc.Create("test-user", "", "vault.jpg", "Vault", "image/jpeg", "hash-vault-1", 100, nil, nil, nil, nil, nil, nil)
+	item, _, err := h.svc.Create(context.Background(), "test-user", "", "vault.jpg", "Vault", "image/jpeg", "hash-vault-1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("create vault item: %v", err)
 	}
-	if err := h.svc.Update("test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
+	if err := h.svc.Update(context.Background(), "test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
 		t.Fatalf("mark vault: %v", err)
 	}
 
@@ -658,11 +660,11 @@ func TestHandler_ServeFile_VaultGate(t *testing.T) {
 		t.Fatalf("save file: %v", err)
 	}
 
-	item, _, err := h.svc.Create("test-user", "", hash+".jpg", "V", "image/jpeg", hash, 100, nil, nil, nil, nil, nil, nil)
+	item, _, err := h.svc.Create(context.Background(), "test-user", "", hash+".jpg", "V", "image/jpeg", hash, 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("create vault item: %v", err)
 	}
-	if err := h.svc.Update("test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
+	if err := h.svc.Update(context.Background(), "test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
 		t.Fatalf("mark vault: %v", err)
 	}
 
@@ -707,11 +709,11 @@ func TestHandler_ServeFile_NonVaultUnaffected(t *testing.T) {
 // F1: Get on a vault item returns 404 while locked, 200 while unlocked.
 func TestHandler_Get_VaultGate(t *testing.T) {
 	e, h, token, _ := setupMediaHandler(t)
-	item, _, err := h.svc.Create("test-user", "", "v.jpg", "V", "image/jpeg", "getvault", 100, nil, nil, nil, nil, nil, nil)
+	item, _, err := h.svc.Create(context.Background(), "test-user", "", "v.jpg", "V", "image/jpeg", "getvault", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := h.svc.Update("test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
+	if err := h.svc.Update(context.Background(), "test-user", item.ID, map[string]interface{}{"is_vault": true}); err != nil {
 		t.Fatalf("mark vault: %v", err)
 	}
 	e.GET("/api/v1/media/:id", h.Get)

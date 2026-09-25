@@ -5,15 +5,17 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/audit"
 	"github.com/ltless/prism/internal/auth"
 )
 
 type Handler struct {
-	svc *Service
+	svc   *Service
+	audit *audit.Recorder
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, auditRec *audit.Recorder) *Handler {
+	return &Handler{svc: svc, audit: auditRec}
 }
 
 func (h *Handler) Get(c echo.Context) error {
@@ -21,7 +23,7 @@ func (h *Handler) Get(c echo.Context) error {
 		return err
 	}
 
-	cfg, err := h.svc.Get()
+	cfg, err := h.svc.Get(c.Request().Context())
 	if err != nil {
 		log.Printf("GetConfig error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -35,7 +37,7 @@ func (h *Handler) GetStorageDefault(c echo.Context) error {
 		return err
 	}
 
-	val, err := h.svc.GetStorageDefault()
+	val, err := h.svc.GetStorageDefault(c.Request().Context())
 	if err != nil {
 		log.Printf("GetStorageDefault error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -49,7 +51,8 @@ func (h *Handler) GetStorageDefault(c echo.Context) error {
 }
 
 func (h *Handler) UpdateStorageDefault(c echo.Context) error {
-	if _, err := auth.GetClaimsOrErr(c); err != nil {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
 		return err
 	}
 
@@ -63,16 +66,18 @@ func (h *Handler) UpdateStorageDefault(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "storage_default_bytes must be >= 0")
 	}
 
-	if err := h.svc.UpdateStorageDefault(body.StorageDefaultBytes); err != nil {
+	if err := h.svc.UpdateStorageDefault(c.Request().Context(), body.StorageDefaultBytes); err != nil {
 		log.Printf("UpdateStorageDefault error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "config_storage_default", "", true, c.RealIP(), "")
 
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
 func (h *Handler) Update(c echo.Context) error {
-	if _, err := auth.GetClaimsOrErr(c); err != nil {
+	claims, err := auth.GetClaimsOrErr(c)
+	if err != nil {
 		return err
 	}
 
@@ -83,10 +88,11 @@ func (h *Handler) Update(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
 
-	if err := h.svc.Update(body); err != nil {
+	if err := h.svc.Update(c.Request().Context(), body); err != nil {
 		log.Printf("UpdateConfig error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "config_update", "", true, c.RealIP(), "")
 
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }

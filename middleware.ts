@@ -23,7 +23,7 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' ws: wss:",
+    "connect-src 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'",
   ].join("; ");
@@ -102,5 +102,5 @@ function csrfError() {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/media/upload).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

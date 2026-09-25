@@ -18,14 +18,17 @@ export function useMediaCardActions(item: MediaItem, onDelete?: (id: string) => 
   const [renameModalOpen, setRenameModalOpen] = useState(false);
 
   // Stable identities so MediaCard's context-menu items can be memoized — the
-  // menu used to be rebuilt on every hover re-render of the card.
-  const handleMoveToFolder = useCallback(async (folderId: string | null) => {
-    const result = await moveMediaToFolderAction([item.id], folderId);
+  // menu used to be rebuilt on every hover re-render of the card. Accepts the
+  // full id list so the card can include the whole multi-selection when the
+  // right-clicked card is part of it.
+  const handleMoveToFolder = useCallback(async (mediaIds: string[], folderId: string | null) => {
+    const ids = mediaIds.length > 0 ? mediaIds : [item.id];
+    const result = await moveMediaToFolderAction(ids, folderId);
     if (!result.success) {
-      toast.error(result.error || "Failed to move file");
+      toast.error(result.error || "Failed to move items");
       return;
     }
-    toast.success("File moved");
+    toast.success(ids.length > 1 ? `${ids.length} items moved` : "File moved");
     router.refresh();
   }, [item.id, router]);
 

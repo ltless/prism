@@ -8,7 +8,9 @@ export class TrashPage {
   }
 
   async getTrashCount() {
-    return this.page.locator('[data-media-id]').count();
+    // TrashLibrary wraps cards itself (class group/trash-card) — no
+    // data-media-id like MediaGrid.
+    return this.page.locator('div[role="button"][class*="group/trash-card"]').count();
   }
 
   async emptyTrash() {
@@ -17,7 +19,7 @@ export class TrashPage {
   }
 
   async restoreFirstItem() {
-    const restoreBtn = this.page.locator('[data-media-id] button:has-text("Restore")').first();
+    const restoreBtn = this.page.locator('div[class*="group/trash-card"] button[title="Restore"]').first();
     if (await restoreBtn.isVisible()) {
       await restoreBtn.click();
       await this.page.waitForTimeout(1000);

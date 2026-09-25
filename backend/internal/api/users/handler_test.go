@@ -1,7 +1,9 @@
 package users
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/ltless/prism/internal/audit"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +35,7 @@ func setupUsersHandler(t *testing.T) (*echo.Echo, *Handler, string) {
 	t.Helper()
 	gdb := setupUsersHandlerDB(t)
 	svc := NewService(gdb, nil)
-	h := NewHandler(svc, nil, vault.NewManager("test-secret"))
+	h := NewHandler(svc, nil, vault.NewManager("test-secret"), audit.NewRecorder(nil))
 
 	jwt := auth.NewJWTManager("test-secret")
 	token, _ := jwt.Generate("user-1", "testuser", "admin")
@@ -146,7 +148,7 @@ func TestUsersHandler_SetupComplete(t *testing.T) {
 // on it.
 func TestUsersHandler_VerifyVaultPin_SetsUnlockCookie(t *testing.T) {
 	e, h, token := setupUsersHandler(t)
-	if err := h.svc.SetVaultPin("user-1", "123456"); err != nil {
+	if err := h.svc.SetVaultPin(context.Background(), "user-1", "123456"); err != nil {
 		t.Fatalf("set vault pin: %v", err)
 	}
 	e.POST("/api/v1/users/me/vault-pin/verify", h.VerifyVaultPin)

@@ -14,7 +14,7 @@ interface SwatchesPanelProps {
 
 export function SwatchesPanel({ brushColor, onBrushColorChange, swatches, onAddSwatch, onRemoveSwatch, onClose }: SwatchesPanelProps) {
   return (
-    <div className="border-b border-main-border">
+    <div>
       <PanelHeader icon={Swatches} label="Swatches" onClose={onClose} />
       <div className="px-3 pb-3 pt-2 space-y-3">
         {swatches.length === 0 ? (

@@ -1,16 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
 
+const cookieSet = vi.fn();
+
 vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => ({ get: () => undefined })),
+  cookies: vi.fn(async () => ({ get: () => undefined, set: cookieSet, delete: vi.fn() })),
 }));
 
-import { goFetch } from "@/lib/api";
+import { goFetch, mirrorVaultCookie } from "@/lib/api";
 import { ApiSchemaError, validateApiResponse, mediaListSchema, meResponseSchema } from "@/lib/apiSchemas";
 
 const realFetch = global.fetch;
 
 beforeEach(() => {
+  cookieSet.mockClear();
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
@@ -62,5 +65,32 @@ describe("validateApiResponse", () => {
       total: 1,
     });
     expect(ok.total).toBe(1);
+  });
+});
+
+describe("mirrorVaultCookie", () => {
+  const COOKIE = "vault_token=tok123; Path=/; HttpOnly; Max-Age=900";
+
+  it("sets Secure in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      await mirrorVaultCookie(COOKIE);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(cookieSet).toHaveBeenCalledWith(
+      "vault_token",
+      "tok123",
+      expect.objectContaining({ httpOnly: true, secure: true, sameSite: "lax" }),
+    );
+  });
+
+  it("omits Secure outside production (dev over http)", async () => {
+    await mirrorVaultCookie(COOKIE);
+    expect(cookieSet).toHaveBeenCalledWith(
+      "vault_token",
+      "tok123",
+      expect.objectContaining({ httpOnly: true, secure: false }),
+    );
   });
 });

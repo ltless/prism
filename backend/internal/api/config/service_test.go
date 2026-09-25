@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
@@ -17,7 +18,7 @@ func TestConfigService_Update_EmptyBody(t *testing.T) {
 	gdb := setupConfigTestDB(t)
 	svc := NewService(gdb)
 
-	err := svc.Update(struct {
+	err := svc.Update(context.Background(), struct {
 		Theme string `json:"theme"`
 	}{})
 	if err != nil {
@@ -29,7 +30,7 @@ func TestConfigService_Update_UnrelatedKey(t *testing.T) {
 	gdb := setupConfigTestDB(t)
 	svc := NewService(gdb)
 
-	err := svc.Update(struct {
+	err := svc.Update(context.Background(), struct {
 		Theme string `json:"theme"`
 	}{})
 	if err != nil {

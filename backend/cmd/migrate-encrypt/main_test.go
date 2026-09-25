@@ -9,7 +9,7 @@ import (
 	mw "github.com/ltless/prism/internal/media"
 )
 
-func TestMigrate_IdempotentAndSkipsThumbnails(t *testing.T) {
+func TestMigrate_IdempotentAndEncryptsThumbnails(t *testing.T) {
 	root := t.TempDir()
 
 	// Plaintext media file to be encrypted.
@@ -34,7 +34,6 @@ func TestMigrate_IdempotentAndSkipsThumbnails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Thumbnail stays plaintext by design.
 	thumbDir := filepath.Join(root, "user1", "media", "thumbnails")
 	if err := os.MkdirAll(thumbDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -45,8 +44,8 @@ func TestMigrate_IdempotentAndSkipsThumbnails(t *testing.T) {
 	}
 
 	files, encrypted, skipped, failed, _, _ := migrate(root, mk)
-	if files != 2 || encrypted != 1 || skipped != 1 || failed != 0 {
-		t.Fatalf("first run: files=%d encrypted=%d skipped=%d failed=%d, want 2/1/1/0",
+	if files != 3 || encrypted != 2 || skipped != 1 || failed != 0 {
+		t.Fatalf("first run: files=%d encrypted=%d skipped=%d failed=%d, want 3/2/1/0",
 			files, encrypted, skipped, failed)
 	}
 
@@ -66,19 +65,17 @@ func TestMigrate_IdempotentAndSkipsThumbnails(t *testing.T) {
 		t.Fatal("migrated file bytes changed")
 	}
 
-	// Thumbnail untouched.
 	thumbGot, err := os.ReadFile(thumbFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(thumbGot, []byte("thumb bytes")) {
-		t.Fatal("thumbnail should have stayed plaintext")
+	if !mw.IsEncrypted(thumbGot) {
+		t.Fatal("thumbnail not encrypted after migrate")
 	}
 
-	// Second run: everything skipped (thumbnail dir is not walked at all).
 	files, encrypted, skipped, failed, _, _ = migrate(root, mk)
-	if files != 2 || encrypted != 0 || skipped != 2 || failed != 0 {
-		t.Fatalf("second run: files=%d encrypted=%d skipped=%d failed=%d, want 2/0/2/0",
+	if files != 3 || encrypted != 0 || skipped != 3 || failed != 0 {
+		t.Fatalf("second run: files=%d encrypted=%d skipped=%d failed=%d, want 3/0/3/0",
 			files, encrypted, skipped, failed)
 	}
 }

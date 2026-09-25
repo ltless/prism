@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"fmt"
 	"github.com/ltless/prism/internal/db"
 	"strings"
@@ -25,8 +26,8 @@ type DashboardParams struct {
 	IncludeVault bool
 }
 
-func (s *Service) GetDashboard(userID string, params DashboardParams) (*DashboardResponse, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) GetDashboard(ctx context.Context, userID string, params DashboardParams) (*DashboardResponse, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
@@ -66,9 +67,9 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	var total int
 
 	if len(params.Categories) > 0 {
-		items, total, err = s.querySmartFolderMedia(tdb, userID, params, where, args, argIdx, offset)
+		items, total, err = s.querySmartFolderMedia(ctx, tdb, userID, params, where, args, argIdx, offset)
 	} else {
-		items, total, err = s.queryDedupedMedia(tdb, where, args, params.Limit, offset)
+		items, total, err = s.queryDedupedMedia(ctx, tdb, where, args, params.Limit, offset)
 	}
 	if err != nil {
 		return nil, err
@@ -78,7 +79,7 @@ func (s *Service) GetDashboard(userID string, params DashboardParams) (*Dashboar
 	}
 
 	// Compute folder counts
-	folderCounts, err := computeFolderCounts(tdb, userID, params.IncludeVault)
+	folderCounts, err := computeFolderCounts(ctx, tdb, userID, params.IncludeVault)
 	if err != nil {
 		return nil, fmt.Errorf("folder counts: %w", err)
 	}
@@ -92,11 +93,11 @@ const dashboardSelectCols = `id, title, file_path, mime_type, size, width, heigh
 
 // queryDedupedMedia returns one row per hash — the earliest upload — for the
 // plain (non-smart) dashboard view.
-func (s *Service) queryDedupedMedia(tdb *db.TenantDB, where []string, args []interface{}, limit, offset int) ([]MediaItem, int, error) {
+func (s *Service) queryDedupedMedia(ctx context.Context, tdb *db.TenantDB, where []string, args []interface{}, limit, offset int) ([]MediaItem, int, error) {
 	whereClause := strings.Join(where, " AND ")
 
 	var total int
-	if err := tdb.QueryRow(
+	if err := tdb.QueryRow(ctx,
 		fmt.Sprintf("SELECT COUNT(DISTINCT hash) FROM media WHERE %s", whereClause),
 		args...,
 	).Scan(&total); err != nil {
@@ -109,13 +110,13 @@ func (s *Service) queryDedupedMedia(tdb *db.TenantDB, where []string, args []int
 	) AS deduped ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`,
 		dashboardSelectCols, dashboardSelectCols, whereClause, limit, offset)
 
-	items, err := scanMediaRows(tdb, q, args)
+	items, err := scanMediaRows(ctx, tdb, q, args)
 	return items, total, err
 }
 
 // querySmartFolderMedia intersects category/score-matching tag IDs with the
 // base dashboard filters, then returns deduped, offset-paged media.
-func (s *Service) querySmartFolderMedia(tdb *db.TenantDB, userID string, params DashboardParams, where []string, args []interface{}, argIdx, offset int) ([]MediaItem, int, error) {
+func (s *Service) querySmartFolderMedia(ctx context.Context, tdb *db.TenantDB, userID string, params DashboardParams, where []string, args []interface{}, argIdx, offset int) ([]MediaItem, int, error) {
 	tagArgs := []interface{}{userID} // $1 = user_id
 	catPlaceholders := make([]string, len(params.Categories))
 	for i, cat := range params.Categories {
@@ -139,7 +140,7 @@ func (s *Service) querySmartFolderMedia(tdb *db.TenantDB, userID string, params 
 	whereClause := strings.Join(where, " AND ")
 
 	var total int
-	if err := tdb.QueryRow(
+	if err := tdb.QueryRow(ctx,
 		fmt.Sprintf("SELECT COUNT(DISTINCT hash) FROM media WHERE %s", whereClause),
 		args...,
 	).Scan(&total); err != nil {
@@ -152,11 +153,11 @@ func (s *Service) querySmartFolderMedia(tdb *db.TenantDB, userID string, params 
 	) AS deduped ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`,
 		dashboardSelectCols, dashboardSelectCols, whereClause, params.Limit, offset)
 
-	items, err := scanMediaRows(tdb, q, args)
+	items, err := scanMediaRows(ctx, tdb, q, args)
 	return items, total, err
 }
 
-func computeFolderCounts(tdb *db.TenantDB, userID string, includeVault bool) (map[string]int, error) {
+func computeFolderCounts(ctx context.Context, tdb *db.TenantDB, userID string, includeVault bool) (map[string]int, error) {
 	folderCounts := map[string]int{}
 
 	vaultClause := "AND m.is_vault = FALSE"
@@ -164,7 +165,7 @@ func computeFolderCounts(tdb *db.TenantDB, userID string, includeVault bool) (ma
 		vaultClause = ""
 	}
 
-	rows, err := tdb.Query(
+	rows, err := tdb.Query(ctx,
 		`SELECT f.id, COUNT(DISTINCT m.id) FROM folders f
 		LEFT JOIN media m ON m.folder_id = f.id AND m.is_trash = FALSE `+vaultClause+` AND m.user_id = $1
 		WHERE f.user_id = $1
@@ -186,7 +187,7 @@ func computeFolderCounts(tdb *db.TenantDB, userID string, includeVault bool) (ma
 
 	// Inbox count (media with no folder, excluding smart-tagged items)
 	var inbox int
-	if err := tdb.QueryRow(
+	if err := tdb.QueryRow(ctx,
 		`SELECT COUNT(DISTINCT hash) FROM media WHERE user_id = $1 AND is_trash = FALSE AND is_vault = FALSE AND folder_id IS NULL`,
 		userID,
 	).Scan(&inbox); err != nil {

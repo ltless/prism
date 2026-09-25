@@ -11,7 +11,7 @@ interface HistogramPanelProps {
 
 export function HistogramPanel({ mediaUrl, onClose }: HistogramPanelProps) {
   return (
-    <div className="border-b border-main-border">
+    <div>
       <PanelHeader icon={ChartBar} label="Histogram" onClose={onClose} />
       <div className="px-3 pb-3 pt-2">
         <Histogram mediaUrl={mediaUrl} />

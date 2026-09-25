@@ -271,13 +271,13 @@ export const CanvasRenderer = memo(forwardRef<CanvasRendererHandle, CanvasRender
     return (
       <div className="relative w-full h-full flex items-center justify-center">
         {loadError && (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-text bg-app-bg/50 backdrop-blur-sm z-20">
-            <p className="text-sm">{loadError}</p>
+          <div className="absolute inset-0 flex items-center justify-center z-20">
+            <p className="rounded-full bg-[#0c0c0e]/80 px-3 py-1.5 text-[12px] text-white/70 ring-1 ring-white/12">{loadError}</p>
           </div>
         )}
         {!isLoaded && !loadError && (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-text bg-app-bg/50 backdrop-blur-sm z-20">
-            <p className="text-sm">Loading image…</p>
+          <div className="absolute inset-0 flex items-center justify-center z-20" aria-hidden>
+            <div className="h-16 w-28 rounded-2xl bg-white/6 ring-1 ring-white/10 animate-pulse" />
           </div>
         )}
         <canvas

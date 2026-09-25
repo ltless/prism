@@ -55,7 +55,7 @@ func (h *Handler) readEditorUpload(c echo.Context, claims *auth.Claims, mediaID 
 		mimeType = "image/" + strings.TrimPrefix(ext, ".")
 	}
 
-	item, err := h.svc.Get(claims.UserID, mediaID)
+	item, err := h.svc.Get(c.Request().Context(), claims.UserID, mediaID)
 	if err != nil {
 		return nil, echo.NewHTTPError(http.StatusNotFound, "media not found")
 	}
@@ -80,14 +80,14 @@ func (h *Handler) readEditorUpload(c echo.Context, claims *auth.Claims, mediaID 
 func (h *Handler) saveEditorOverwrite(c echo.Context, claims *auth.Claims, up *editorUpload) error {
 	item := up.item
 
-	otherShared, err := h.svc.IsSharedPath(claims.UserID, item.FilePath, item.ID)
+	otherShared, err := h.svc.IsSharedPath(c.Request().Context(), claims.UserID, item.FilePath, item.ID)
 	if err != nil {
 		log.Printf("IsSharedPath error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 
 	newFilePath := up.filename
-	if dup, err := h.svc.FindByHash(claims.UserID, up.hash); err != nil {
+	if dup, err := h.svc.FindByHash(c.Request().Context(), claims.UserID, up.hash); err != nil {
 		log.Printf("FindByHash error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	} else if dup != nil && dup.ID != item.ID {
@@ -102,7 +102,7 @@ func (h *Handler) saveEditorOverwrite(c echo.Context, claims *auth.Claims, up *e
 		log.Printf("buildEditorMetadata error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "stored metadata unreadable")
 	}
-	if err := h.svc.SaveEditorOverwrite(claims.UserID, item.ID, newFilePath, up.hash, up.width, up.height, int64(len(up.data)), up.mimeType, metaJSON); err != nil {
+	if err := h.svc.SaveEditorOverwrite(c.Request().Context(), claims.UserID, item.ID, newFilePath, up.hash, up.width, up.height, int64(len(up.data)), up.mimeType, metaJSON); err != nil {
 		log.Printf("SaveEditorOverwrite error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "update failed")
 	}
@@ -124,7 +124,7 @@ func (h *Handler) saveEditorOverwrite(c echo.Context, claims *auth.Claims, up *e
 func (h *Handler) saveEditorAsCopy(c echo.Context, claims *auth.Claims, up *editorUpload) error {
 	// Reuse the existing file when the content already exists (same hash) —
 	// Create would return a nil item for a duplicate and double-store bytes.
-	dup, err := h.svc.FindByHash(claims.UserID, up.hash)
+	dup, err := h.svc.FindByHash(c.Request().Context(), claims.UserID, up.hash)
 	if err != nil {
 		log.Printf("FindByHash error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -153,7 +153,7 @@ func (h *Handler) saveEditorAsCopy(c echo.Context, claims *auth.Claims, up *edit
 		md = &metaJSON
 	}
 
-	newItem, _, err := h.svc.Create(claims.UserID, "", up.filename, "Copy of "+up.item.Title, up.mimeType, up.hash, int64(len(up.data)), &up.width, &up.height, nil, md, nil, nil)
+	newItem, _, err := h.svc.Create(c.Request().Context(), claims.UserID, "", up.filename, "Copy of "+up.item.Title, up.mimeType, up.hash, int64(len(up.data)), &up.width, &up.height, nil, md, nil, nil)
 	if err != nil {
 		log.Printf("Create error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "create failed")

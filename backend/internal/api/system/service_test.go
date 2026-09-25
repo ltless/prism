@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
@@ -30,14 +31,14 @@ func TestService_Logs_ScopedPerUser(t *testing.T) {
 	svc := NewService(pool)
 
 	source := "test"
-	if err := svc.CreateLogEntry("user-a", "error", "SECRET-OF-A", &source, nil, "2026-09-18T00:00:00Z"); err != nil {
+	if err := svc.CreateLogEntry(context.Background(), "user-a", "error", "SECRET-OF-A", &source, nil, "2026-09-18T00:00:00Z"); err != nil {
 		t.Fatalf("create log for user-a: %v", err)
 	}
-	if err := svc.CreateLogEntry("user-b", "error", "SECRET-OF-B", &source, nil, "2026-09-18T00:00:00Z"); err != nil {
+	if err := svc.CreateLogEntry(context.Background(), "user-b", "error", "SECRET-OF-B", &source, nil, "2026-09-18T00:00:00Z"); err != nil {
 		t.Fatalf("create log for user-b: %v", err)
 	}
 
-	resp, err := svc.Logs("user-b", "", 1, 50)
+	resp, err := svc.Logs(context.Background(), "user-b", "", 1, 50)
 	if err != nil {
 		t.Fatalf("logs: %v", err)
 	}

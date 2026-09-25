@@ -1,13 +1,14 @@
 package media
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 )
 
-func (s *Service) BulkMove(userID string, mediaIDs []string, folderID *string) error {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) BulkMove(ctx context.Context, userID string, mediaIDs []string, folderID *string) error {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
@@ -22,7 +23,7 @@ func (s *Service) BulkMove(userID string, mediaIDs []string, folderID *string) e
 		args = append(args, id)
 	}
 	query := fmt.Sprintf("UPDATE media SET folder_id = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", strings.Join(placeholders, ","))
-	_, err = tdb.Exec(query, args...)
+	_, err = tdb.Exec(ctx, query, args...)
 	return err
 }
 
@@ -37,7 +38,7 @@ const (
 	FieldVault    bulkField = "is_vault"
 )
 
-func (s *Service) BulkSetField(userID string, mediaIDs []string, field bulkField, value bool) error {
+func (s *Service) BulkSetField(ctx context.Context, userID string, mediaIDs []string, field bulkField, value bool) error {
 	switch field {
 	case FieldFavorite, FieldTrash, FieldVault:
 	default:
@@ -45,7 +46,7 @@ func (s *Service) BulkSetField(userID string, mediaIDs []string, field bulkField
 		// callers, not a validation of user input.
 		return fmt.Errorf("invalid bulk field: %q", field)
 	}
-	tdb, err := s.pool.Get(userID)
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
@@ -59,7 +60,7 @@ func (s *Service) BulkSetField(userID string, mediaIDs []string, field bulkField
 		args = append(args, id)
 	}
 	query := fmt.Sprintf("UPDATE media SET %s = $1, updated_at = $2 WHERE user_id = $3 AND id IN (%s)", string(field), strings.Join(placeholders, ","))
-	_, err = tdb.Exec(query, args...)
+	_, err = tdb.Exec(ctx, query, args...)
 	return err
 }
 
@@ -68,14 +69,14 @@ type TrashedItem struct {
 	FilePath string `json:"file_path"`
 }
 
-func (s *Service) EmptyTrash(userID string) ([]TrashedItem, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) EmptyTrash(ctx context.Context, userID string) ([]TrashedItem, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 
-	rows, err := tdb.Query("SELECT id, file_path FROM media WHERE user_id = $1 AND is_trash = TRUE", userID)
+	rows, err := tdb.Query(ctx, "SELECT id, file_path FROM media WHERE user_id = $1 AND is_trash = TRUE", userID)
 	if err != nil {
 		return nil, fmt.Errorf("query trashed: %w", err)
 	}
@@ -93,21 +94,21 @@ func (s *Service) EmptyTrash(userID string) ([]TrashedItem, error) {
 		return nil, fmt.Errorf("rows: %w", err)
 	}
 
-	if _, err := tdb.Exec("DELETE FROM media WHERE user_id = $1 AND is_trash = TRUE", userID); err != nil {
+	if _, err := tdb.Exec(ctx, "DELETE FROM media WHERE user_id = $1 AND is_trash = TRUE", userID); err != nil {
 		return nil, fmt.Errorf("delete trashed: %w", err)
 	}
 
 	return items, nil
 }
 
-func (s *Service) ResolveDuplicate(userID, keepID string, deleteIDs []string) error {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) ResolveDuplicate(ctx context.Context, userID, keepID string, deleteIDs []string) error {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 
-	tx, err := tdb.Begin()
+	tx, err := tdb.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
@@ -133,14 +134,14 @@ func (s *Service) ResolveDuplicate(userID, keepID string, deleteIDs []string) er
 	return tx.Commit()
 }
 
-func (s *Service) DeleteAll(userID string) ([]TrashedItem, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) DeleteAll(ctx context.Context, userID string) ([]TrashedItem, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 
-	rows, err := tdb.Query("SELECT id, file_path FROM media WHERE user_id = $1", userID)
+	rows, err := tdb.Query(ctx, "SELECT id, file_path FROM media WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, fmt.Errorf("query all media: %w", err)
 	}
@@ -158,15 +159,15 @@ func (s *Service) DeleteAll(userID string) ([]TrashedItem, error) {
 		return nil, fmt.Errorf("rows: %w", err)
 	}
 
-	if _, err := tdb.Exec("DELETE FROM media WHERE user_id = $1", userID); err != nil {
+	if _, err := tdb.Exec(ctx, "DELETE FROM media WHERE user_id = $1", userID); err != nil {
 		return nil, fmt.Errorf("delete all media: %w", err)
 	}
 
 	return items, nil
 }
 
-func (s *Service) AutoCleanup(userID string, olderThan *int64) ([]TrashedItem, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) AutoCleanup(ctx context.Context, userID string, olderThan *int64) ([]TrashedItem, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
@@ -179,7 +180,7 @@ func (s *Service) AutoCleanup(userID string, olderThan *int64) ([]TrashedItem, e
 		args = append(args, *olderThan)
 	}
 
-	rows, err := tdb.Query(query, args...)
+	rows, err := tdb.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trashed: %w", err)
 	}
@@ -203,7 +204,7 @@ func (s *Service) AutoCleanup(userID string, olderThan *int64) ([]TrashedItem, e
 		deleteQuery += fmt.Sprintf(" AND updated_at < $%d", len(deleteArgs)+1)
 		deleteArgs = append(deleteArgs, *olderThan)
 	}
-	if _, err := tdb.Exec(deleteQuery, deleteArgs...); err != nil {
+	if _, err := tdb.Exec(ctx, deleteQuery, deleteArgs...); err != nil {
 		return nil, fmt.Errorf("delete trashed: %w", err)
 	}
 

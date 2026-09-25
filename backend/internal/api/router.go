@@ -12,10 +12,12 @@ import (
 	mediaH "github.com/ltless/prism/internal/api/media"
 	systemH "github.com/ltless/prism/internal/api/system"
 	userH "github.com/ltless/prism/internal/api/users"
+	"github.com/ltless/prism/internal/audit"
 	"github.com/ltless/prism/internal/auth"
 	"github.com/ltless/prism/internal/config"
 	"github.com/ltless/prism/internal/db"
 	mediaS "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/metrics"
 	appmw "github.com/ltless/prism/internal/middleware"
 	"github.com/ltless/prism/internal/vault"
 )
@@ -35,6 +37,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	e.Use(appmw.QuietLogger())
 	e.Use(echomw.Recover())
 	e.Use(appmw.CORS(cfg.CORSOrigin))
+	e.Use(metrics.Default.Middleware)
 
 	// Uploads POST one request per file, so the limit must be configurable
 	// (UPLOAD_RATE_LIMIT) for large imports. Defaults stay conservative.
@@ -48,18 +51,20 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	authSvc := auth.NewService(global.DB, jwt, cfg.InviteCode, cfg.RequireInvite)
 	authSvc.SetClaimsValidator()
 	vaultMgr := vault.NewManager(cfg.JWTSecret)
-	authH := auth.NewHandler(authSvc, vaultMgr)
+	auditRec := audit.NewRecorder(tenantPool)
+	authH := auth.NewHandler(authSvc, vaultMgr, auditRec)
 
 	mediaStorage := mediaS.NewStorage(cfg.StoragePath, masterKey)
 	mediaSvc := mediaH.NewService(tenantPool, configH.NewService(global))
 	mediaSvc.SetGlobalDB(global)
-	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage, cfg.NukeToken, vaultMgr, cfg.MediaProcessingConcurrency)
+	mediaHandler := mediaH.NewHandler(mediaSvc, mediaStorage, cfg.NukeToken, vaultMgr, auditRec, cfg.MediaProcessingConcurrency)
 
 	folderSvc := folderH.NewService(tenantPool)
 	folderHandler := folderH.NewHandler(folderSvc)
 
 	systemSvc := systemH.NewService(tenantPool)
 	systemHandler := systemH.NewHandler(systemSvc)
+	metricsHandler := metrics.Default.Handler
 
 	api := e.Group("/api/v1")
 
@@ -111,20 +116,20 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	foldersG.DELETE("/:id", folderHandler.Delete)
 
 	configSvc := configH.NewService(global)
-	configHandler := configH.NewHandler(configSvc)
+	configHandler := configH.NewHandler(configSvc, auditRec)
 	configG := protected.Group("/config")
 	configG.GET("", configHandler.Get)
-	configG.PUT("", configHandler.Update, auth.RequireAdmin)
+	configG.PUT("", configHandler.Update, authSvc.RequireAdmin)
 	configG.GET("/storage-default", configHandler.GetStorageDefault)
-	configG.PUT("/storage-default", configHandler.UpdateStorageDefault, auth.RequireAdmin)
+	configG.PUT("/storage-default", configHandler.UpdateStorageDefault, authSvc.RequireAdmin)
 
 	usersSvc := userH.NewService(global, tenantPool)
-	usersHandler := userH.NewHandler(usersSvc, mediaStorage, vaultMgr)
+	usersHandler := userH.NewHandler(usersSvc, mediaStorage, vaultMgr, auditRec)
 	usersG := protected.Group("/users")
 	usersG.POST("/me/profile-image", usersHandler.UploadProfileImage)
 	usersG.GET("/me", usersHandler.GetProfile)
 	usersG.PUT("/me", usersHandler.UpdateProfile)
-	usersG.PUT("/me/storage-limit", usersHandler.UpdateStorageLimit, auth.RequireAdmin)
+	usersG.PUT("/me/storage-limit", usersHandler.UpdateStorageLimit, authSvc.RequireAdmin)
 	usersG.POST("/me/setup-complete", usersHandler.SetupComplete)
 	usersG.POST("/me/vault-pin", usersHandler.SetVaultPin)
 	usersG.POST("/me/vault-pin/verify", usersHandler.VerifyVaultPin)
@@ -138,6 +143,7 @@ func New(global *db.GlobalDB, tenantPool *db.TenantPool, jwt *auth.JWTManager, c
 	systemG.GET("/stats", systemHandler.Stats)
 	systemG.GET("/logs", systemHandler.Logs)
 	systemG.POST("/logs", systemHandler.CreateLog)
+	systemG.GET("/metrics", metricsHandler, authSvc.RequireAdmin)
 
 	e.Server.RegisterOnShutdown(rl.Close)
 	e.Server.RegisterOnShutdown(authRL.Close)

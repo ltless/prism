@@ -24,12 +24,12 @@ func (h *Handler) ResolveDuplicate(c echo.Context) error {
 	if body.KeepID == "" || len(body.DeleteIDs) == 0 {
 		return echo.NewHTTPError(http.StatusBadRequest, "keep_id and delete_ids required")
 	}
-	if err := h.svc.ResolveDuplicate(claims.UserID, body.KeepID, body.DeleteIDs); err != nil {
+	if err := h.svc.ResolveDuplicate(c.Request().Context(), claims.UserID, body.KeepID, body.DeleteIDs); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	// Clean up files for deleted duplicates (best-effort)
 	for _, id := range body.DeleteIDs {
-		item, err := h.svc.Get(claims.UserID, id)
+		item, err := h.svc.Get(c.Request().Context(), claims.UserID, id)
 		if err == nil {
 			h.deleteFileLogged(claims.UserID, item.FilePath)
 		}
@@ -54,7 +54,7 @@ func (h *Handler) UpdateByHash(c echo.Context) error {
 		return err
 	}
 
-	if err := h.svc.UpdateByHash(claims.UserID, hash, updateMapFrom(body)); err != nil {
+	if err := h.svc.UpdateByHash(c.Request().Context(), claims.UserID, hash, updateMapFrom(body)); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) Nuke(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "username confirmation mismatch")
 	}
 
-	if _, err := h.svc.DeleteAll(claims.UserID); err != nil {
+	if _, err := h.svc.DeleteAll(c.Request().Context(), claims.UserID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 
@@ -106,6 +106,7 @@ func (h *Handler) Nuke(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create thumbnail directory")
 	}
 
+	h.audit.Event(c.Request().Context(), claims.UserID, "nuke", claims.UserID, true, c.RealIP(), "")
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -122,7 +123,7 @@ func (h *Handler) AutoCleanup(c echo.Context) error {
 		body.OlderThan = nil
 	}
 
-	items, err := h.svc.AutoCleanup(claims.UserID, body.OlderThan)
+	items, err := h.svc.AutoCleanup(c.Request().Context(), claims.UserID, body.OlderThan)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

@@ -2,6 +2,7 @@ package media
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -46,7 +47,7 @@ func TestService_List_ReturnsTenantConnectionsToPool(t *testing.T) {
 
 	before := sqlDB.Stats().InUse
 	for i := 0; i < 50; i++ {
-		if _, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50); err != nil {
+		if _, err := svc.List(context.Background(), "test-user", nil, false, false, false, false, "", 1, 50); err != nil {
 			t.Fatalf("list %d: %v", i, err)
 		}
 	}
@@ -59,7 +60,7 @@ func TestService_List_ReturnsTenantConnectionsToPool(t *testing.T) {
 func TestService_List_Empty(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50)
+	resp, err := svc.List(context.Background(), "test-user", nil, false, false, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -74,7 +75,7 @@ func TestService_List_Empty(t *testing.T) {
 func TestService_CreateAndList(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	item, dup, err := svc.Create("test-user", "", "test.jpg", "Test Image", "image/jpeg", "abc123", 1024, intPtr(100), intPtr(200), nil, nil, nil, nil)
+	item, dup, err := svc.Create(context.Background(), "test-user", "", "test.jpg", "Test Image", "image/jpeg", "abc123", 1024, intPtr(100), intPtr(200), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -85,7 +86,7 @@ func TestService_CreateAndList(t *testing.T) {
 		t.Fatalf("expected 'Test Image', got '%s'", item.Title)
 	}
 
-	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50)
+	resp, err := svc.List(context.Background(), "test-user", nil, false, false, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -100,7 +101,7 @@ func TestService_CreateAndList(t *testing.T) {
 func TestService_Create_DuplicateHash(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	_, dup, err := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "samehash", 100, nil, nil, nil, nil, nil, nil)
+	_, dup, err := svc.Create(context.Background(), "test-user", "", "a.jpg", "A", "image/jpeg", "samehash", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("first create: %v", err)
 	}
@@ -108,7 +109,7 @@ func TestService_Create_DuplicateHash(t *testing.T) {
 		t.Fatal("first insert should not be duplicate")
 	}
 
-	_, dup, err = svc.Create("test-user", "", "b.jpg", "B", "image/jpeg", "samehash", 200, nil, nil, nil, nil, nil, nil)
+	_, dup, err = svc.Create(context.Background(), "test-user", "", "b.jpg", "B", "image/jpeg", "samehash", 200, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("second create: %v", err)
 	}
@@ -120,19 +121,19 @@ func TestService_Create_DuplicateHash(t *testing.T) {
 func TestService_List_WithTrashFilter(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
+	item, _, err := svc.Create(context.Background(), "test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
 	// Update to trash — PG boolean uses true/false
-	err = svc.Update("test-user", item.ID, map[string]interface{}{"is_trash": true})
+	err = svc.Update(context.Background(), "test-user", item.ID, map[string]interface{}{"is_trash": true})
 	if err != nil {
 		t.Fatalf("Update to trash: %v", err)
 	}
 
 	// List non-trashed
-	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 50)
+	resp, err := svc.List(context.Background(), "test-user", nil, false, false, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List non-trashed: %v", err)
 	}
@@ -141,7 +142,7 @@ func TestService_List_WithTrashFilter(t *testing.T) {
 	}
 
 	// List trashed
-	resp, err = svc.List("test-user", nil, false, true, false, false, "", 1, 50)
+	resp, err = svc.List(context.Background(), "test-user", nil, false, true, false, false, "", 1, 50)
 	if err != nil {
 		t.Fatalf("List trashed: %v", err)
 	}
@@ -156,7 +157,7 @@ func TestService_List_VaultTrashCombinations(t *testing.T) {
 
 	mk := func(title, hash string) *MediaItem {
 		t.Helper()
-		item, dup, err := svc.Create("test-user", "", "f_"+hash+".jpg", title, "image/jpeg", hash, 100, nil, nil, nil, nil, nil, nil)
+		item, dup, err := svc.Create(context.Background(), "test-user", "", "f_"+hash+".jpg", title, "image/jpeg", hash, 100, nil, nil, nil, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("create %s: %v", title, err)
 		}
@@ -174,7 +175,7 @@ func TestService_List_VaultTrashCombinations(t *testing.T) {
 
 	set := func(id string, updates map[string]interface{}) {
 		t.Helper()
-		if err := svc.Update("test-user", id, updates); err != nil {
+		if err := svc.Update(context.Background(), "test-user", id, updates); err != nil {
 			t.Fatalf("update %s: %v", id, err)
 		}
 	}
@@ -222,7 +223,7 @@ func TestService_List_VaultTrashCombinations(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := svc.List("test-user", nil, tc.favorites, tc.trash, tc.vault, false, "", 1, 50)
+			resp, err := svc.List(context.Background(), "test-user", nil, tc.favorites, tc.trash, tc.vault, false, "", 1, 50)
 			if err != nil {
 				t.Fatalf("List: %v", err)
 			}
@@ -234,12 +235,12 @@ func TestService_List_VaultTrashCombinations(t *testing.T) {
 func TestService_Get_Found(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	created, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
+	created, _, err := svc.Create(context.Background(), "test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	got, err := svc.Get("test-user", created.ID)
+	got, err := svc.Get(context.Background(), "test-user", created.ID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -254,7 +255,7 @@ func TestService_Get_Found(t *testing.T) {
 func TestService_Get_NotFound(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	_, err := svc.Get("test-user", "nonexistent-id")
+	_, err := svc.Get(context.Background(), "test-user", "nonexistent-id")
 	if err == nil {
 		t.Fatal("expected error for nonexistent media")
 	}
@@ -263,27 +264,27 @@ func TestService_Get_NotFound(t *testing.T) {
 func TestService_Update_Whitelist(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	item, _, err := svc.Create("test-user", "", "test.jpg", "Original", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
+	item, _, err := svc.Create(context.Background(), "test-user", "", "test.jpg", "Original", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
 	// Allowed field
-	err = svc.Update("test-user", item.ID, map[string]interface{}{"title": "Updated"})
+	err = svc.Update(context.Background(), "test-user", item.ID, map[string]interface{}{"title": "Updated"})
 	if err != nil {
 		t.Fatalf("Update title: %v", err)
 	}
-	got, _ := svc.Get("test-user", item.ID)
+	got, _ := svc.Get(context.Background(), "test-user", item.ID)
 	if got.Title != "Updated" {
 		t.Fatalf("expected 'Updated', got '%s'", got.Title)
 	}
 
 	// Disallowed field (should be silently ignored)
-	err = svc.Update("test-user", item.ID, map[string]interface{}{"file_path": "evil.jpg"})
+	err = svc.Update(context.Background(), "test-user", item.ID, map[string]interface{}{"file_path": "evil.jpg"})
 	if err != nil {
 		t.Fatalf("Update file_path: %v", err)
 	}
-	got, _ = svc.Get("test-user", item.ID)
+	got, _ = svc.Get(context.Background(), "test-user", item.ID)
 	if got.FilePath != "test.jpg" {
 		t.Fatalf("expected file_path 'test.jpg', got '%s'", got.FilePath)
 	}
@@ -292,12 +293,12 @@ func TestService_Update_Whitelist(t *testing.T) {
 func TestService_Delete(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	item, _, err := svc.Create("test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
+	item, _, err := svc.Create(context.Background(), "test-user", "", "test.jpg", "Test", "image/jpeg", "hash1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	deleted, err := svc.Delete("test-user", item.ID)
+	deleted, err := svc.Delete(context.Background(), "test-user", item.ID)
 	if err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
@@ -305,7 +306,7 @@ func TestService_Delete(t *testing.T) {
 		t.Fatalf("expected id %s, got %s", item.ID, deleted.ID)
 	}
 
-	_, err = svc.Get("test-user", item.ID)
+	_, err = svc.Get(context.Background(), "test-user", item.ID)
 	if err == nil {
 		t.Fatal("expected error after delete")
 	}
@@ -316,31 +317,31 @@ func TestService_BulkMove(t *testing.T) {
 	svc := NewService(pool, nil)
 
 	// Create a folder first — PG needs user_id
-	tdb, err := pool.Get("test-user")
+	tdb, err := pool.Get(context.Background(), "test-user")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
 	defer tdb.Close()
-	_, err = tdb.Exec("INSERT INTO folders (id, user_id, name, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)",
+	_, err = tdb.Exec(context.Background(), "INSERT INTO folders (id, user_id, name, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)",
 		"folder-1", "test-user", "Test Folder", 1000, 1000)
 	if err != nil {
 		t.Fatalf("insert folder: %v", err)
 	}
 
-	a, _, _ := svc.Create("test-user", "", "a.jpg", "A", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
-	b, _, _ := svc.Create("test-user", "", "b.jpg", "B", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
+	a, _, _ := svc.Create(context.Background(), "test-user", "", "a.jpg", "A", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
+	b, _, _ := svc.Create(context.Background(), "test-user", "", "b.jpg", "B", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
 
 	fid := "folder-1"
-	err = svc.BulkMove("test-user", []string{a.ID, b.ID}, &fid)
+	err = svc.BulkMove(context.Background(), "test-user", []string{a.ID, b.ID}, &fid)
 	if err != nil {
 		t.Fatalf("BulkMove: %v", err)
 	}
 
-	gotA, _ := svc.Get("test-user", a.ID)
+	gotA, _ := svc.Get(context.Background(), "test-user", a.ID)
 	if gotA.FolderID == nil || *gotA.FolderID != "folder-1" {
 		t.Fatal("expected A in folder-1")
 	}
-	gotB, _ := svc.Get("test-user", b.ID)
+	gotB, _ := svc.Get(context.Background(), "test-user", b.ID)
 	if gotB.FolderID == nil || *gotB.FolderID != "folder-1" {
 		t.Fatal("expected B in folder-1")
 	}
@@ -353,7 +354,7 @@ func TestService_BulkSetField_RejectsUnknownField(t *testing.T) {
 	// A column from user input must never reach the query. The closed
 	// bulkField type makes this a compile-time guarantee for callers; the
 	// switch stays as a runtime safety net.
-	err := svc.BulkSetField("test-user", []string{"asdf"}, bulkField("password_hash"), true)
+	err := svc.BulkSetField(context.Background(), "test-user", []string{"asdf"}, bulkField("password_hash"), true)
 	if err == nil {
 		t.Fatal("expected error for arbitrary column name")
 	}
@@ -365,10 +366,10 @@ func TestService_BulkSetField_RejectsUnknownField(t *testing.T) {
 func TestService_List_Search(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	svc.Create("test-user", "", "cat.jpg", "Cute Cat", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
-	svc.Create("test-user", "", "dog.jpg", "Happy Dog", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create(context.Background(), "test-user", "", "cat.jpg", "Cute Cat", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create(context.Background(), "test-user", "", "dog.jpg", "Happy Dog", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
 
-	resp, err := svc.List("test-user", nil, false, false, false, false, "cat", 1, 50)
+	resp, err := svc.List(context.Background(), "test-user", nil, false, false, false, false, "cat", 1, 50)
 	if err != nil {
 		t.Fatalf("List search: %v", err)
 	}
@@ -380,12 +381,12 @@ func TestService_List_Search(t *testing.T) {
 func TestService_List_SearchWildcardEscaped(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	svc.Create("test-user", "", "a.jpg", "100% Done", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
-	svc.Create("test-user", "", "b.jpg", "50% Done", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
-	svc.Create("test-user", "", "c.jpg", "Plain", "image/jpeg", "h3", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create(context.Background(), "test-user", "", "a.jpg", "100% Done", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create(context.Background(), "test-user", "", "b.jpg", "50% Done", "image/jpeg", "h2", 100, nil, nil, nil, nil, nil, nil)
+	svc.Create(context.Background(), "test-user", "", "c.jpg", "Plain", "image/jpeg", "h3", 100, nil, nil, nil, nil, nil, nil)
 
 	// Searching for "%" should ONLY match literal percent, not all rows
-	resp, err := svc.List("test-user", nil, false, false, false, false, "%", 1, 50)
+	resp, err := svc.List(context.Background(), "test-user", nil, false, false, false, false, "%", 1, 50)
 	if err != nil {
 		t.Fatalf("List search wildcard: %v", err)
 	}
@@ -394,8 +395,8 @@ func TestService_List_SearchWildcardEscaped(t *testing.T) {
 	}
 
 	// Searching for "_" should ONLY match literal underscore, not single-char wildcard
-	svc.Create("test-user", "", "d.jpg", "Hello_World", "image/jpeg", "h4", 100, nil, nil, nil, nil, nil, nil)
-	resp, err = svc.List("test-user", nil, false, false, false, false, "_", 1, 50)
+	svc.Create(context.Background(), "test-user", "", "d.jpg", "Hello_World", "image/jpeg", "h4", 100, nil, nil, nil, nil, nil, nil)
+	resp, err = svc.List(context.Background(), "test-user", nil, false, false, false, false, "_", 1, 50)
 	if err != nil {
 		t.Fatalf("List search underscore: %v", err)
 	}
@@ -409,11 +410,11 @@ func TestService_List_Pagination(t *testing.T) {
 	svc := NewService(pool, nil)
 	for i := 0; i < 10; i++ {
 		title := fmt.Sprintf("Item %d", i)
-		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), title, "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
+		svc.Create(context.Background(), "test-user", "", fmt.Sprintf("%d.jpg", i), title, "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
 	}
 
 	// page 1 with limit 3 → first 3 items
-	resp, err := svc.List("test-user", nil, false, false, false, false, "", 1, 3)
+	resp, err := svc.List(context.Background(), "test-user", nil, false, false, false, false, "", 1, 3)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -425,7 +426,7 @@ func TestService_List_Pagination(t *testing.T) {
 	}
 
 	// page 4 with limit 3 → last item
-	resp, err = svc.List("test-user", nil, false, false, false, false, "", 4, 3)
+	resp, err = svc.List(context.Background(), "test-user", nil, false, false, false, false, "", 4, 3)
 	if err != nil {
 		t.Fatalf("List page 4: %v", err)
 	}
@@ -434,7 +435,7 @@ func TestService_List_Pagination(t *testing.T) {
 	}
 
 	// page 0 / limit 0 → defaults (page 1, limit 100) → all 10
-	resp, err = svc.List("test-user", nil, false, false, false, false, "", 0, 0)
+	resp, err = svc.List(context.Background(), "test-user", nil, false, false, false, false, "", 0, 0)
 	if err != nil {
 		t.Fatalf("List defaults: %v", err)
 	}
@@ -465,7 +466,7 @@ func TestService_SanitizeTitle(t *testing.T) {
 func TestService_SanitizeTitle_Applied(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
-	item, _, err := svc.Create("test-user", "", "x.jpg", "<script>alert(1)</script>", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
+	item, _, err := svc.Create(context.Background(), "test-user", "", "x.jpg", "<script>alert(1)</script>", "image/jpeg", "h1", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -480,19 +481,19 @@ func TestService_GetDashboard_RootViewExcludesFiledMedia(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
 
-	unfiled, _, err := svc.Create("test-user", "", "unfiled.jpg", "Unfiled", "image/jpeg", "h-unfiled", 100, nil, nil, nil, nil, nil, nil)
+	unfiled, _, err := svc.Create(context.Background(), "test-user", "", "unfiled.jpg", "Unfiled", "image/jpeg", "h-unfiled", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("create unfiled: %v", err)
 	}
-	tdb, err := pool.Get("test-user")
+	tdb, err := pool.Get(context.Background(), "test-user")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
 	defer tdb.Close()
-	if _, err := tdb.Exec(`INSERT INTO folders (id, user_id, name) VALUES ($1, $2, $3)`, "folder-1", "test-user", "Folder One"); err != nil {
+	if _, err := tdb.Exec(context.Background(), `INSERT INTO folders (id, user_id, name) VALUES ($1, $2, $3)`, "folder-1", "test-user", "Folder One"); err != nil {
 		t.Fatalf("insert folder: %v", err)
 	}
-	filed, _, err := svc.Create("test-user", "folder-1", "filed.jpg", "Filed", "image/jpeg", "h-filed", 100, nil, nil, nil, nil, nil, nil)
+	filed, _, err := svc.Create(context.Background(), "test-user", "folder-1", "filed.jpg", "Filed", "image/jpeg", "h-filed", 100, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("create filed: %v", err)
 	}
@@ -500,7 +501,7 @@ func TestService_GetDashboard_RootViewExcludesFiledMedia(t *testing.T) {
 
 	// Root view: empty-string folder id means folder_id IS NULL.
 	root := strPtr("")
-	resp, err := svc.GetDashboard("test-user", DashboardParams{FolderID: root})
+	resp, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{FolderID: root})
 	if err != nil {
 		t.Fatalf("GetDashboard root: %v", err)
 	}
@@ -515,7 +516,7 @@ func TestService_GetDashboard_RootViewExcludesFiledMedia(t *testing.T) {
 
 	// Folder view still returns the filed item.
 	folder := "folder-1"
-	resp, err = svc.GetDashboard("test-user", DashboardParams{FolderID: &folder})
+	resp, err = svc.GetDashboard(context.Background(), "test-user", DashboardParams{FolderID: &folder})
 	if err != nil {
 		t.Fatalf("GetDashboard folder: %v", err)
 	}
@@ -529,11 +530,11 @@ func TestService_Search_Pagination(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
 	for i := 0; i < 5; i++ {
-		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i), "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
+		svc.Create(context.Background(), "test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i), "image/jpeg", fmt.Sprintf("h%d", i), 100, nil, nil, nil, nil, nil, nil)
 	}
 
 	// limit 2 on page 1 → 2 items, total 5
-	resp, err := svc.Search("test-user", SearchParams{Query: "Item", Page: 1, Limit: 2})
+	resp, err := svc.Search(context.Background(), "test-user", SearchParams{Query: "Item", Page: 1, Limit: 2})
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -542,7 +543,7 @@ func TestService_Search_Pagination(t *testing.T) {
 	}
 
 	// default limit (unset) must clamp to 100, not unbounded
-	resp, err = svc.Search("test-user", SearchParams{Query: "Item"})
+	resp, err = svc.Search(context.Background(), "test-user", SearchParams{Query: "Item"})
 	if err != nil {
 		t.Fatalf("Search defaults: %v", err)
 	}
@@ -551,15 +552,42 @@ func TestService_Search_Pagination(t *testing.T) {
 	}
 }
 
+// Name matches the title only. Describe also matches words stored in metadata.
+func TestService_Search_NameOnlySkipsMetadata(t *testing.T) {
+	pool := setupTenantDB(t)
+	svc := NewService(pool, nil)
+	ctx := context.Background()
+
+	svc.Create(ctx, "test-user", "", "a.jpg", "sunset", "image/jpeg", "ha", 100, nil, nil, nil, nil, nil, nil)
+	meta := `{"tags":["lighthouse"]}`
+	svc.Create(ctx, "test-user", "", "b.jpg", "untitled", "image/jpeg", "hb", 100, nil, nil, nil, &meta, nil, nil)
+
+	byName, err := svc.Search(ctx, "test-user", SearchParams{Query: "lighthouse", NameOnly: true})
+	if err != nil {
+		t.Fatalf("name search: %v", err)
+	}
+	if byName.Total != 0 {
+		t.Fatalf("name search matched metadata, total %d", byName.Total)
+	}
+
+	described, err := svc.Search(ctx, "test-user", SearchParams{Query: "lighthouse"})
+	if err != nil {
+		t.Fatalf("describe search: %v", err)
+	}
+	if described.Total != 1 || described.Items[0].FilePath != "b.jpg" {
+		t.Fatalf("describe search: got %+v", described.Items)
+	}
+}
+
 // Regression: GetDashboard used to SELECT the whole library with no LIMIT.
 func TestService_GetDashboard_Pagination(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
 	for i := 0; i < 5; i++ {
-		svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i), "image/jpeg", fmt.Sprintf("hd%d", i), 100, nil, nil, nil, nil, nil, nil)
+		svc.Create(context.Background(), "test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i), "image/jpeg", fmt.Sprintf("hd%d", i), 100, nil, nil, nil, nil, nil, nil)
 	}
 
-	resp, err := svc.GetDashboard("test-user", DashboardParams{Limit: 2, Page: 1})
+	resp, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Limit: 2, Page: 1})
 	if err != nil {
 		t.Fatalf("GetDashboard: %v", err)
 	}
@@ -610,7 +638,7 @@ func TestService_CreateWithinQuota_ConcurrentRespectsLimit(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			item, dup, err := svc.CreateWithinQuota("quota-user", "", fmt.Sprintf("f%d.jpg", i), "T", "image/jpeg", fmt.Sprintf("h%d", i), fileSize, nil, nil, nil, nil, nil, nil)
+			item, dup, err := svc.CreateWithinQuota(context.Background(), "quota-user", "", fmt.Sprintf("f%d.jpg", i), "T", "image/jpeg", fmt.Sprintf("h%d", i), fileSize, nil, nil, nil, nil, nil, nil)
 			if errors.Is(err, ErrQuotaExceeded) {
 				return
 			}
@@ -625,13 +653,13 @@ func TestService_CreateWithinQuota_ConcurrentRespectsLimit(t *testing.T) {
 	}
 	wg.Wait()
 
-	tdb, err := pool.Get("quota-user")
+	tdb, err := pool.Get(context.Background(), "quota-user")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
 	defer tdb.Close()
 	var used int64
-	if err := tdb.QueryRow("SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", "quota-user").Scan(&used); err != nil {
+	if err := tdb.QueryRow(context.Background(), "SELECT COALESCE(SUM(size), 0) FROM media WHERE user_id = $1", "quota-user").Scan(&used); err != nil {
 		t.Fatalf("sum usage: %v", err)
 	}
 	if used > 1000 {
@@ -651,20 +679,20 @@ func TestService_QueryEmbeddedItems_CappedAtLimit(t *testing.T) {
 	embedMeta := `{"embedding":[0.1,0.2]}`
 	const extra = 5
 	for i := 0; i < maxEmbeddedItems+extra; i++ {
-		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("e%d.jpg", i), "E", "image/jpeg",
+		if _, _, err := svc.Create(context.Background(), "test-user", "", fmt.Sprintf("e%d.jpg", i), "E", "image/jpeg",
 			fmt.Sprintf("he%d", i), 10, nil, nil, nil, &embedMeta, nil, nil); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
 	// Rows without any metadata must be filtered by the query itself.
 	for i := 0; i < 3; i++ {
-		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("n%d.jpg", i), "N", "image/jpeg",
+		if _, _, err := svc.Create(context.Background(), "test-user", "", fmt.Sprintf("n%d.jpg", i), "N", "image/jpeg",
 			fmt.Sprintf("hn%d", i), 10, nil, nil, nil, nil, nil, nil); err != nil {
 			t.Fatalf("create no-meta %d: %v", i, err)
 		}
 	}
 
-	tdb, err := pool.Get("test-user")
+	tdb, err := pool.Get(context.Background(), "test-user")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
@@ -676,7 +704,7 @@ func TestService_QueryEmbeddedItems_CappedAtLimit(t *testing.T) {
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
 	defer log.SetOutput(os.Stderr)
-	withEmb, err := svc.queryEmbeddedItems(tdb, "test-user", selectCols, false)
+	withEmb, err := svc.queryEmbeddedItems(context.Background(), tdb, "test-user", selectCols, false)
 	if err != nil {
 		t.Fatalf("queryEmbeddedItems: %v", err)
 	}
@@ -706,10 +734,10 @@ func TestService_CreateWithinQuota_ZeroAndNullLimits(t *testing.T) {
 	pool := db.NewTenantPool(sqlDB)
 	svc := NewService(pool, nil)
 
-	if _, _, err := svc.CreateWithinQuota("zero-user", "", "z.jpg", "Z", "image/jpeg", "hz", 1, nil, nil, nil, nil, nil, nil); !errors.Is(err, ErrQuotaExceeded) {
+	if _, _, err := svc.CreateWithinQuota(context.Background(), "zero-user", "", "z.jpg", "Z", "image/jpeg", "hz", 1, nil, nil, nil, nil, nil, nil); !errors.Is(err, ErrQuotaExceeded) {
 		t.Fatalf("zero limit: expected ErrQuotaExceeded, got %v", err)
 	}
-	if _, _, err := svc.CreateWithinQuota("null-user", "", "n.jpg", "N", "image/jpeg", "hn", 1, nil, nil, nil, nil, nil, nil); err != nil {
+	if _, _, err := svc.CreateWithinQuota(context.Background(), "null-user", "", "n.jpg", "N", "image/jpeg", "hn", 1, nil, nil, nil, nil, nil, nil); err != nil {
 		t.Fatalf("null limit (unlimited): unexpected error %v", err)
 	}
 }
@@ -724,13 +752,13 @@ func TestService_GetDashboard_TotalAndInboxCount(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
 	for i := 0; i < 3; i++ {
-		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i),
+		if _, _, err := svc.Create(context.Background(), "test-user", "", fmt.Sprintf("%d.jpg", i), fmt.Sprintf("Item %d", i),
 			"image/jpeg", fmt.Sprintf("h-count-%d", i), 100, nil, nil, nil, nil, nil, nil); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
 
-	resp, err := svc.GetDashboard("test-user", DashboardParams{Limit: 10, Page: 1})
+	resp, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Limit: 10, Page: 1})
 	if err != nil {
 		t.Fatalf("GetDashboard: %v", err)
 	}
@@ -749,12 +777,12 @@ func TestService_GetDashboard_DedupKeepsSingleRowPerHash(t *testing.T) {
 	pool := setupTenantDB(t)
 	svc := NewService(pool, nil)
 	for i := 0; i < 3; i++ {
-		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("d%d.jpg", i), "Dup", "image/jpeg", "h-shared", 100, nil, nil, nil, nil, nil, nil); err != nil {
+		if _, _, err := svc.Create(context.Background(), "test-user", "", fmt.Sprintf("d%d.jpg", i), "Dup", "image/jpeg", "h-shared", 100, nil, nil, nil, nil, nil, nil); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
 
-	resp, err := svc.GetDashboard("test-user", DashboardParams{Limit: 10, Page: 1})
+	resp, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Limit: 10, Page: 1})
 	if err != nil {
 		t.Fatalf("GetDashboard: %v", err)
 	}
@@ -763,7 +791,7 @@ func TestService_GetDashboard_DedupKeepsSingleRowPerHash(t *testing.T) {
 	}
 
 	// Repeated calls must be stable — same representative row every time.
-	again, err := svc.GetDashboard("test-user", DashboardParams{Limit: 10, Page: 1})
+	again, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Limit: 10, Page: 1})
 	if err != nil {
 		t.Fatalf("GetDashboard repeat: %v", err)
 	}
@@ -779,26 +807,26 @@ func TestService_GetDashboard_SmartFolderLargeMatch(t *testing.T) {
 	const tagged = 30
 	const untagged = 5
 	for i := 0; i < tagged; i++ {
-		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("t%d.jpg", i), "T", "image/jpeg",
+		if _, _, err := svc.Create(context.Background(), "test-user", "", fmt.Sprintf("t%d.jpg", i), "T", "image/jpeg",
 			fmt.Sprintf("st%d", i), 10, nil, nil, nil, nil, nil, nil); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
 	for i := 0; i < untagged; i++ {
-		if _, _, err := svc.Create("test-user", "", fmt.Sprintf("u%d.jpg", i), "U", "image/jpeg",
+		if _, _, err := svc.Create(context.Background(), "test-user", "", fmt.Sprintf("u%d.jpg", i), "U", "image/jpeg",
 			fmt.Sprintf("su%d", i), 10, nil, nil, nil, nil, nil, nil); err != nil {
 			t.Fatalf("create untagged %d: %v", i, err)
 		}
 	}
 
-	tdb, err := pool.Get("test-user")
+	tdb, err := pool.Get(context.Background(), "test-user")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
 	defer tdb.Close()
 	// Tag the tagged set by real media id (media_tags.media_id is an FK to
 	// media.id, not file_path).
-	rows, err := tdb.Query("SELECT id FROM media WHERE file_path LIKE 't%.jpg'")
+	rows, err := tdb.Query(context.Background(), "SELECT id FROM media WHERE file_path LIKE 't%.jpg'")
 	if err != nil {
 		t.Fatalf("query ids: %v", err)
 	}
@@ -815,14 +843,14 @@ func TestService_GetDashboard_SmartFolderLargeMatch(t *testing.T) {
 		t.Fatalf("expected %d tagged ids, got %d", tagged, len(ids))
 	}
 	for _, id := range ids {
-		if _, err := tdb.Exec(
+		if _, err := tdb.Exec(context.Background(),
 			"INSERT INTO media_tags (media_id, user_id, tag, score, category) VALUES ($1, $2, $3, $4, $5)",
 			id, "test-user", "nature", 0.9, "scene"); err != nil {
 			t.Fatalf("tag %s: %v", id, err)
 		}
 	}
 
-	page1, err := svc.GetDashboard("test-user", DashboardParams{Categories: []string{"scene"}, MinScore: 0.5, Limit: 10, Page: 1})
+	page1, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Categories: []string{"scene"}, MinScore: 0.5, Limit: 10, Page: 1})
 	if err != nil {
 		t.Fatalf("dashboard page 1: %v", err)
 	}
@@ -838,7 +866,7 @@ func TestService_GetDashboard_SmartFolderLargeMatch(t *testing.T) {
 		}
 	}
 
-	page2, err := svc.GetDashboard("test-user", DashboardParams{Categories: []string{"scene"}, MinScore: 0.5, Limit: 10, Page: 2})
+	page2, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Categories: []string{"scene"}, MinScore: 0.5, Limit: 10, Page: 2})
 	if err != nil {
 		t.Fatalf("dashboard page 2: %v", err)
 	}
@@ -865,7 +893,7 @@ func TestService_IncludeVaultGates(t *testing.T) {
 	far := `{"embedding":[1,100]}`
 
 	mk := func(title, hash, metadata string) *MediaItem {
-		it, _, err := svc.Create("test-user", "", hash+".jpg", title, "image/jpeg", hash, 100, nil, nil, nil, &metadata, nil, nil)
+		it, _, err := svc.Create(context.Background(), "test-user", "", hash+".jpg", title, "image/jpeg", hash, 100, nil, nil, nil, &metadata, nil, nil)
 		if err != nil {
 			t.Fatalf("create %s: %v", title, err)
 		}
@@ -875,19 +903,19 @@ func TestService_IncludeVaultGates(t *testing.T) {
 	mk("sim-a", "hz-sima", near)
 	mk("sim-b", "hz-simb", near)
 	vaulted := mk("sim-c", "hz-simc", near)
-	if err := svc.Update("test-user", vaulted.ID, map[string]interface{}{"is_vault": true}); err != nil {
+	if err := svc.Update(context.Background(), "test-user", vaulted.ID, map[string]interface{}{"is_vault": true}); err != nil {
 		t.Fatalf("mark vault: %v", err)
 	}
 
 	// Search: raw rows are 4; locked must return the 3 non-vault items.
-	s, err := svc.Search("test-user", SearchParams{Limit: 50})
+	s, err := svc.Search(context.Background(), "test-user", SearchParams{Limit: 50})
 	if err != nil {
 		t.Fatalf("search locked: %v", err)
 	}
 	if s.Total != 3 {
 		t.Fatalf("search locked: expected 3 items, got %d", s.Total)
 	}
-	su, err := svc.Search("test-user", SearchParams{Limit: 50, IncludeVault: true})
+	su, err := svc.Search(context.Background(), "test-user", SearchParams{Limit: 50, IncludeVault: true})
 	if err != nil {
 		t.Fatalf("search unlocked: %v", err)
 	}
@@ -896,14 +924,14 @@ func TestService_IncludeVaultGates(t *testing.T) {
 	}
 
 	// Dashboard uses the same dedup path.
-	d, err := svc.GetDashboard("test-user", DashboardParams{Limit: 50})
+	d, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Limit: 50})
 	if err != nil {
 		t.Fatalf("dashboard locked: %v", err)
 	}
 	if d.Total != 3 {
 		t.Fatalf("dashboard locked: expected 3 items, got %d", d.Total)
 	}
-	du, err := svc.GetDashboard("test-user", DashboardParams{Limit: 50, IncludeVault: true})
+	du, err := svc.GetDashboard(context.Background(), "test-user", DashboardParams{Limit: 50, IncludeVault: true})
 	if err != nil {
 		t.Fatalf("dashboard unlocked: %v", err)
 	}
@@ -912,14 +940,14 @@ func TestService_IncludeVaultGates(t *testing.T) {
 	}
 
 	// Duplicates: the near-duplicate cluster has 2 non-vault + 1 vault member.
-	gd, err := svc.GetDuplicates("test-user", false)
+	gd, err := svc.GetDuplicates(context.Background(), "test-user", false)
 	if err != nil {
 		t.Fatalf("duplicates locked: %v", err)
 	}
 	if len(gd.Groups) != 1 || len(gd.Groups[0].Items) != 2 {
 		t.Fatalf("duplicates locked: expected one group of 2, got %d groups", len(gd.Groups))
 	}
-	gu, err := svc.GetDuplicates("test-user", true)
+	gu, err := svc.GetDuplicates(context.Background(), "test-user", true)
 	if err != nil {
 		t.Fatalf("duplicates unlocked: %v", err)
 	}

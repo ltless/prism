@@ -1,6 +1,6 @@
 "use client";
 
-import { m, AnimatePresence } from "motion/react";
+import { m, AnimatePresence, MotionConfig } from "motion/react";
 import { useState } from "react";
 import { MediaItem, Folder } from "../types";
 import { useRouter } from "next/navigation";
@@ -68,15 +68,27 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
   const [isSlideshow, toggleSlideshow] = useSlideshow(slideshowEnabled, onNext ?? (() => {}));
 
   return (
+    <MotionConfig reducedMotion="user">
     <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       role="dialog" aria-modal="true" aria-labelledby="lightbox-title"
-      className="fixed inset-0 z-modal bg-black overflow-hidden flex"
+      className="fixed inset-0 z-modal overflow-hidden flex bg-[#070708]"
       onMouseMove={showControls}
       onTouchStart={showControls}
     >
+      {/* Stage wash. Fixed, pointer-events none. No scroll repaint. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-[18%] h-[42vh] w-[68vw] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,255,255,0.055),transparent)]" />
+        <div
+          className="absolute inset-0 opacity-[0.035] mix-blend-overlay"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+          }}
+        />
+      </div>
       <AnimatePresence mode="wait">
         {isEditing ? (
           <ImageEditor
@@ -87,16 +99,13 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
           />
         ) : (
           <div key="viewer" className="contents">
-            {/* Image viewport — flex-1. The info panel animates its own width
-                in layout flow, so this viewport reflows every frame and the
-                image glides sideways instead of snapping. No `layout`
-                projection here: fragile with AnimatePresence, and it never
-                animated the box anyway. */}
+            {/* Stage stays full-bleed. Details float over the right edge
+                (or a bottom sheet on mobile) so the frame never reflows. */}
             <m.div
               role="button"
               tabIndex={0}
               aria-label="Image viewer"
-              className="no-press-scale flex-1 relative flex items-center justify-center p-2 md:p-6 min-w-0"
+              className="no-press-scale flex-1 relative z-[1] flex items-center justify-center px-3 pt-20 pb-16 md:px-8 md:pt-24 md:pb-20 min-w-0"
               onMouseMove={showControls}
               onClick={showControls}
               onTouchStart={handleTouchStart}
@@ -129,7 +138,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
                 />
             </m.div>
 
-            {/* Info panel — pushes image aside (desktop) / bottom sheet (mobile) */}
+            {/* Details overlay. Desktop floats right. Mobile is a bottom sheet. */}
             <AnimatePresence>
               {isInfoOpen ? (
                 <LightboxInfoPanel
@@ -145,5 +154,6 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
         )}
       </AnimatePresence>
     </m.div>
+    </MotionConfig>
   );
 }

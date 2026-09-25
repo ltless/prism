@@ -51,7 +51,9 @@ cd backend && go run ./cmd/migrate-encrypt   # plaintext→encrypted, idempotent
 
 env: `JWT_SECRET` + `DATABASE_URL` in both env files; `ENCRYPTION_MASTER_KEY` (`openssl rand -hex 32`), `STORAGE_PATH`, `REGISTRATION_INVITE_CODE` in `backend/.env`. reverse proxy → 3000, TLS; nginx `client_max_body_size 210M`. existing library? run `migrate-encrypt` before booting the new build.
 
-backup: `pg_dump` + `rsync storage/users/` — and the encryption key *separately*, without it the backup is noise. a backup you haven't tested is a prayer, not a backup.
+containerized production: `docker compose up -d --build` (needs `POSTGRES_PASSWORD`, `JWT_SECRET`, `ENCRYPTION_MASTER_KEY`, `AUTH_SECRET` in the environment). backend + frontend images get healthchecks and `restart: unless-stopped`; `BACKEND_URL`/`GO_API_URL` default to the compose service name. run `docker compose create --build` in CI to fail on a broken image without starting services.
+
+backup: `pg_dump` + `rsync storage/users/` — and the encryption key *separately*, without it the backup is noise. a backup you haven't tested is a prayer, not a backup. key loss = library unreadable (no rotation tool yet — treat `ENCRYPTION_MASTER_KEY` as permanent). restore drill: fresh host → postgres up → same key in `backend/.env` → rsync storage back → open a photo to verify.
 
 ## troubleshooting
 

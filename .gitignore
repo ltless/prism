@@ -20,3 +20,11 @@ package-lock.json
 
 # local tool state
 .entroly/
+
+# AI agent skill configs (local tooling)
+/.agents/
+/.claude/
+/.grok/
+/.hermes/
+/.kiro/
+/skills-lock.json

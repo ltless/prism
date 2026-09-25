@@ -1,76 +1,65 @@
 "use client";
 
-import { User, Shield, HardDrive, Info, SignOut } from "@phosphor-icons/react";
+import { User, Shield, HardDrive, Info, SignOut, ArrowUpRight } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
 
-const iconMap = {
- User,
- Shield,
- HardDrive,
- Info,
-};
+const iconMap = { User, Shield, HardDrive, Info };
 
 interface SettingsSidebarProps {
- tabs: { id: string; label: string; description: string; icon: keyof typeof iconMap }[];
- activeTab: string;
- onTabChange: (tab: string) => void;
+  tabs: { id: string; label: string; icon: keyof typeof iconMap }[];
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 }
 
+const ease = "transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]";
+
 export function SettingsSidebar({ tabs, activeTab, onTabChange }: SettingsSidebarProps) {
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   return (
-  <div className="hidden md:flex w-60 border-r border-main-border/50 bg-surface-bg/70 p-4 flex-col gap-6">
-  <div className="px-2 pt-1">
-    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-text">Workspace</p>
-    <div className="mt-3 flex items-center gap-2.5">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
-        {user?.username?.[0]?.toUpperCase() || "P"}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-xs font-semibold text-main-text">{user?.username || "Prism User"}</p>
-        <p className="text-[10px] text-muted-text">Personal settings</p>
-      </div>
+    <div className="hidden md:flex w-56 shrink-0 flex-col px-4 py-6">
+      <p className="px-3 pb-5 text-[13px] font-medium tracking-tight text-muted-text">Settings</p>
+      <nav aria-label="Settings sections" className="flex flex-col gap-1">
+        {tabs.map((tab) => {
+          const Icon = iconMap[tab.icon];
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "group flex items-center gap-3 rounded-full px-3 py-2.5 text-left text-[14px] cursor-pointer",
+                ease,
+                active
+                  ? "bg-main-text text-app-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
+                  : "text-muted-text hover:bg-black/[0.04] hover:text-main-text dark:hover:bg-white/[0.06]",
+              )}
+            >
+              <Icon size={16} weight="light" />
+              <span className="tracking-tight">{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <button
+        type="button"
+        onClick={() => logout()}
+        className={cn(
+          "group mt-auto flex items-center justify-between rounded-full px-3 py-2.5 text-[14px] text-muted-text cursor-pointer",
+          ease,
+          "hover:bg-rose-500/10 hover:text-rose-500",
+        )}
+      >
+        <span className="flex items-center gap-3">
+          <SignOut size={16} weight="light" />
+          Sign out
+        </span>
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.05] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-px group-hover:scale-105 dark:bg-white/10">
+          <ArrowUpRight size={12} weight="light" />
+        </span>
+      </button>
     </div>
-  </div>
-
-  <nav aria-label="Settings sections" className="flex flex-col gap-1">
-  {tabs.map((tab) => {
- const Icon = iconMap[tab.icon];
- return (
- <button
- key={tab.id}
- type="button"
- onClick={() => onTabChange(tab.id)}
-  className={cn(
-  "flex items-start gap-3 px-2.5 py-2.5 rounded-lg text-left transition-colors duration-150 cursor-pointer",
-  activeTab === tab.id
-  ? "bg-panel-bg text-main-text shadow-card"
-  : "text-muted-text hover:text-main-text hover:bg-panel-bg/50"
- )}
- >
- <Icon size={15} weight={activeTab === tab.id ? "fill" : "light"} className={cn(
- activeTab === tab.id ? "text-primary" : "text-muted-text"
- )} />
-  <span className="min-w-0">
-    <span className="block text-[12px] font-medium">{tab.label}</span>
-    <span className="mt-0.5 block truncate text-[10px] text-muted-text">{tab.description}</span>
-  </span>
- </button>
- );
- })}
- </nav>
-
-  <div className="mt-auto border-t border-main-border/40 pt-3">
- <button
- type="button"
- onClick={() => logout()}
- className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-rose-500 hover:bg-rose-500/5 transition-colors duration-150 cursor-pointer"
- >
- <SignOut size={15} weight="light" />
- <span className="text-[12px] font-medium">Sign Out</span>
- </button>
- </div>
- </div>
- );
+  );
 }

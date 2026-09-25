@@ -68,13 +68,26 @@ func (s *Storage) thumbDir(userID string) string {
 	return filepath.Join(clean, "media", "thumbnails")
 }
 
-// sanitizePath strips path separators and ".." so a hostile userID cannot
-// walk out of basePath. NOTE: a single-pass ReplaceAll is fragile in general
-// ("....//" collapses to "../" after one round) — it is only safe here
-// because the result is re-validated by containedIn before use. For new
-// code prefer an allowlist of characters.
+// sanitizePath is a defense-in-depth allowlist for a path component derived
+// from an untrusted identifier (userID). Only [A-Za-z0-9._-] survive, so
+// separators and traversal are dropped; a bare ".." (which filepath.Join
+// would lift to the parent) is rejected. The primary security boundary is
+// containedIn() + symlink resolution — this must not be relied on alone.
 func sanitizePath(p string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(p, "..", ""), "/", "")
+	var b strings.Builder
+	for _, r := range p {
+		if (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' || r == '_' || r == '.' {
+			b.WriteRune(r)
+		}
+	}
+	s := b.String()
+	if s == ".." {
+		return ""
+	}
+	return s
 }
 
 func (s *Storage) SaveFileFromBytes(userID string, data []byte, filename string) (string, string, string, error) {
@@ -220,13 +233,13 @@ func (d *decryptedTempFile) Close() error {
 }
 
 // GenerateThumbnailForFile creates the thumbnail for a stored media file,
-// dispatching by extension. Called off the request path.
+// dispatching by extension, then stores it with the same envelope as originals.
+// Called off the request path. Plaintext exists only in a temp file.
 func (s *Storage) GenerateThumbnailForFile(userID, mediaPath string) error {
 	ext := strings.ToLower(filepath.Ext(mediaPath))
 	hash := strings.TrimSuffix(filepath.Base(mediaPath), ext)
-	tp := filepath.Join(s.thumbDir(userID), hash+".jpg")
-
-	if err := os.MkdirAll(filepath.Dir(tp), 0755); err != nil {
+	thumbDir := s.thumbDir(userID)
+	if err := os.MkdirAll(thumbDir, 0755); err != nil {
 		return fmt.Errorf("create thumb dir: %w", err)
 	}
 
@@ -236,14 +249,57 @@ func (s *Storage) GenerateThumbnailForFile(userID, mediaPath string) error {
 	}
 	defer decrypted.Close()
 
+	plain, err := os.CreateTemp("", "prism-thumb-*")
+	if err != nil {
+		return fmt.Errorf("create thumb temp: %w", err)
+	}
+	plainPath := plain.Name()
+	plain.Close()
+	defer os.Remove(plainPath)
+
 	imageExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
 	videoExts := map[string]bool{".mp4": true, ".mov": true, ".webm": true}
-	if imageExts[ext] {
-		return generateThumbnailFromFile(decrypted.Name(), tp)
-	} else if videoExts[ext] {
-		return GenerateVideoThumbnail(decrypted.Name(), tp)
+	switch {
+	case imageExts[ext]:
+		err = generateThumbnailFromFile(decrypted.Name(), plainPath)
+	case videoExts[ext]:
+		err = GenerateVideoThumbnail(decrypted.Name(), plainPath)
+	default:
+		err = fmt.Errorf("unsupported thumbnail ext: %s", ext)
 	}
-	return fmt.Errorf("unsupported thumbnail ext: %s", ext)
+	if err != nil {
+		return err
+	}
+	return encryptFile(s.masterKey, plainPath, filepath.Join(thumbDir, hash+".jpg"))
+}
+
+// encryptFile writes the envelope form of srcPath to dstPath via a temp rename.
+func encryptFile(mk *MasterKey, srcPath, dstPath string) error {
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	tmpPath := filepath.Join(filepath.Dir(dstPath), "."+uuid.NewString()+".tmp")
+	dst, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	if err := mk.EncryptToFile(dst, src); err != nil {
+		dst.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := dst.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, dstPath); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }
 
 func generateThumbnailFromFile(path, outputPath string) error {
@@ -357,8 +413,7 @@ func (s *Storage) ServeFile(c echo.Context, userID, filePath string) error {
 		contentType = "application/octet-stream"
 	}
 
-	c.Response().Header().Set("Content-Type", contentType)
-	c.Response().Header().Set("Cache-Control", "private, no-store") // plaintext is per-request now
+	setMediaHeaders(c, contentType, "private, no-store")
 	c.Response().Header().Set("Accept-Ranges", "bytes")
 
 	rangeHeader := c.Request().Header.Get("Range")
@@ -406,7 +461,7 @@ func serveRange(c echo.Context, path string, stat os.FileInfo, contentType strin
 	}
 	c.Response().Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, stat.Size()))
 	c.Response().Header().Set("Content-Length", strconv.FormatInt(chunkSize, 10))
-	c.Response().Header().Set("Content-Type", contentType)
+	setMediaHeaders(c, contentType, "private, no-store")
 	c.Response().WriteHeader(206)
 
 	if _, err := io.CopyN(c.Response(), f, chunkSize); err != nil {
@@ -445,9 +500,44 @@ func (s *Storage) ServeThumbnail(c echo.Context, userID, filename string) error 
 		return echo.NewHTTPError(http.StatusNotFound, "thumbnail not found")
 	}
 
-	c.Response().Header().Set("Content-Type", "image/jpeg")
-	c.Response().Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	return c.File(absPath)
+	// Legacy thumbs written before envelope encryption still serve. New ones
+	// decrypt to a temp copy, same as originals. migrate-encrypt converts the rest.
+	if !fileIsEncrypted(absPath) {
+		setMediaHeaders(c, "image/jpeg", "private, max-age=31536000, immutable")
+		return c.File(absPath)
+	}
+	decrypted, err := s.OpenDecryptedTemp(absPath)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "decrypt failed")
+	}
+	defer decrypted.Close()
+	setMediaHeaders(c, "image/jpeg", "private, max-age=31536000, immutable")
+	return c.File(decrypted.Name())
+}
+
+func fileIsEncrypted(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	peek := make([]byte, 4)
+	n, _ := f.Read(peek)
+	return IsEncrypted(peek[:n])
+}
+
+// setMediaHeaders pins the sniffed type and stops the browser treating the
+// bytes as an active document. Unknown types download instead of rendering.
+func setMediaHeaders(c echo.Context, contentType, cacheControl string) {
+	disp := "inline"
+	if contentType == "application/octet-stream" {
+		disp = "attachment"
+	}
+	h := c.Response().Header()
+	h.Set("Content-Type", contentType)
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Disposition", disp)
+	h.Set("Cache-Control", cacheControl)
 }
 
 // ResolveUserMediaPath joins filePath against the caller's media dir and
@@ -509,10 +599,16 @@ var AllowedExtensions = map[string]bool{
 	".mp4": true, ".mov": true, ".webm": true,
 }
 
-// magicSignatures maps extension → required leading bytes.
-// Empty signature means "no magic check" (e.g. heic/heif are complex).
-// mp4/mov are NOT here: their leading 4 bytes are the ftyp box size, which
-// varies per camera/phone. They are validated structurally in ValidateUpload.
+// magicSignatures maps extension to required leading bytes.
+// HEIF and mp4/mov are validated structurally (ISO BMFF) in ValidateUpload.
+// heifBrands are the ftyp major_brand values accepted for .heic/.heif
+// (HEIF/HEVC + AVIF + MIAF base brands).
+var heifBrands = map[string]bool{
+	"heic": true, "heix": true, "hevc": true, "hevx": true,
+	"mif1": true, "msf1": true, "hevm": true, "hevs": true,
+	"avif": true, "avis": true,
+}
+
 var magicSignatures = map[string][]byte{
 	".jpg":  {0xFF, 0xD8, 0xFF},
 	".jpeg": {0xFF, 0xD8, 0xFF},
@@ -529,7 +625,7 @@ func (s *Storage) ValidateUpload(data []byte, ext string) error {
 	if !AllowedExtensions[ext] {
 		return fmt.Errorf("file type %s not allowed", ext)
 	}
-	if ext == ".mp4" || ext == ".mov" {
+	if ext == ".mp4" || ext == ".mov" || ext == ".heic" || ext == ".heif" {
 		// ISO BMFF: leading 4 bytes are the box size (big-endian uint32) —
 		// varies per device, so don't hardcode it. Sanity-check the range
 		// (8..64 covers ftyp with major brand + minor + a few compat brands)
@@ -543,6 +639,17 @@ func (s *Storage) ValidateUpload(data []byte, ext string) error {
 		}
 		if !bytes.Equal(data[4:8], []byte("ftyp")) {
 			return fmt.Errorf("file content does not match extension %s", ext)
+		}
+		// HEIF: the ftyp major brand (offset 8). Restrict to known brands so a
+		// JPEG with a fake .heic name is still rejected.
+		if ext == ".heic" || ext == ".heif" {
+			if len(data) < 12 {
+				return fmt.Errorf("file too small to validate")
+			}
+			brand := string(data[8:12])
+			if !heifBrands[brand] {
+				return fmt.Errorf("file content does not match extension %s", ext)
+			}
 		}
 		return nil
 	}

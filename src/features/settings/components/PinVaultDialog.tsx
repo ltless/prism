@@ -77,7 +77,7 @@ export function PinVaultDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          role="dialog" aria-modal="true" aria-label="PIN vault dialog" className="fixed inset-0 z-50 flex items-center justify-center"
+          role="dialog" aria-modal="true" aria-label="PIN vault dialog" className="fixed inset-0 z-modal flex items-center justify-center"
         >
           <button type="button" aria-label="Close dialog backdrop" className="absolute inset-0 bg-black/60 border-0 cursor-default" onClick={onClose} />
           <m.div
@@ -85,19 +85,24 @@ export function PinVaultDialog({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative bg-panel-bg border border-main-border/50 rounded-xl p-8 w-full max-w-xs mx-4"
+            className="relative mx-4 w-full max-w-xs rounded-[1.75rem] bg-panel-bg px-5 pb-5 pt-4 shadow-modal ring-1 ring-black/10 dark:ring-white/10"
           >
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="absolute top-3 right-3 text-muted-text hover:text-main-text transition-colors cursor-pointer"
-            >
-              <X size={16} weight="light" />
-            </button>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-[13px] font-medium text-main-text">
+                {dialog === "set" ? "Set PIN" : dialog === "change" ? "Change PIN" : "Remove PIN"}
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="rounded-lg p-1 text-muted-text transition-colors hover:bg-surface-bg hover:text-main-text cursor-pointer"
+              >
+                <X size={14} weight="light" />
+              </button>
+            </div>
 
             {error && (
-              <p className="text-[11px] text-rose-500 text-center mb-4">{error}</p>
+              <p className="mb-3 text-center text-[12px] text-rose-500">{error}</p>
             )}
 
             {dialog === "set" && (

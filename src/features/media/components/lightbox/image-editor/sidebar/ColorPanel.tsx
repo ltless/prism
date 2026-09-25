@@ -33,7 +33,7 @@ export function ColorPanel({ brushColor, onBrushColorChange, onClose }: ColorPan
   };
 
   return (
-    <div className="border-b border-main-border">
+    <div>
       <PanelHeader icon={Palette} label="Color" onClose={onClose} />
       <div className="px-3 pb-3 pt-2 space-y-3">
         <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -28,7 +29,7 @@ func ptr(s string) *string { return &s }
 func TestUsersService_GetProfile(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
-	user, err := svc.GetProfile("user-1")
+	user, err := svc.GetProfile(context.Background(), "user-1")
 	if err != nil {
 		t.Fatalf("GetProfile: %v", err)
 	}
@@ -43,7 +44,7 @@ func TestUsersService_GetProfile(t *testing.T) {
 func TestUsersService_GetProfile_NotFound(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
-	_, err := svc.GetProfile("nonexistent")
+	_, err := svc.GetProfile(context.Background(), "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for nonexistent user")
 	}
@@ -52,12 +53,12 @@ func TestUsersService_GetProfile_NotFound(t *testing.T) {
 func TestUsersService_UpdateProfile(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
-	err := svc.UpdateProfile("user-1", ptr("newimage"), ptr("newcover"), nil)
+	err := svc.UpdateProfile(context.Background(), "user-1", ptr("newimage"), ptr("newcover"), nil)
 	if err != nil {
 		t.Fatalf("UpdateProfile: %v", err)
 	}
 
-	user, _ := svc.GetProfile("user-1")
+	user, _ := svc.GetProfile(context.Background(), "user-1")
 	if user.Image == nil || *user.Image != "newimage" {
 		t.Fatalf("expected image 'newimage', got %v", user.Image)
 	}
@@ -67,7 +68,7 @@ func TestUsersService_UpdateProfile_Preferences(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
 	prefs := `{"theme":"dark"}`
-	err := svc.UpdateProfile("user-1", nil, nil, &prefs)
+	err := svc.UpdateProfile(context.Background(), "user-1", nil, nil, &prefs)
 	if err != nil {
 		t.Fatalf("UpdateProfile with prefs: %v", err)
 	}
@@ -76,7 +77,7 @@ func TestUsersService_UpdateProfile_Preferences(t *testing.T) {
 func TestUsersService_UpdateStorageLimit(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
-	err := svc.UpdateStorageLimit("user-1", sql.NullInt64{Int64: 1000000, Valid: true})
+	err := svc.UpdateStorageLimit(context.Background(), "user-1", sql.NullInt64{Int64: 1000000, Valid: true})
 	if err != nil {
 		t.Fatalf("UpdateStorageLimit: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestUsersService_UpdateStorageLimit(t *testing.T) {
 	}
 
 	// F6: unlimited is stored as NULL, and NULL persists (not coerced to 0).
-	if err := svc.UpdateStorageLimit("user-1", sql.NullInt64{}); err != nil {
+	if err := svc.UpdateStorageLimit(context.Background(), "user-1", sql.NullInt64{}); err != nil {
 		t.Fatalf("UpdateStorageLimit unlimited: %v", err)
 	}
 	if err := gdb.QueryRow("SELECT storage_limit FROM users WHERE id = $1", "user-1").Scan(&limit); err != nil {
@@ -105,7 +106,7 @@ func TestUsersService_UpdateStorageLimit(t *testing.T) {
 func TestUsersService_MarkSetupComplete(t *testing.T) {
 	gdb := setupTestDB(t)
 	svc := NewService(gdb, nil)
-	err := svc.MarkSetupComplete("user-1")
+	err := svc.MarkSetupComplete(context.Background(), "user-1")
 	if err != nil {
 		t.Fatalf("MarkSetupComplete: %v", err)
 	}

@@ -2,13 +2,9 @@ import { MediaGridSkeleton } from "@/features/media/components/library/MediaGrid
 
 export default function DashboardLoading() {
   return (
-    <div className="flex-1 flex flex-col px-6 pb-6 pt-2">
-      <div className="h-6 w-40 bg-surface-bg rounded-md animate-pulse mb-5" />
-      <div className="flex gap-1.5 mb-5">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-6 w-20 bg-surface-bg/60 rounded-md animate-pulse" />
-        ))}
-      </div>
+    <div className="flex flex-1 flex-col px-4 pb-6 pt-6 md:px-10 md:pt-8">
+      <div className="mb-4 h-5 w-16 animate-pulse rounded-full bg-surface-bg" />
+      <div className="mb-12 h-16 w-56 animate-pulse rounded-2xl bg-surface-bg" />
       <MediaGridSkeleton />
     </div>
   );

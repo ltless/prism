@@ -8,8 +8,9 @@ export class FolderPage {
   }
 
   async createFolder(name: string) {
-    await this.page.locator('button:has-text("New Folder")').click();
-    await this.page.locator('input[placeholder="Folder name"]').fill(name);
+    // "New folder" is the icon button labelled in the sidebar Folders header.
+    await this.page.getByRole("button", { name: "New folder" }).first().click();
+    await this.page.locator('input[placeholder*="e.g."]').fill(name);
     await this.page.locator('button:has-text("Create")').click();
     await this.page.waitForTimeout(1000);
   }

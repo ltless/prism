@@ -22,7 +22,7 @@ export default async function DuplicatesPage() {
 
   return (
     <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-      <div className="flex-1 overflow-y-auto pt-12">
+      <div className="flex-1 overflow-y-auto pt-12 pb-mobile-nav md:pb-0">
         <div className="px-4 md:px-8 mb-6">
           <h1 className="text-xl font-semibold text-main-text">Duplicates</h1>
         </div>

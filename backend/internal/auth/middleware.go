@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"database/sql"
+	"log"
 	"net/http"
 	"strings"
 
@@ -12,6 +14,16 @@ type contextKey string
 const UserClaimsKey contextKey = "user_claims"
 
 const AuthCookieName = "auth_token"
+
+// cookieSecure is set from COOKIE_SECURE at startup. Scheme detection alone
+// misses TLS terminated in front of the process.
+var cookieSecure bool
+
+func SetCookieSecure(secure bool) { cookieSecure = secure }
+
+func cookieIsSecure(c echo.Context) bool {
+	return cookieSecure || c.Scheme() == "https"
+}
 
 func (m *JWTManager) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -59,33 +71,43 @@ func GetClaimsOrErr(c echo.Context) (*Claims, error) {
 	return claims, nil
 }
 
-// RequireAdmin returns an Echo middleware that rejects non-admin callers.
+// RequireAdmin rejects non-admin callers. The JWT role claim only proves
+// what the role was at issue time — authorization re-reads the current role
+// from the database so revoking admin takes effect on already-issued tokens.
 // Must be used after JWTManager.Middleware so claims are populated.
-func RequireAdmin(next echo.HandlerFunc) echo.HandlerFunc {
+func (s *Service) RequireAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		claims := GetClaims(c)
 		if claims == nil {
 			return echo.NewHTTPError(http.StatusUnauthorized, "not authenticated")
 		}
-		if claims.Role != "admin" {
+		var role string
+		err := s.db.QueryRow("SELECT role FROM users WHERE id = $1", claims.UserID).Scan(&role)
+		if err != nil {
+			// Deleted user or DB failure → fail closed.
+			if err != sql.ErrNoRows {
+				log.Printf("RequireAdmin role lookup: %v", err)
+			}
+			return echo.NewHTTPError(http.StatusForbidden, "admin only")
+		}
+		if role != "admin" {
 			return echo.NewHTTPError(http.StatusForbidden, "admin only")
 		}
 		return next(c)
 	}
 }
 
-// SetAuthCookie sets the auth_token cookie with HttpOnly + Secure (when on
-// HTTPS) + SameSite=Lax so it cannot be read by JavaScript and is only sent
-// over secure transports and on same-site navigations.
+// SetAuthCookie sets the auth_token cookie with HttpOnly + Secure (HTTPS, or
+// COOKIE_SECURE) + SameSite=Lax so it cannot be read by JavaScript and is
+// only sent over secure transports and on same-site navigations.
 func SetAuthCookie(c echo.Context, token string, maxAge int) {
-	secure := c.Scheme() == "https"
 	c.SetCookie(&http.Cookie{
 		Name:     AuthCookieName,
 		Value:    token,
 		Path:     "/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
-		Secure:   secure,
+		Secure:   cookieIsSecure(c),
 		SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -98,7 +120,7 @@ func ClearAuthCookie(c echo.Context) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   c.Scheme() == "https",
+		Secure:   cookieIsSecure(c),
 		SameSite: http.SameSiteLaxMode,
 	})
 }

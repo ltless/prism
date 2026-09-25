@@ -1,6 +1,7 @@
 package folders
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -32,14 +33,14 @@ func NewService(pool *db.TenantPool) *Service {
 	return &Service{pool: pool}
 }
 
-func (s *Service) List(userID string) (*ListResponse, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) List(ctx context.Context, userID string) (*ListResponse, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 
-	rows, err := tdb.Query("SELECT id, name, color, folder_type, parent_id, filter_query, created_at, updated_at FROM folders WHERE user_id = $1 ORDER BY name ASC", userID)
+	rows, err := tdb.Query(ctx, "SELECT id, name, color, folder_type, parent_id, filter_query, created_at, updated_at FROM folders WHERE user_id = $1 ORDER BY name ASC", userID)
 	if err != nil {
 		return nil, fmt.Errorf("query folders: %w", err)
 	}
@@ -67,8 +68,8 @@ func (s *Service) List(userID string) (*ListResponse, error) {
 	return &ListResponse{Items: items}, nil
 }
 
-func (s *Service) Create(userID, name, color, folderType, filterQuery string) (*FolderItem, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) Create(ctx context.Context, userID, name, color, folderType, filterQuery string) (*FolderItem, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
@@ -89,7 +90,7 @@ func (s *Service) Create(userID, name, color, folderType, filterQuery string) (*
 		fq = &filterQuery
 	}
 
-	_, err = tdb.Exec(
+	_, err = tdb.Exec(ctx,
 		"INSERT INTO folders (id, user_id, name, color, folder_type, filter_query, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		id, userID, name, color, folderType, fq, now, now,
 	)
@@ -108,26 +109,26 @@ func (s *Service) Create(userID, name, color, folderType, filterQuery string) (*
 	}, nil
 }
 
-func (s *Service) Update(userID, id, name string) error {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) Update(ctx context.Context, userID, id, name string) error {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 
 	now := time.Now().Unix()
-	_, err = tdb.Exec("UPDATE folders SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4", name, now, id, userID)
+	_, err = tdb.Exec(ctx, "UPDATE folders SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4", name, now, id, userID)
 	return err
 }
 
-func (s *Service) Delete(userID, id string) error {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) Delete(ctx context.Context, userID, id string) error {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 
-	tx, err := tdb.Begin()
+	tx, err := tdb.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}

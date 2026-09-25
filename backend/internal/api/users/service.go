@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -34,7 +35,7 @@ func NewService(global *db.GlobalDB, pool *db.TenantPool) *Service {
 	return &Service{global: global, pool: pool, pinLock: vault.NewPinLock(global.DB)}
 }
 
-func (s *Service) GetProfile(userID string) (*UserProfile, error) {
+func (s *Service) GetProfile(ctx context.Context, userID string) (*UserProfile, error) {
 	var profile UserProfile
 	var image, coverImage, preferences sql.NullString
 	var storageLimit sql.NullInt64
@@ -63,7 +64,7 @@ func (s *Service) GetProfile(userID string) (*UserProfile, error) {
 	return &profile, nil
 }
 
-func (s *Service) UpdateProfile(userID string, image, coverImage, preferences *string) error {
+func (s *Service) UpdateProfile(ctx context.Context, userID string, image, coverImage, preferences *string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	tx, err := s.global.DB.Begin()
@@ -92,17 +93,17 @@ func (s *Service) UpdateProfile(userID string, image, coverImage, preferences *s
 
 // UpdateStorageLimit sets the user's storage_limit. Valid=true with Int64=0
 // means zero bytes allowed; Valid=false means unlimited (SQL NULL).
-func (s *Service) UpdateStorageLimit(userID string, limit sql.NullInt64) error {
+func (s *Service) UpdateStorageLimit(ctx context.Context, userID string, limit sql.NullInt64) error {
 	_, err := s.global.DB.Exec("UPDATE users SET storage_limit = $1 WHERE id = $2", limit, userID)
 	return err
 }
 
-func (s *Service) MarkSetupComplete(userID string) error {
+func (s *Service) MarkSetupComplete(ctx context.Context, userID string) error {
 	_, err := s.global.DB.Exec("UPDATE users SET has_completed_setup = TRUE WHERE id = $1", userID)
 	return err
 }
 
-func (s *Service) SetVaultPin(userID, pin string) error {
+func (s *Service) SetVaultPin(ctx context.Context, userID, pin string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pin), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash pin: %w", err)
@@ -111,11 +112,11 @@ func (s *Service) SetVaultPin(userID, pin string) error {
 	return err
 }
 
-func (s *Service) VaultLocked(userID string) (bool, time.Duration) {
+func (s *Service) VaultLocked(ctx context.Context, userID string) (bool, time.Duration) {
 	return s.pinLock.Locked(userID)
 }
 
-func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
+func (s *Service) VerifyVaultPin(ctx context.Context, userID, pin string) (bool, error) {
 	hasPin, ok, err := s.pinLock.Verify(userID, pin)
 	if err != nil {
 		return false, fmt.Errorf("verify vault pin: %w", err)
@@ -131,12 +132,12 @@ func (s *Service) VerifyVaultPin(userID, pin string) (bool, error) {
 	return true, nil
 }
 
-func (s *Service) DisableVaultPin(userID string) error {
+func (s *Service) DisableVaultPin(ctx context.Context, userID string) error {
 	_, err := s.global.DB.Exec("UPDATE users SET vault_pin = NULL WHERE id = $1", userID)
 	return err
 }
 
-func (s *Service) GetVaultPinStatus(userID string) (bool, error) {
+func (s *Service) GetVaultPinStatus(ctx context.Context, userID string) (bool, error) {
 	var stored sql.NullString
 	err := s.global.DB.QueryRow("SELECT vault_pin FROM users WHERE id = $1", userID).Scan(&stored)
 	if err == sql.ErrNoRows {
@@ -148,7 +149,7 @@ func (s *Service) GetVaultPinStatus(userID string) (bool, error) {
 	return stored.Valid && stored.String != "", nil
 }
 
-func (s *Service) UpdateUsername(userID, newUsername string) error {
+func (s *Service) UpdateUsername(ctx context.Context, userID, newUsername string) error {
 	if len(newUsername) < 3 || len(newUsername) > 50 {
 		return fmt.Errorf("username must be 3-50 characters")
 	}
@@ -168,14 +169,14 @@ type StorageUsageResult struct {
 	VideoBytes int64 `json:"video_bytes"`
 }
 
-func (s *Service) GetStorageUsage(userID string) (*StorageUsageResult, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) GetStorageUsage(ctx context.Context, userID string) (*StorageUsageResult, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
 	var total, img, vid sql.NullInt64
-	err = tdb.QueryRow(`
+	err = tdb.QueryRow(ctx, `
 		SELECT
 			COALESCE(SUM(size), 0),
 			COALESCE(SUM(CASE WHEN mime_type LIKE 'image/%' THEN size ELSE 0 END), 0),

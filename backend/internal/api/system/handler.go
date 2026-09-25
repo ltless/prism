@@ -30,7 +30,7 @@ func (h *Handler) Stats(c echo.Context) error {
 		return err
 	}
 
-	stats, err := h.svc.Stats(claims.UserID)
+	stats, err := h.svc.Stats(c.Request().Context(), claims.UserID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -51,7 +51,7 @@ func (h *Handler) Logs(c echo.Context) error {
 	}
 	level := c.QueryParam("level")
 
-	logs, err := h.svc.Logs(claims.UserID, level, page, limit)
+	logs, err := h.svc.Logs(c.Request().Context(), claims.UserID, level, page, limit)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -97,7 +97,7 @@ func (h *Handler) CreateLog(c echo.Context) error {
 	if _, err := time.Parse(time.RFC3339, *ts); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid timestamp (RFC3339 required)")
 	}
-	if err := h.svc.CreateLogEntry(claims.UserID, body.Level, body.Message, body.Source, body.Meta, *ts); err != nil {
+	if err := h.svc.CreateLogEntry(c.Request().Context(), claims.UserID, body.Level, body.Message, body.Source, body.Meta, *ts); err != nil {
 		log.Printf("CreateLog error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

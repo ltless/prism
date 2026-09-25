@@ -7,10 +7,12 @@ import { MEDIA_GRID_CLASS } from "./library/MediaGrid";
 const MediaLibrary = dynamic(() => import("./MediaLibrary"), {
   ssr: false,
   loading: () => (
-    <div className="px-6 pb-6 pt-2">
+    <div className="px-4 pb-6 pt-6 md:px-10 md:pt-8">
+      <div className="mb-4 h-5 w-16 animate-pulse rounded-full bg-surface-bg" />
+      <div className="mb-12 h-16 w-56 animate-pulse rounded-2xl bg-surface-bg" />
       <div className={MEDIA_GRID_CLASS}>
-        {Array.from({ length: 28 }).map((_, i) => (
-          <div key={i} className="aspect-square rounded-xl bg-surface-bg animate-pulse" />
+        {Array.from({ length: 18 }).map((_, i) => (
+          <div key={i} className="aspect-[4/5] animate-pulse rounded-[1.75rem] bg-main-text/[0.045] p-1.5 ring-1 ring-main-text/[0.06]" />
         ))}
       </div>
     </div>

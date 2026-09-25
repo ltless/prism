@@ -113,7 +113,7 @@ export default function TrashLibrary({ initialItems, folders = [] }: { initialIt
  )}
  </div>
 
- <div className="flex-1 min-h-0 px-4 md:px-8 pb-0">
+ <div className="flex-1 min-h-0 px-4 md:px-8 pb-mobile-nav md:pb-0">
  {initialItems.length === 0 ? (
  <div className="flex h-full flex-col items-center justify-center gap-4 bg-surface-bg/30 rounded-[40px] border border-dashed border-main-border">
  <div className="w-16 h-16 bg-surface-bg rounded-2xl flex items-center justify-center text-muted-text/30">

@@ -3,8 +3,6 @@
 import { createContext, useContext, useState, useMemo, ReactNode, useCallback } from "react";
 
 interface SidebarContextType {
-  isMobileOpen: boolean;
-  setMobileOpen: (open: boolean) => void;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   toggleCollapsed: () => void;
@@ -14,8 +12,6 @@ const STORAGE_KEY = "prism-sidebar-collapsed";
 const COOKIE_KEY = "prism-sidebar-collapsed";
 
 const SidebarContext = createContext<SidebarContextType>({
-  isMobileOpen: false,
-  setMobileOpen: () => {},
   isCollapsed: false,
   setIsCollapsed: () => {},
   toggleCollapsed: () => {},
@@ -29,9 +25,6 @@ export function SidebarProvider({
   initialCollapsed?: boolean;
   children: ReactNode;
 }) {
-  const [isMobileOpen, setMobileOpen] = useState(false);
-  // Collapsed state comes from the server-rendered cookie value — no
-  // localStorage lazy-init, no hydration mismatch on refresh.
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed ?? false);
 
   const setCollapsed = useCallback((collapsed: boolean) => {
@@ -51,8 +44,8 @@ export function SidebarProvider({
   }, [isCollapsed, setCollapsed]);
 
   const value = useMemo(
-    () => ({ isMobileOpen, setMobileOpen, isCollapsed, setIsCollapsed: setCollapsed, toggleCollapsed }),
-    [isMobileOpen, isCollapsed, setCollapsed, toggleCollapsed],
+    () => ({ isCollapsed, setIsCollapsed: setCollapsed, toggleCollapsed }),
+    [isCollapsed, setCollapsed, toggleCollapsed],
   );
 
   return (

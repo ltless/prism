@@ -18,7 +18,7 @@ interface TransformPanelProps {
 
 export function TransformPanel({ rotation, flipH, flipV, imageWidth, imageHeight, onRotationChange, onFlipH, onFlipV, onClose }: TransformPanelProps) {
   return (
-    <div className="border-b border-main-border">
+    <div>
       <PanelHeader icon={ArrowsOut} label="Transform" onClose={onClose} />
       <div className="px-3 pb-3 pt-2 space-y-3">
         <SubHeader label="Dimensions" />

@@ -32,9 +32,10 @@ func (h *Handler) BulkMove(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkMoveIDs))
 	}
 
-	if err := h.svc.BulkMove(claims.UserID, body.MediaIDs, body.FolderID); err != nil {
+	if err := h.svc.BulkMove(c.Request().Context(), claims.UserID, body.MediaIDs, body.FolderID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "move failed")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "bulk_move", fmt.Sprintf("ids=%d", len(body.MediaIDs)), true, c.RealIP(), "")
 
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
@@ -59,7 +60,7 @@ func (h *Handler) BulkFavorite(c echo.Context) error {
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldFavorite, body.IsFavorite); err != nil {
+	if err := h.svc.BulkSetField(c.Request().Context(), claims.UserID, body.MediaIDs, FieldFavorite, body.IsFavorite); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
@@ -82,9 +83,10 @@ func (h *Handler) BulkTrash(c echo.Context) error {
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldTrash, true); err != nil {
+	if err := h.svc.BulkSetField(c.Request().Context(), claims.UserID, body.MediaIDs, FieldTrash, true); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "bulk_trash", fmt.Sprintf("ids=%d", len(body.MediaIDs)), true, c.RealIP(), "")
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -105,9 +107,10 @@ func (h *Handler) BulkRestore(c echo.Context) error {
 	if len(body.MediaIDs) > maxBulkIDs {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("too many items (max %d)", maxBulkIDs))
 	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldTrash, false); err != nil {
+	if err := h.svc.BulkSetField(c.Request().Context(), claims.UserID, body.MediaIDs, FieldTrash, false); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "bulk_restore", fmt.Sprintf("ids=%d", len(body.MediaIDs)), true, c.RealIP(), "")
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -160,10 +163,11 @@ func (h *Handler) EmptyTrash(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := h.svc.EmptyTrash(claims.UserID)
+	items, err := h.svc.EmptyTrash(c.Request().Context(), claims.UserID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "empty_trash", fmt.Sprintf("items=%d", len(items)), true, c.RealIP(), "")
 	// File cleanup runs off the request path with bounded concurrency — see
 	// deleteFilesAsync.
 	h.deleteFilesAsync(claims.UserID, items)
@@ -196,8 +200,9 @@ func (h *Handler) BulkVault(c echo.Context) error {
 			return err
 		}
 	}
-	if err := h.svc.BulkSetField(claims.UserID, body.MediaIDs, FieldVault, body.IsVault); err != nil {
+	if err := h.svc.BulkSetField(c.Request().Context(), claims.UserID, body.MediaIDs, FieldVault, body.IsVault); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "bulk_vault", fmt.Sprintf("ids=%d toVault=%v", len(body.MediaIDs), body.IsVault), true, c.RealIP(), "")
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }

@@ -2,7 +2,7 @@
 
 import { memo, useState } from "react";
 import { Palette as PaletteIcon } from "@phosphor-icons/react";
-import { SectionCard } from "@/shared/components/SectionCard";
+import { LightboxSheet } from "./LightboxSheet";
 
 interface ColorPaletteProps {
   palette: string[];
@@ -20,25 +20,27 @@ export const ColorPalette = memo(function ColorPalette({ palette }: ColorPalette
   if (palette.length === 0) return null;
 
   return (
-    <SectionCard compact icon={PaletteIcon} title="Colors">
+    <LightboxSheet icon={PaletteIcon} title="Colors">
       <div className="flex flex-wrap gap-2">
         {palette.map((color: string) => (
           <button
             key={color}
             type="button"
             onClick={() => copyToClipboard(color)}
-            className="group relative flex flex-col items-center gap-1.5 cursor-pointer"
+            aria-label={`Copy ${color}`}
+            className="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full p-0.5 ring-1 ring-white/15 active:scale-[0.96]"
+            style={{ transition: "transform 400ms cubic-bezier(0.32,0.72,0,1)" }}
           >
-            <div
-              className="w-9 h-9 rounded-lg border border-main-border/40 shadow-sm group-hover:scale-105 transition-transform"
+            <span
+              className="h-full w-full rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
               style={{ backgroundColor: color }}
             />
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-black text-white text-[11px] py-1 px-2 rounded-md font-mono font-medium whitespace-nowrap z-50 pointer-events-none shadow-md">
+            <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#0c0c0e] px-2 py-1 font-mono text-[10px] text-white opacity-0 ring-1 ring-white/15 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
               {copiedColor === color ? "Copied" : color.toUpperCase()}
-            </div>
+            </span>
           </button>
         ))}
       </div>
-    </SectionCard>
+    </LightboxSheet>
   );
 });

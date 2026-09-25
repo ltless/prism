@@ -34,9 +34,9 @@ func NewTenantPool(db *sql.DB) *TenantPool {
 func (p *TenantPool) Close() {}
 
 // Get acquires a connection from the pool and sets app.current_user_id on it
-// so RLS policies scope every statement on that connection to userID.
-func (p *TenantPool) Get(userID string) (*TenantDB, error) {
-	ctx := context.Background()
+// so RLS policies scope every statement on that connection to userID. ctx
+// is the caller's request context — connection acquisition cancels with it.
+func (p *TenantPool) Get(ctx context.Context, userID string) (*TenantDB, error) {
 	conn, err := p.db.Conn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquire conn: %w", err)
@@ -53,6 +53,8 @@ func (p *TenantPool) Get(userID string) (*TenantDB, error) {
 
 // Close resets the tenant variable and returns the connection to the pool.
 // Safe to call multiple times (sql.Conn.Close is idempotent).
+// Must not use the request context: cleanup must always run, even when the
+// request is already canceled.
 func (t *TenantDB) Close() error {
 	if t.Conn == nil {
 		return nil
@@ -66,23 +68,24 @@ func (t *TenantDB) Close() error {
 }
 
 // sql.Conn only exposes *Context methods; re-add the database/sql-style
-// names the service code already uses.
+// names the service code already uses, now taking the request context so a
+// canceled HTTP request aborts in-flight DB work (M-10).
 
-func (t *TenantDB) Query(query string, args ...any) (*sql.Rows, error) {
-	return t.Conn.QueryContext(context.Background(), query, args...)
+func (t *TenantDB) Query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return t.Conn.QueryContext(ctx, query, args...)
 }
 
-func (t *TenantDB) QueryRow(query string, args ...any) *sql.Row {
-	return t.Conn.QueryRowContext(context.Background(), query, args...)
+func (t *TenantDB) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	return t.Conn.QueryRowContext(ctx, query, args...)
 }
 
-func (t *TenantDB) Exec(query string, args ...any) (sql.Result, error) {
-	return t.Conn.ExecContext(context.Background(), query, args...)
+func (t *TenantDB) Exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return t.Conn.ExecContext(ctx, query, args...)
 }
 
 // Begin starts a transaction. The tenant variable set on the connection
 // stays visible inside the transaction (same session), so RLS keeps
 // applying to every statement in it.
-func (t *TenantDB) Begin() (*sql.Tx, error) {
-	return t.Conn.BeginTx(context.Background(), nil)
+func (t *TenantDB) Begin(ctx context.Context) (*sql.Tx, error) {
+	return t.Conn.BeginTx(ctx, nil)
 }

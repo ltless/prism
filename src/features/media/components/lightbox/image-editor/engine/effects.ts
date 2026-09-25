@@ -173,11 +173,7 @@ export function applyMedianFilter(radius: number, imageData: ImageData): ImageDa
     }
   }
   
-  // Copy result back
-  for (let i = 0; i < data.length; i++) {
-    data[i] = result[i];
-  }
-  
+  data.set(result);
   return imageData;
 }
 
@@ -226,7 +222,8 @@ export function applyMotionBlur(
       }
     }
   }
-  
+
+  data.set(result);
   return imageData;
 }
 

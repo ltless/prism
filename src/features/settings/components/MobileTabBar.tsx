@@ -1,44 +1,43 @@
 "use client";
 
-import { User, Sparkle, Shield, HardDrive, Info } from "@phosphor-icons/react";
+import { User, Shield, HardDrive, Info } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 
-const iconMap = {
- User,
- Sparkle,
- Shield,
- HardDrive,
- Info,
-};
+const iconMap = { User, Shield, HardDrive, Info };
 
 interface MobileTabBarProps {
- tabs: { id: string; label: string; icon: keyof typeof iconMap }[];
- activeTab: string;
- onTabChange: (tab: string) => void;
+  tabs: { id: string; label: string; icon: keyof typeof iconMap }[];
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 }
 
 export function MobileTabBar({ tabs, activeTab, onTabChange }: MobileTabBarProps) {
- return (
-  <div className="md:hidden flex items-center justify-around px-2 py-2 border-t border-main-border/50 bg-surface-bg shrink-0" aria-label="Settings sections">
- {tabs.map((tab) => {
- const Icon = iconMap[tab.icon];
- return (
- <button
- key={tab.id}
- type="button"
- onClick={() => onTabChange(tab.id)}
- className={cn(
- "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors duration-150 cursor-pointer",
- activeTab === tab.id
- ? "text-primary"
- : "text-muted-text hover:text-main-text"
- )}
- >
- <Icon size={16} weight={activeTab === tab.id ? "fill" : "light"} />
- <span className="text-[11px] font-medium">{tab.label === "AI & Intelligence" ? "AI" : tab.label}</span>
- </button>
- );
- })}
- </div>
- );
+  return (
+    <div
+      className="flex shrink-0 items-center gap-1 px-3 pb-3 pt-1 md:hidden"
+      aria-label="Settings sections"
+    >
+      <div className="flex w-full items-center gap-1 rounded-full bg-black/[0.04] p-1 ring-1 ring-black/5 dark:bg-white/[0.05] dark:ring-white/10">
+        {tabs.map((tab) => {
+          const Icon = iconMap[tab.icon];
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-0.5 rounded-full py-2 text-[10px] tracking-wide cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                active ? "bg-main-text text-app-bg" : "text-muted-text",
+              )}
+            >
+              <Icon size={15} weight="light" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

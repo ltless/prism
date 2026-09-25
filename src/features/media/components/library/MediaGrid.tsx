@@ -7,15 +7,15 @@ import { MediaItem, Folder } from "../../types";
 import { cn } from "@/core/utils/cn";
 import { THUMB_URL, setDragSelection } from "../../utils/dragGhost";
 
-// Matches MEDIA_GRID_CLASS breakpoints: cols-2 / md:3 / lg:5 / xl:6 / 2xl:7
-export const MEDIA_GRID_CLASS = "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2";
+// Matches MEDIA_GRID_CLASS breakpoints: cols-2 / md:3 / lg:4 / xl:5 / 2xl:6
+export const MEDIA_GRID_CLASS = "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4";
 const COL_QUERIES: [string, number][] = [
- ["(min-width: 1536px)", 7],
- ["(min-width: 1280px)", 6],
- ["(min-width: 1024px)", 5],
+ ["(min-width: 1536px)", 6],
+ ["(min-width: 1280px)", 5],
+ ["(min-width: 1024px)", 4],
  ["(min-width: 768px)", 3],
 ];
-const GAP = 8;
+const GAP = 16;
 
 function useColumnCount(): number {
   const [cols, setCols] = useState(2);
@@ -77,7 +77,7 @@ const MediaCell = memo(function MediaCell({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       data-media-id={item.id}
-      className="relative group"
+      className="no-press-scale relative"
     >
       <MediaCard
         item={item}
@@ -117,7 +117,7 @@ export const MediaGrid = memo(function MediaGrid({
   // Track the shell (the actual row container) width, not the scroll element's
 // clientWidth: the scroll element includes its horizontal padding, which would
 // inflate the cell estimate and leave the vertical row gap wider than the
-// horizontal gap-2.
+// horizontal gap-4.
 useEffect(() => {
   const el = fallbackRef.current;
   if (!el) return;
@@ -142,7 +142,10 @@ useEffect(() => {
       // gap off GAP over many rows and make the grid look different from the
       // loading placeholder.
       const cellSize = (w - GAP * (cols - 1)) / cols;
-      return cellSize + GAP;
+      // Shell padding (p-1.5) around a 4/5 frame. ponytail: ratio is
+      // hardcoded to the card; change both together if the frame changes.
+      const frame = (cellSize - 12) * 1.25 + 12;
+      return frame + GAP;
     },
     overscan: 3,
   });

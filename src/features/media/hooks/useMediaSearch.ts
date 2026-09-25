@@ -6,6 +6,7 @@ interface SearchFilters {
  mimeType?: string | null;
  dateFrom?: string | null;
  dateTo?: string | null;
+ mode?: "name" | "describe" | null;
 }
 
 export function useMediaSearch(q: string | null, activeFolderId: string | null, filters?: SearchFilters) {

@@ -78,8 +78,8 @@ CREATE TABLE IF NOT EXISTS folders (
     updated_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
     folder_type TEXT NOT NULL DEFAULT 'manual',
     filter_query TEXT,
-    FOREIGN KEY (parent_id) REFERENCES folders(id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    -- parent_id FK is added below as a tenant-aware composite constraint
 );
 
 CREATE TABLE IF NOT EXISTS media (
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS media (
     duration INTEGER,
     transcode_status TEXT,
     is_vault BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (folder_id) REFERENCES folders(id),
+    -- folder_id FK is added below as a tenant-aware composite constraint
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS media_tags (
     tag TEXT NOT NULL,
     score REAL NOT NULL,
     category TEXT NOT NULL,
-    FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
+    -- media_id FK is added below as a tenant-aware composite constraint
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -156,11 +156,50 @@ CREATE TABLE IF NOT EXISTS transcode_queue (
     started_at INTEGER,
     finished_at INTEGER,
     error TEXT,
-    FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
+    -- media_id FK is added below as a tenant-aware composite constraint
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_transcode_queue_user_id ON transcode_queue (user_id);
+
+-- ===== TENANT-AWARE COMPOSITE FKs (H-04) =====
+-- A plain FK (media.folder_id -> folders.id) allows a child row to reference
+-- a parent owned by a DIFFERENT user. RLS stops cross-tenant reads/writes on
+-- rows, but not the reference itself. These composite constraints make
+-- same-user ownership a database invariant: (child.parent_id, child.user_id)
+-- must exist in parent(id, user_id).
+-- FK checks bypass RLS by design, so validation works under FORCE RLS.
+-- If this block fails on an existing deployment, cross-tenant rows exist
+-- and must be cleaned up before the server will start (fail closed).
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_id_user ON folders (id, user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_media_id_user ON media (id, user_id);
+
+DO $$
+BEGIN
+    -- legacy single-column FKs from the original CREATE TABLE statements
+    ALTER TABLE folders DROP CONSTRAINT IF EXISTS folders_parent_id_fkey;
+    ALTER TABLE media DROP CONSTRAINT IF EXISTS media_folder_id_fkey;
+    ALTER TABLE media_tags DROP CONSTRAINT IF EXISTS media_tags_media_id_fkey;
+    ALTER TABLE transcode_queue DROP CONSTRAINT IF EXISTS transcode_queue_media_id_fkey;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'folders_parent_user_fkey') THEN
+        ALTER TABLE folders ADD CONSTRAINT folders_parent_user_fkey
+            FOREIGN KEY (parent_id, user_id) REFERENCES folders(id, user_id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'media_folder_user_fkey') THEN
+        ALTER TABLE media ADD CONSTRAINT media_folder_user_fkey
+            FOREIGN KEY (folder_id, user_id) REFERENCES folders(id, user_id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'media_tags_media_user_fkey') THEN
+        ALTER TABLE media_tags ADD CONSTRAINT media_tags_media_user_fkey
+            FOREIGN KEY (media_id, user_id) REFERENCES media(id, user_id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'transcode_queue_media_user_fkey') THEN
+        ALTER TABLE transcode_queue ADD CONSTRAINT transcode_queue_media_user_fkey
+            FOREIGN KEY (media_id, user_id) REFERENCES media(id, user_id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- ===== ROW-LEVEL SECURITY (defense-in-depth tenant isolation) =====
 -- App queries still filter WHERE user_id = $1, but RLS enforces the boundary

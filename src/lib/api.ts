@@ -38,6 +38,7 @@ export async function mirrorVaultCookie(setCookie: string | null): Promise<void>
   }
   cookieStore.set(VAULT_TOKEN_COOKIE, value, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: VAULT_TOKEN_TTL_SECONDS,

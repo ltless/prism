@@ -2,8 +2,8 @@
 
 import { cn } from "@/core/utils/cn";
 import { formatBytes } from "@/core/utils/format";
-import { SectionCard } from "@/shared/components/SectionCard";
-import { ChartPieSlice, Image as ImageIcon, Spinner, Video } from "@phosphor-icons/react";
+import { SettingsGroup } from "../SettingsGroup";
+import { Image as ImageIcon, Video } from "@phosphor-icons/react";
 
 export interface StorageData {
   usedBytes: number;
@@ -25,50 +25,41 @@ export function UsageOverviewCard({ data, isLoading }: { data: StorageData | nul
   const percentage = hasLimit ? Math.min(100, (data!.usedBytes / data!.limitBytes!) * 100) : 0;
 
   return (
-    <SectionCard icon={ChartPieSlice} title="Disk Usage Overview" bodyClassName="flex flex-col gap-5">
+    <SettingsGroup title="Usage" description={data && !hasLimit ? "No limit on this account." : undefined}>
       {isLoading ? <LoadingBlock /> : (
         <>
           <UsageSummary data={data} hasLimit={hasLimit} percentage={percentage} />
           {data && <BreakdownRow data={data} />}
         </>
       )}
-    </SectionCard>
+    </SettingsGroup>
   );
 }
 
 function LoadingBlock() {
   return (
-    <div className="flex items-center justify-center py-6">
-      <Spinner size={20} className="animate-spin text-muted-text" weight="light" />
+    <div className="flex flex-col gap-3 px-5 py-5" aria-busy="true" aria-label="Loading storage">
+      <div className="h-7 w-24 animate-pulse rounded-full bg-surface-bg" />
+      <div className="h-1.5 w-full animate-pulse rounded-full bg-surface-bg" />
     </div>
   );
 }
 
 function UsageSummary({ data, hasLimit, percentage }: { data: StorageData | null; hasLimit: boolean; percentage: number }) {
-  const label = data && !hasLimit ? "0.0%" : hasLimit ? `${percentage.toFixed(1)}%` : "—%";
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-end">
-        <div className="space-y-0.5">
-          <p className="text-xl font-bold text-main-text tracking-tight">
-            {data ? formatBytes(data.usedBytes) : "— GB"}
-            {hasLimit && data && (
-              <span className="text-[11px] text-muted-text font-normal"> / {formatBytes(data.limitBytes!)} used</span>
-            )}
-          </p>
-          <p className="text-xs text-muted-text">
-            {data ? (data.limitBytes === null ? "Unlimited storage enabled" : `${formatBytes(data.remainingBytes ?? 0)} remaining`) : ""}
-          </p>
-        </div>
-        <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-bold tracking-tight">
-          {label}
-        </span>
+    <div className="flex flex-col gap-3 px-5 py-5">
+      <div className="flex items-baseline justify-between">
+        <p className="text-[28px] font-medium tracking-tight text-main-text tabular-nums">
+          {data ? formatBytes(data.usedBytes) : "—"}
+        </p>
+        <p className="text-[12px] text-muted-text">
+          {hasLimit && data ? `${formatBytes(data.remainingBytes ?? 0)} left` : data ? "Unlimited" : ""}
+        </p>
       </div>
-
       {hasLimit && data && (
-        <div className="h-2.5 w-full bg-app-bg rounded-full overflow-hidden border border-main-border/30 p-[1px]">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-bg">
           <div
-            className={cn("h-full rounded-full transition-[width] duration-700 bg-gradient-to-r", barColor(percentage))}
+            className={cn("h-full rounded-full bg-gradient-to-r", barColor(percentage))}
             style={{ width: `${Math.max(1.5, percentage)}%` }}
           />
         </div>
@@ -79,25 +70,20 @@ function UsageSummary({ data, hasLimit, percentage }: { data: StorageData | null
 
 function BreakdownRow({ data }: { data: StorageData }) {
   return (
-    <div className="grid grid-cols-2 gap-4 pt-3 border-t border-main-border/30">
-      <div className="p-3.5 rounded-xl border border-main-border/40 bg-app-bg/40 hover:bg-app-bg/60 transition-colors flex items-center gap-3">
-        <div className="p-2.5 bg-blue-500/10 text-blue-600 rounded-lg shrink-0">
-          <ImageIcon size={18} weight="light" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-text uppercase font-semibold tracking-wider">Images</p>
-          <h5 className="text-sm font-bold text-main-text truncate">{formatBytes(data.imageBytes)}</h5>
-        </div>
-      </div>
+    <div className="grid grid-cols-2 border-t border-main-border">
+      <Stat icon={ImageIcon} label="Images" value={formatBytes(data.imageBytes)} />
+      <Stat icon={Video} label="Videos" value={formatBytes(data.videoBytes)} border />
+    </div>
+  );
+}
 
-      <div className="p-3.5 rounded-xl border border-main-border/40 bg-app-bg/40 hover:bg-app-bg/60 transition-colors flex items-center gap-3">
-        <div className="p-2.5 bg-purple-500/10 text-purple-600 rounded-lg shrink-0">
-          <Video size={18} weight="light" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-text uppercase font-semibold tracking-wider">Videos</p>
-          <h5 className="text-sm font-bold text-main-text truncate">{formatBytes(data.videoBytes)}</h5>
-        </div>
+function Stat({ icon: Icon, label, value, border }: { icon: typeof ImageIcon; label: string; value: string; border?: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-2.5 px-5 py-3.5", border && "border-l border-main-border")}>
+      <Icon size={15} weight="light" className="text-muted-text" />
+      <div>
+        <p className="text-[12px] text-muted-text">{label}</p>
+        <p className="text-[14px] tabular-nums text-main-text">{value}</p>
       </div>
     </div>
   );

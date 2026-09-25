@@ -38,7 +38,9 @@ type RegisterRequest struct {
 }
 
 type AuthResponse struct {
-	Token    string `json:"token"`
+	// Token is consumed by the handler to set the HttpOnly auth cookie and
+	// must not reach the browser JSON body (js-readable JWTs widen exposure).
+	Token    string `json:"-"`
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`

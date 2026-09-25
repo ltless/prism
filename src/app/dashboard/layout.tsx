@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Sidebar } from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/sidebar-context";
 import { MainContentWrapper } from "@/components/MainContentWrapper";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { goFetch } from "@/lib/api";
@@ -37,6 +38,9 @@ export default async function DashboardLayout({
             {children}
           </Suspense>
         </MainContentWrapper>
+        <Suspense fallback={null}>
+          <MobileBottomNav folders={allFolders} />
+        </Suspense>
       </div>
     </SidebarProvider>
   );

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/ltless/prism/internal/audit"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,7 +18,7 @@ func setupConfigHandler(t *testing.T) (*echo.Echo, *Handler, string) {
 	sqlDB := dbtest.NewDB(t)
 	gdb := &db.GlobalDB{DB: sqlDB}
 	svc := NewService(gdb)
-	h := NewHandler(svc)
+	h := NewHandler(svc, audit.NewRecorder(nil))
 
 	jwt := auth.NewJWTManager("test-secret")
 	token, _ := jwt.Generate("test-user", "testuser", "admin")

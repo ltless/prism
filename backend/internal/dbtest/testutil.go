@@ -73,13 +73,7 @@ func NewDB(t *testing.T) *sql.DB {
 	if err := db.Ping(); err != nil {
 		t.Fatalf("ping test db: %v", err)
 	}
-	var superuser, bypassRLS bool
-	if err := db.QueryRow("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user").Scan(&superuser, &bypassRLS); err != nil {
-		t.Fatalf("check test db role: %v", err)
-	}
-	if superuser || bypassRLS {
-		t.Fatalf("test db role %q bypasses RLS; set PRISM_TEST_DB to a non-superuser, non-bypass role", currentUser(db, t))
-	}
+	db = ensureRLSRole(t, db)
 
 	if err := runMigrations(db); err != nil {
 		t.Fatalf("run migrations: %v", err)
@@ -95,6 +89,78 @@ func NewDB(t *testing.T) *sql.DB {
 	})
 
 	return db
+}
+
+// appRole is the login the tests actually run as. The owner role (prism) is
+// superuser and bypasses RLS, which would make tenant-isolation tests lie.
+const appRole = "prism_app"
+
+const appPassword = "prism_app_test"
+
+func ensureRLSRole(t *testing.T, owner *sql.DB) *sql.DB {
+	t.Helper()
+	var superuser, bypassRLS bool
+	if err := owner.QueryRow("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user").Scan(&superuser, &bypassRLS); err != nil {
+		t.Fatalf("check test db role: %v", err)
+	}
+	if !superuser && !bypassRLS {
+		return owner
+	}
+
+	if _, err := owner.Exec(`DO $$ BEGIN
+		IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '` + appRole + `') THEN
+			CREATE ROLE ` + appRole + ` LOGIN;
+		END IF;
+	END $$`); err != nil {
+		t.Fatalf("create %s: %v", appRole, err)
+	}
+	// Always reset: the role may already exist with a different password.
+	if _, err := owner.Exec(`ALTER ROLE ` + appRole + ` WITH LOGIN PASSWORD '` + appPassword + `' NOSUPERUSER NOBYPASSRLS`); err != nil {
+		t.Fatalf("alter %s: %v", appRole, err)
+	}
+	if _, err := owner.Exec(`GRANT USAGE, CREATE ON SCHEMA public TO ` + appRole); err != nil {
+		t.Fatalf("grant schema: %v", err)
+	}
+	// Existing objects stay owned by the superuser. Without this, prism_app
+	// cannot TRUNCATE or read them, and the table owner would still bypass RLS.
+	if _, err := owner.Exec(`
+		GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ` + appRole + `;
+		GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ` + appRole + `;
+		DO $$ DECLARE r record;
+		BEGIN
+			FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+				EXECUTE format('ALTER TABLE public.%I OWNER TO ` + appRole + `', r.tablename);
+			END LOOP;
+			FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+				EXECUTE format('ALTER SEQUENCE public.%I OWNER TO ` + appRole + `', r.sequencename);
+			END LOOP;
+		END $$`); err != nil {
+		t.Fatalf("hand ownership to %s: %v", appRole, err)
+	}
+	owner.Close()
+
+	appURL := swapUser(testDBURL, appRole, appPassword)
+	app, err := sql.Open("pgx", appURL)
+	if err != nil {
+		t.Fatalf("open app db: %v", err)
+	}
+	if err := app.Ping(); err != nil {
+		t.Fatalf("ping app db: %v", err)
+	}
+	return app
+}
+
+// swapUser rewrites the userinfo of a postgres URL. Query params are kept.
+func swapUser(rawURL, user, password string) string {
+	at := strings.LastIndex(rawURL, "@")
+	if at < 0 {
+		return rawURL
+	}
+	scheme := strings.Index(rawURL, "://")
+	if scheme < 0 {
+		return rawURL
+	}
+	return rawURL[:scheme+3] + user + ":" + password + rawURL[at:]
 }
 
 func currentUser(db *sql.DB, t *testing.T) string {

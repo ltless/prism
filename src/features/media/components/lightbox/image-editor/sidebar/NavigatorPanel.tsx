@@ -18,7 +18,7 @@ interface NavigatorPanelProps {
 
 export function NavigatorPanel({ mediaUrl, pan, canvasContainerSize, imageWidth, imageHeight, zoom, onZoomChange, onClose }: NavigatorPanelProps) {
   return (
-    <div className="border-b border-main-border">
+    <div>
       <PanelHeader icon={Compass} label="Navigator" onClose={onClose} />
       <div className="px-3 pb-3 pt-2 space-y-3">
         <MiniPreview

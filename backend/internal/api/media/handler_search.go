@@ -20,7 +20,7 @@ func (h *Handler) BatchTranscodeStatus(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
-	statuses, err := h.svc.BatchTranscodeStatus(claims.UserID, body.IDs)
+	statuses, err := h.svc.BatchTranscodeStatus(c.Request().Context(), claims.UserID, body.IDs)
 	if err != nil {
 		log.Printf("BatchTranscodeStatus error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -41,6 +41,9 @@ func (h *Handler) Search(c echo.Context) error {
 		Page:         parseInt(c.QueryParam("page")),
 		Limit:        parseInt(c.QueryParam("limit")),
 		IncludeVault: h.vaultMgr.Unlocked(c, claims.UserID),
+		// "name" matches the file title only. Anything else (the default)
+		// also matches AI tags stored in metadata.
+		NameOnly: c.QueryParam("mode") == "name",
 	}
 
 	folderID := c.QueryParam("folder_id")
@@ -67,7 +70,7 @@ func (h *Handler) Search(c echo.Context) error {
 		}
 	}
 
-	resp, err := h.svc.Search(claims.UserID, params)
+	resp, err := h.svc.Search(c.Request().Context(), claims.UserID, params)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -80,7 +83,7 @@ func (h *Handler) CountTagged(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	res, err := h.svc.CountTagged(claims.UserID)
+	res, err := h.svc.CountTagged(c.Request().Context(), claims.UserID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -92,7 +95,7 @@ func (h *Handler) CountScored(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	res, err := h.svc.CountScored(claims.UserID)
+	res, err := h.svc.CountScored(c.Request().Context(), claims.UserID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -138,7 +141,7 @@ func (h *Handler) Dashboard(c echo.Context) error {
 		params.MinScore = minScore
 	}
 
-	resp, err := h.svc.GetDashboard(claims.UserID, params)
+	resp, err := h.svc.GetDashboard(c.Request().Context(), claims.UserID, params)
 	if err != nil {
 		log.Printf("Dashboard error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -152,7 +155,7 @@ func (h *Handler) Duplicates(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := h.svc.GetDuplicates(claims.UserID, h.vaultMgr.Unlocked(c, claims.UserID))
+	resp, err := h.svc.GetDuplicates(c.Request().Context(), claims.UserID, h.vaultMgr.Unlocked(c, claims.UserID))
 	if err != nil {
 		log.Printf("Duplicates error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")

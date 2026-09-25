@@ -61,4 +61,10 @@ describe("searchMediaAction", () => {
     expect(result).toEqual({ success: true, items: [], total: 0, query: "cat", mode: "keyword" });
     expect(mockedGoFetch).toHaveBeenCalledWith("/api/v1/media/search?q=cat",);
   });
+
+  it("sends mode=name when searching by file name", async () => {
+    mockedGoFetch.mockResolvedValueOnce({ items: [], total: 0 });
+    await searchMediaAction("cat", null, { mode: "name" });
+    expect(mockedGoFetch).toHaveBeenCalledWith("/api/v1/media/search?q=cat&mode=name",);
+  });
 });

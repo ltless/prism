@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math"
@@ -40,7 +41,7 @@ func NewService(pool *db.TenantPool) *Service {
 	return &Service{pool: pool}
 }
 
-func (s *Service) Stats(userID string) (*SystemStats, error) {
+func (s *Service) Stats(ctx context.Context, userID string) (*SystemStats, error) {
 	cpuUsage := 0
 	loadData, err := os.ReadFile("/proc/loadavg")
 	if err == nil {
@@ -92,8 +93,8 @@ func (s *Service) Stats(userID string) (*SystemStats, error) {
 	}, nil
 }
 
-func (s *Service) Logs(userID, level string, page, limit int) (*LogResponse, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) Logs(ctx context.Context, userID, level string, page, limit int) (*LogResponse, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
@@ -113,7 +114,7 @@ func (s *Service) Logs(userID, level string, page, limit int) (*LogResponse, err
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM error_logs" + whereClause
-	if err := tdb.QueryRow(countQuery, args...).Scan(&total); err != nil {
+	if err := tdb.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		total = 0
 	}
 
@@ -127,7 +128,7 @@ func (s *Service) Logs(userID, level string, page, limit int) (*LogResponse, err
 	queryArgs := append(args, limit, offset)
 
 	query := fmt.Sprintf("SELECT id, level, message, meta, source, timestamp FROM error_logs%s ORDER BY id DESC LIMIT $%d OFFSET $%d", whereClause, argIdx, argIdx+1)
-	rows, err := tdb.Query(query, queryArgs...)
+	rows, err := tdb.Query(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("query logs: %w", err)
 	}
@@ -156,13 +157,13 @@ func (s *Service) Logs(userID, level string, page, limit int) (*LogResponse, err
 	return &LogResponse{Items: items, Total: total}, nil
 }
 
-func (s *Service) CreateLogEntry(userID, level, message string, source, meta *string, timestamp string) error {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) CreateLogEntry(ctx context.Context, userID, level, message string, source, meta *string, timestamp string) error {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get tenant db: %w", err)
 	}
 	defer tdb.Close()
-	_, err = tdb.Exec(
+	_, err = tdb.Exec(ctx,
 		"INSERT INTO error_logs (user_id, level, message, meta, source, timestamp) VALUES ($1, $2, $3, $4, $5, $6)",
 		userID, level, message, meta, source, timestamp,
 	)

@@ -56,7 +56,7 @@ export function UploadStatusToast({ isUploading, uploadProgress, uploadResult, w
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: 80, opacity: 0 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed bottom-4 right-4 md:bottom-5 md:right-5 z-toast w-[calc(100vw-2rem)] md:w-72 flex flex-col items-end gap-1.5"
+        className="fixed bottom-[calc(var(--mobile-nav-h)+1rem)] right-4 md:bottom-5 md:right-5 z-toast w-[calc(100vw-2rem)] md:w-72 flex flex-col items-end gap-1.5"
       >
         {waitingCount > 0 && (
           <m.div

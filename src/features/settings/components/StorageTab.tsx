@@ -41,12 +41,7 @@ export function StorageTab() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6 py-4">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-main-text">Storage & Quota</h3>
-        <p className="text-[11px] text-muted-text">Monitor your disk usage, clean temporary cache, and configure storage quotas.</p>
-      </div>
-
+    <div className="flex flex-col gap-8">
       <UsageOverviewCard data={data} isLoading={isLoading} />
 
       {isAdmin && (

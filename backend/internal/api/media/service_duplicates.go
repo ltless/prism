@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/ltless/prism/internal/db"
@@ -33,8 +34,8 @@ type embeddedItem struct {
 	embedding []float64
 }
 
-func (s *Service) GetDuplicates(userID string, includeVault bool) (*DuplicatesResponse, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) GetDuplicates(ctx context.Context, userID string, includeVault bool) (*DuplicatesResponse, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
@@ -44,12 +45,12 @@ func (s *Service) GetDuplicates(userID string, includeVault bool) (*DuplicatesRe
 		folder_id, is_favorite, is_trash, is_vault, captured_at, updated_at, created_at,
 		metadata, duration, transcode_status`
 
-	exactGroups, exactHashes, err := s.queryExactDuplicates(tdb, userID, selectCols, includeVault)
+	exactGroups, exactHashes, err := s.queryExactDuplicates(ctx, tdb, userID, selectCols, includeVault)
 	if err != nil {
 		return nil, err
 	}
 
-	withEmb, err := s.queryEmbeddedItems(tdb, userID, selectCols, includeVault)
+	withEmb, err := s.queryEmbeddedItems(ctx, tdb, userID, selectCols, includeVault)
 	if err != nil {
 		return nil, err
 	}
@@ -63,12 +64,12 @@ func (s *Service) GetDuplicates(userID string, includeVault bool) (*DuplicatesRe
 }
 
 // queryExactDuplicates returns groups of media sharing a content hash.
-func (s *Service) queryExactDuplicates(tdb *db.TenantDB, userID, selectCols string, includeVault bool) ([]DuplicateGroup, map[string]bool, error) {
+func (s *Service) queryExactDuplicates(ctx context.Context, tdb *db.TenantDB, userID, selectCols string, includeVault bool) ([]DuplicateGroup, map[string]bool, error) {
 	exactVault := " AND is_vault = FALSE "
 	if includeVault {
 		exactVault = " "
 	}
-	rows, err := tdb.Query(fmt.Sprintf(
+	rows, err := tdb.Query(ctx, fmt.Sprintf(
 		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE %sAND hash IN (
 			SELECT hash FROM media WHERE user_id = $1 AND is_trash = FALSE %sGROUP BY hash HAVING COUNT(*) > 1
 		) ORDER BY hash ASC, created_at DESC, id DESC LIMIT %d`, selectCols, exactVault, exactVault, maxExactDuplicateRows), userID)
@@ -110,12 +111,12 @@ func (s *Service) queryExactDuplicates(tdb *db.TenantDB, userID, selectCols stri
 // queryEmbeddedItems loads non-trash media carrying an AI embedding, capped
 // at maxEmbeddedItems rows — near-duplicate clustering is O(n^2) over this
 // slice, so the load must be bounded no matter how large the library is.
-func (s *Service) queryEmbeddedItems(tdb *db.TenantDB, userID, selectCols string, includeVault bool) ([]embeddedItem, error) {
+func (s *Service) queryEmbeddedItems(ctx context.Context, tdb *db.TenantDB, userID, selectCols string, includeVault bool) ([]embeddedItem, error) {
 	vaultClause := " AND is_vault = FALSE"
 	if includeVault {
 		vaultClause = ""
 	}
-	allRows, err := tdb.Query(fmt.Sprintf(
+	allRows, err := tdb.Query(ctx, fmt.Sprintf(
 		`SELECT %s FROM media WHERE user_id = $1 AND is_trash = FALSE%s AND metadata IS NOT NULL
 		ORDER BY created_at DESC, id DESC LIMIT %d`, selectCols, vaultClause, maxEmbeddedItems), userID)
 	if err != nil {

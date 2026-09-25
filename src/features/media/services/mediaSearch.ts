@@ -40,11 +40,12 @@ function parseMetadata(item: GoSearchResponse["items"][number]) {
 export async function searchMediaAction(
   query: string,
   folderId?: string | null,
-  filters?: { mimeType?: string | null; dateFrom?: string | null; dateTo?: string | null },
+  filters?: { mimeType?: string | null; dateFrom?: string | null; dateTo?: string | null; mode?: "name" | "describe" | null },
 ) {
   return safeAction("searchMedia", async () => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
+    if (filters?.mode === "name") params.set("mode", "name");
     if (folderId) params.set("folder_id", folderId);
     if (filters?.mimeType) params.set("mime_type", filters.mimeType);
     if (filters?.dateFrom) {

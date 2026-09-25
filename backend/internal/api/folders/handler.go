@@ -22,7 +22,7 @@ func (h *Handler) List(c echo.Context) error {
 		return err
 	}
 
-	resp, err := h.svc.List(claims.UserID)
+	resp, err := h.svc.List(c.Request().Context(), claims.UserID)
 	if err != nil {
 		log.Printf("FolderList error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -60,7 +60,7 @@ func (h *Handler) Create(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "folder_type must be 'regular' or 'smart'")
 	}
 
-	item, err := h.svc.Create(claims.UserID, body.Name, body.Color, body.FolderType, body.FilterQuery)
+	item, err := h.svc.Create(c.Request().Context(), claims.UserID, body.Name, body.Color, body.FolderType, body.FilterQuery)
 	if err != nil {
 		log.Printf("FolderCreate error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -91,7 +91,7 @@ func (h *Handler) Update(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "name must be 100 characters or less")
 	}
 
-	if err := h.svc.Update(claims.UserID, id, body.Name); err != nil {
+	if err := h.svc.Update(c.Request().Context(), claims.UserID, id, body.Name); err != nil {
 		log.Printf("FolderUpdate error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -107,7 +107,7 @@ func (h *Handler) Delete(c echo.Context) error {
 
 	id := c.Param("id")
 
-	if err := h.svc.Delete(claims.UserID, id); err != nil {
+	if err := h.svc.Delete(c.Request().Context(), claims.UserID, id); err != nil {
 		log.Printf("FolderDelete error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

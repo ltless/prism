@@ -38,7 +38,7 @@ func (h *Handler) List(c echo.Context) error {
 		}
 	}
 
-	resp, err := h.svc.List(claims.UserID, fID, favorites, trash, vault, dedup, search, page, limit)
+	resp, err := h.svc.List(c.Request().Context(), claims.UserID, fID, favorites, trash, vault, dedup, search, page, limit)
 	if err != nil {
 		log.Printf("MediaList error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -54,7 +54,7 @@ func (h *Handler) Get(c echo.Context) error {
 	}
 
 	id := c.Param("id")
-	item, err := h.svc.Get(claims.UserID, id)
+	item, err := h.svc.Get(c.Request().Context(), claims.UserID, id)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "media not found")
 	}
@@ -74,12 +74,13 @@ func (h *Handler) Delete(c echo.Context) error {
 	}
 
 	id := c.Param("id")
-	item, err := h.svc.Delete(claims.UserID, id)
+	item, err := h.svc.Delete(c.Request().Context(), claims.UserID, id)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "media not found")
 	}
 
 	h.storage.DeleteFile(claims.UserID, item.FilePath)
+	h.audit.Event(c.Request().Context(), claims.UserID, "delete_media", item.ID, true, c.RealIP(), "")
 
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
@@ -122,7 +123,7 @@ func (h *Handler) Update(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "no fields to update")
 	}
 
-	if err := h.svc.Update(claims.UserID, id, updates); err != nil {
+	if err := h.svc.Update(c.Request().Context(), claims.UserID, id, updates); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 

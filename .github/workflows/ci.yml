@@ -59,8 +59,66 @@ jobs:
       - name: Go test
         working-directory: backend
         run: go test -p 1 -count=1 ./...
+      - name: Go race (concurrency-sensitive packages)
+        working-directory: backend
+        run: go test -race -p 1 -count=1 ./internal/media/ ./internal/db/ ./internal/auth/ ./internal/middleware/ ./internal/vault/ ./internal/api/media/
       - run: pnpm test
       - run: pnpm build
         env:
           AUTH_SECRET: ci-build-placeholder-not-a-real-secret
           JWT_SECRET: ci-build-placeholder-not-a-real-secret
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prism
+          POSTGRES_PASSWORD: prism_ci_pw
+          POSTGRES_DB: prism
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Next.js server env
+      AUTH_SECRET: ci-e2e-not-a-real-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      JWT_SECRET: ci-e2e-not-a-real-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      GO_API_URL: http://localhost:8080
+      BACKEND_URL: http://localhost:8080
+      REGISTRATION_INVITE_CODE: e2e-invite-code
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+      - run: pnpm install --frozen-lockfile
+      - name: Write backend env (app DB + secrets)
+        run: |
+          printf 'DATABASE_URL=postgresql://prism:prism_ci_pw@localhost:5432/prism\nJWT_SECRET=ci-e2e-not-a-real-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nENCRYPTION_MASTER_KEY=%s\nREGISTRATION_INVITE_CODE=e2e-invite-code\nREQUIRE_INVITE=true\nSTORAGE_PATH=%s\n' "$(openssl rand -hex 32)" "${{ runner.temp }}/prism-storage" > backend/.env
+          printf 'AUTH_SECRET=ci-e2e-not-a-real-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nJWT_SECRET=ci-e2e-not-a-real-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n' > .env.local
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Build app (prod — rewrites bake BACKEND_URL at build time)
+        run: pnpm build
+      - name: Start app (prod: Go backend + next start)
+        run: |
+          pnpm start:be > /tmp/prism-be.log 2>&1 &
+          pnpm start > /tmp/prism-next.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/api/v1/health > /dev/null && curl -sf http://localhost:3000/login > /dev/null && exit 0
+            sleep 2
+          done
+          echo "app failed to start"; tail -50 /tmp/prism-be.log /tmp/prism-next.log; exit 1
+      - name: E2E (browser -> Next -> Go -> DB -> storage)
+        run: pnpm test:e2e

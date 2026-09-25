@@ -1,6 +1,6 @@
 "use client";
 
-import { Sun, Moon, Check, Spinner, ArrowLeft } from "@phosphor-icons/react";
+import { Sun, Moon, Check, Spinner, ArrowLeft, FloppyDisk } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffectiveSession } from "@/lib/auth/useEffectiveSession";
 import { m, AnimatePresence } from "motion/react";
@@ -38,22 +38,22 @@ function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, sa
       <button
         type="button"
         onClick={isOpen ? onClose : onTrigger}
-        className="h-8 px-2.5 text-xs font-medium text-muted-text hover:text-main-text hover:bg-surface-bg rounded-lg cursor-pointer"
+        className="h-8 px-2.5 text-[13px] text-white/60 hover:text-white hover:bg-white/8 rounded-full cursor-pointer"
       >
         {menu.label}
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 min-w-48 bg-panel-bg border border-main-border rounded-lg shadow-lg py-1 z-50">
+        <div className="absolute top-full left-0 mt-2 min-w-48 rounded-2xl bg-[#121214]/95 py-1.5 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-2xl z-50">
           {menu.items.map((item, i) =>
             item.separator ? (
-              <div key={i} className="h-px bg-main-border my-1 mx-2" />
+              <div key={i} className="h-px bg-white/8 my-1.5 mx-3" />
             ) : (
               <button
                 key={item.label}
                 type="button"
                 onClick={() => { onAction?.(item.label); onClose(); }}
                 disabled={isSaving && (item.label === "Save Copy" || item.label === "Overwrite")}
-                className="w-full px-3 py-1.5 flex items-center justify-between text-[11px] text-main-text hover:bg-surface-bg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 h-8 flex items-center justify-between text-[13px] text-white/85 hover:bg-white/8 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="flex items-center gap-2">
                   {item.checked !== undefined && (
@@ -66,7 +66,7 @@ function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, sa
                   )}
                   {item.label}
                 </span>
-                {item.shortcut && <span className="text-muted-text text-xs">{item.shortcut}</span>}
+                {item.shortcut && <span className="text-white/35 text-[11px] font-mono">{item.shortcut}</span>}
               </button>
             )
           )}
@@ -99,7 +99,7 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const ghostBtn = "w-8 h-8 flex items-center justify-center rounded-lg text-muted-text hover:text-main-text hover:bg-surface-bg transition-colors cursor-pointer";
+  const ghostBtn = "w-8 h-8 flex items-center justify-center rounded-full text-white/65 hover:text-white hover:bg-white/10 active:scale-[0.96] cursor-pointer";
 
   const menus: MenuGroup[] = [
     {
@@ -149,10 +149,10 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
 
   return (
     <>
-      <header className="w-full flex shrink-0 items-center justify-between gap-3 h-12 px-4 md:px-5 bg-app-bg/80 backdrop-blur-md">
+      <header className="w-full flex shrink-0 items-center justify-between gap-3 h-14 px-3 md:px-4 bg-[#070708]">
         <div className="flex items-center gap-1">
           <Link href="/dashboard" title="Back to dashboard" aria-label="Back to dashboard" className={ghostBtn}>
-            <ArrowLeft size={15} weight="light" />
+            <ArrowLeft size={15} weight="regular" />
           </Link>
 
           <nav className="flex items-center">
@@ -182,6 +182,30 @@ export function EditorTopBar({ onClose, onOpenLibrary, showRulers, onToggleRuler
         </div>
 
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onSaveCopy?.()}
+            disabled={isSaving}
+            className="h-8 px-3 flex items-center gap-1.5 rounded-full text-[12px] text-white/70 hover:text-white hover:bg-white/10 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+          >
+            {isSaving && savingMode === "copy" ? <Spinner size={13} className="animate-spin" /> : <FloppyDisk size={13} weight="regular" />}
+            Save copy
+          </button>
+          <button
+            type="button"
+            onClick={() => onOverwrite?.()}
+            disabled={isSaving}
+            className="h-8 pl-3.5 pr-1 flex items-center gap-2 rounded-full bg-white text-[#0c0c0e] text-[12px] font-medium cursor-pointer hover:bg-white/90 disabled:opacity-50 active:scale-[0.98]"
+          >
+            {isSaving && savingMode === "overwrite" ? <Spinner size={13} className="animate-spin" /> : null}
+            Save
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/8">
+              <FloppyDisk size={12} weight="light" />
+            </span>
+          </button>
+
+          <span aria-hidden className="mx-1 h-4 w-px bg-white/15" />
+
           <button
             type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

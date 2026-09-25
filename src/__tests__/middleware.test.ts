@@ -217,6 +217,14 @@ describe("CSP nonce in middleware", () => {
     expect(csp).not.toContain("'unsafe-eval'");
   });
 
+  it("limits connect-src to the same origin", () => {
+    const { header } = cspFor(
+      withNextUrl(makeRequest({ url: "http://localhost:3000/login" }), "/login")
+    );
+    expect(header).toContain("connect-src 'self'");
+    expect(header).not.toMatch(/connect-src[^;]*\bws:/);
+  });
+
   it("keeps style-src 'unsafe-inline' (separate, accepted tradeoff)", () => {
     const { header } = cspFor(
       withNextUrl(makeRequest({ url: "http://localhost:3000/login" }), "/login")

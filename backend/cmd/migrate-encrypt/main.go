@@ -17,7 +17,6 @@ import (
 // enforces encryption on serve; it is idempotent (already-encrypted files are
 // skipped), so it can safely be re-run or resumed after an interruption.
 //
-// Thumbnails are deliberately left plaintext (see §3 in enc.md).
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -43,8 +42,8 @@ func main() {
 	}
 }
 
-// migrate walks root and encrypts every plaintext file in place. Thumbnail
-// directories are skipped. Returns run statistics.
+// migrate walks root and encrypts every plaintext file in place, including
+// thumbnails. Returns run statistics.
 func migrate(root string, mk *mw.MasterKey) (files, encrypted, skipped, failed, bytesIn, bytesOut int64) {
 	start := time.Now()
 
@@ -53,9 +52,6 @@ func migrate(root string, mk *mw.MasterKey) (files, encrypted, skipped, failed, 
 			return err
 		}
 		if info.IsDir() {
-			if info.Name() == "thumbnails" {
-				return filepath.SkipDir
-			}
 			return nil
 		}
 

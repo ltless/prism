@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ltless/prism/internal/audit"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,7 +26,7 @@ func setupAuthHandler(t *testing.T) (*echo.Echo, *Handler) {
 
 	jwt := NewJWTManager("test-secret")
 	svc := NewService(db, jwt, "", false)
-	handler := NewHandler(svc, vault.NewManager("test-secret"))
+	handler := NewHandler(svc, vault.NewManager("test-secret"), audit.NewRecorder(nil))
 
 	e := echo.New()
 	return e, handler
@@ -52,15 +53,22 @@ func TestHandler_Login_Valid(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
+	// The raw JWT must not appear in the JSON body — the browser only gets
+	// the HttpOnly auth_token cookie.
+	if strings.Contains(rec.Body.String(), `"token"`) {
+		t.Fatalf("response body must not contain a token: %s", rec.Body.String())
+	}
 	var resp AuthResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
-	if resp.Token == "" {
-		t.Fatal("expected non-empty token")
-	}
 	if resp.Username != "testuser" {
 		t.Fatalf("expected 'testuser', got '%s'", resp.Username)
+	}
+
+	setCookie := rec.Header().Get("Set-Cookie")
+	if !strings.Contains(setCookie, "auth_token=") || !strings.Contains(setCookie, "HttpOnly") {
+		t.Fatalf("expected HttpOnly auth_token cookie, got: %q", setCookie)
 	}
 }
 
@@ -101,7 +109,7 @@ func TestHandler_Login_ShortPasswordAllowed(t *testing.T) {
 
 	jwt := NewJWTManager("test-secret")
 	svc := NewService(db, jwt, "", false)
-	handler := NewHandler(svc, vault.NewManager("test-secret"))
+	handler := NewHandler(svc, vault.NewManager("test-secret"), audit.NewRecorder(nil))
 	e := echo.New()
 
 	body := mustJSON(LoginRequest{Username: "shortpw", Password: "abc"})
@@ -174,8 +182,12 @@ func TestHandler_Register_Valid(t *testing.T) {
 	if resp.Username != "newuser" {
 		t.Fatalf("expected 'newuser', got '%s'", resp.Username)
 	}
-	if resp.Token == "" {
-		t.Fatal("expected non-empty token")
+	if strings.Contains(rec.Body.String(), `"token"`) {
+		t.Fatalf("response body must not contain a token: %s", rec.Body.String())
+	}
+	setCookie := rec.Header().Get("Set-Cookie")
+	if !strings.Contains(setCookie, "auth_token=") || !strings.Contains(setCookie, "HttpOnly") {
+		t.Fatalf("expected HttpOnly auth_token cookie, got: %q", setCookie)
 	}
 }
 

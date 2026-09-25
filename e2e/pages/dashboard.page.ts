@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import type { Page } from '@playwright/test';
 
 export class DashboardPage {
@@ -24,7 +25,16 @@ export class DashboardPage {
   }
 
   async uploadFile(filePath: string) {
-    await this.page.setInputFiles('input[type="file"]', filePath);
+    // Append a random tail to the fixture so every upload has a distinct
+    // hash — thumbnailing still works (JPEG decoders stop at the EOI
+    // marker), but Re-run uploads never dedup against each other.
+    const base = fs.readFileSync(filePath);
+    const unique = Buffer.concat([base, Buffer.from(String(Date.now() + Math.random()))]);
+    await this.page.setInputFiles('input[type="file"]', {
+      name: 'test-image.jpg',
+      mimeType: 'image/jpeg',
+      buffer: unique,
+    });
     await this.page.waitForTimeout(2000);
   }
 

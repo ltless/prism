@@ -28,6 +28,6 @@ test.describe('Folder management', () => {
 
     // Open folder
     await folder.openFolder(FOLDER_NAME);
-    expect(page.url()).toContain('folder');
+    expect(page.url()).toContain('f=');
   });
 });

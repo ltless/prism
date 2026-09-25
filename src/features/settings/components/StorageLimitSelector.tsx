@@ -40,7 +40,7 @@ export function StorageLimitSelector({ value, onChange, options = defaultOptions
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "h-14 flex flex-col items-center justify-center rounded-lg border transition-[color,background-color,border-color,box-shadow] cursor-pointer",
+              "h-12 flex flex-col items-center justify-center rounded-full border transition-[color,background-color,border-color] cursor-pointer",
               value === opt.value
                 ? "bg-primary border-primary text-primary-foreground shadow-sm"
                 : "bg-surface-bg border-main-border/40 text-muted-text hover:border-primary/30"
@@ -64,7 +64,7 @@ export function StorageLimitSelector({ value, onChange, options = defaultOptions
           }}
           placeholder="Custom GB"
           aria-label="Custom storage limit in GB"
-          className="flex-1 h-10 px-3 bg-surface-bg border border-main-border/40 rounded-lg text-xs text-main-text placeholder:text-muted-text/50 outline-none focus:border-primary/50 transition-colors"
+          className="flex-1 h-10 px-4 bg-surface-bg border border-main-border/40 rounded-full text-[13px] text-main-text placeholder:text-muted-text/50 outline-none focus:border-primary/50 transition-colors"
         />
         <span className="text-xs text-muted-text font-medium shrink-0">GB</span>
       </div>

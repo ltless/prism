@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Play, Spinner, Warning, Star, Trash, Image as ImageIcon, FileVideo } from "@phosphor-icons/react";
-import { m, AnimatePresence } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 export function MediaCardThumb({
@@ -46,8 +45,8 @@ export function MediaCardThumb({
         onError={() => setImgError(true)}
         onLoad={() => setImgLoaded(true)}
         className={cn(
-          "object-cover select-none pointer-events-none transition-[opacity,filter,transform] duration-500 ease-out-expo group-hover/card:scale-[1.03]",
-          imgLoaded ? "opacity-100 blur-0" : "opacity-0 blur-sm",
+          "pointer-events-none select-none object-cover transition-opacity duration-200",
+          imgLoaded ? "opacity-100" : "opacity-0",
           isDeleting ? "opacity-50 grayscale blur-sm" : isSelected ? "opacity-80" : "",
           isCut ? "opacity-40 grayscale" : ""
         )}
@@ -70,13 +69,13 @@ export function VideoBadges({ isVideo, duration, transcodeStatus }: {
   return (
     <>
       <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-        <div className="w-10 h-10 rounded-full bg-black/50 border border-white/20 flex items-center justify-center">
-          <Play size={16} weight="fill" className="text-white ml-0.5" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-black/45 ring-1 ring-white/30">
+          <Play size={15} weight="fill" className="ml-0.5 text-white" />
         </div>
       </div>
 
       {duration && (
-        <div className="absolute bottom-2 left-2 z-10 px-1.5 py-0.5 rounded-lg bg-black/70 text-[11px] text-white tracking-wider tabular-nums">
+        <div className="absolute bottom-3 left-3 z-10 rounded-full bg-black/55 px-2 py-0.5 text-[10px] tracking-[0.08em] text-white tabular-nums">
           {duration}
         </div>
       )}
@@ -109,25 +108,22 @@ export function CardHoverOverlay({
   onToggleFavorite: (e: React.MouseEvent) => void;
 }) {
   return (
-    <AnimatePresence>
-      {visible && (
-        <m.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent flex items-end p-2.5"
-        >
-          <div className="flex flex-col gap-0.5 w-full">
-            <p className="text-xs text-white font-semibold truncate antialiased">{title}</p>
+    <div
+      className={cn(
+        "absolute inset-0 flex items-end bg-linear-to-t from-black/80 via-black/15 to-transparent p-3.5 transition-opacity duration-150",
+        visible ? "opacity-100" : "pointer-events-none opacity-0"
+      )}
+    >
+          <div className="flex w-full flex-col gap-1">
+            <p className="truncate text-[13px] font-medium tracking-[-0.01em] text-white">{title}</p>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-white/70 font-bold antialiased">{dimensions}</span>
+              <span className="text-[10px] uppercase tracking-[0.14em] text-white/65">{dimensions}</span>
               <div className="flex items-center gap-1">
                 <button
                   onClick={onDelete}
                   disabled={isDeleting}
                   type="button"
-                  className="text-white/40 hover:text-rose-500 transition-colors p-1"
+                  className="p-1 text-white/40 hover:text-rose-500"
                   title="Move to Trash"
                 >
                   <Trash size={12} weight="light" />
@@ -135,7 +131,7 @@ export function CardHoverOverlay({
                 <button
                   onClick={onToggleFavorite}
                   type="button"
-                  className={cn("transition-colors p-1", isFav ? "text-yellow-400" : "text-white/40 hover:text-yellow-400")}
+                  className={cn("p-1", isFav ? "text-yellow-400" : "text-white/40 hover:text-yellow-400")}
                   title={isFav ? "Remove from Favorites" : "Add to Favorites"}
                 >
                   <Star size={12} weight={isFav ? "fill" : "light"} />
@@ -143,8 +139,6 @@ export function CardHoverOverlay({
               </div>
             </div>
           </div>
-        </m.div>
-      )}
-    </AnimatePresence>
+    </div>
   );
 }

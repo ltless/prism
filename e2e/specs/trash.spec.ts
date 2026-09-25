@@ -24,13 +24,14 @@ test.describe('Trash flow', () => {
     // Move to trash — click context menu on first card
     const firstCard = page.locator('[data-media-id]').first();
     await firstCard.hover();
-    await page.locator('[data-media-id] button:has-text("Delete")').first().click();
+    await page.locator('[data-media-id] button[title="Move to Trash"]').first().click();
     await page.waitForTimeout(500);
 
     // Navigate to trash
     const trash = new TrashPage(page);
     await trash.goto();
     await expect(page).toHaveURL(/\/dashboard\/trash/);
-    expect(await trash.getTrashCount()).toBeGreaterThanOrEqual(1);
+    // Trash cards render async — poll instead of reading immediately.
+    await expect.poll(() => trash.getTrashCount()).toBeGreaterThanOrEqual(1);
   });
 });

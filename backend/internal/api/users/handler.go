@@ -11,8 +11,10 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/audit"
 	"github.com/ltless/prism/internal/auth"
 	mw "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/metrics"
 	"github.com/ltless/prism/internal/vault"
 )
 
@@ -23,10 +25,11 @@ type Handler struct {
 	svc      *Service
 	storage  *mw.Storage
 	vaultMgr *vault.Manager
+	audit    *audit.Recorder
 }
 
-func NewHandler(svc *Service, storage *mw.Storage, vaultMgr *vault.Manager) *Handler {
-	return &Handler{svc: svc, storage: storage, vaultMgr: vaultMgr}
+func NewHandler(svc *Service, storage *mw.Storage, vaultMgr *vault.Manager, auditRec *audit.Recorder) *Handler {
+	return &Handler{svc: svc, storage: storage, vaultMgr: vaultMgr, audit: auditRec}
 }
 
 // UploadProfileImage accepts a multipart file + type ("image"|"coverImage"),
@@ -74,9 +77,9 @@ func (h *Handler) UploadProfileImage(c echo.Context) error {
 
 	var imageErr error
 	if kind == "image" {
-		imageErr = h.svc.UpdateProfile(claims.UserID, &relPath, nil, nil)
+		imageErr = h.svc.UpdateProfile(c.Request().Context(), claims.UserID, &relPath, nil, nil)
 	} else {
-		imageErr = h.svc.UpdateProfile(claims.UserID, nil, &relPath, nil)
+		imageErr = h.svc.UpdateProfile(c.Request().Context(), claims.UserID, nil, &relPath, nil)
 	}
 	if imageErr != nil {
 		log.Printf("UpdateProfile error: %v", imageErr)
@@ -92,7 +95,7 @@ func (h *Handler) GetProfile(c echo.Context) error {
 		return err
 	}
 
-	user, err := h.svc.GetProfile(claims.UserID)
+	user, err := h.svc.GetProfile(c.Request().Context(), claims.UserID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "user not found")
 	}
@@ -124,7 +127,7 @@ func (h *Handler) UpdateProfile(c echo.Context) error {
 		}
 	}
 
-	if err := h.svc.UpdateProfile(claims.UserID, body.Image, body.CoverImage, body.Preferences); err != nil {
+	if err := h.svc.UpdateProfile(c.Request().Context(), claims.UserID, body.Image, body.CoverImage, body.Preferences); err != nil {
 		log.Printf("UpdateProfile error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
@@ -162,10 +165,11 @@ func (h *Handler) UpdateStorageLimit(c echo.Context) error {
 		limit = sql.NullInt64{Int64: n, Valid: true}
 	}
 
-	if err := h.svc.UpdateStorageLimit(claims.UserID, limit); err != nil {
+	if err := h.svc.UpdateStorageLimit(c.Request().Context(), claims.UserID, limit); err != nil {
 		log.Printf("UpdateStorageLimit error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "storage_limit", claims.UserID, true, c.RealIP(), "")
 
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
@@ -184,10 +188,12 @@ func (h *Handler) SetVaultPin(c echo.Context) error {
 	if len(body.Pin) < 4 {
 		return echo.NewHTTPError(http.StatusBadRequest, "pin must be at least 4 characters")
 	}
-	if err := h.svc.SetVaultPin(claims.UserID, body.Pin); err != nil {
+	if err := h.svc.SetVaultPin(c.Request().Context(), claims.UserID, body.Pin); err != nil {
 		log.Printf("SetVaultPin error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "vault_pin_set", claims.UserID, true, c.RealIP(), "")
+
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -202,18 +208,23 @@ func (h *Handler) VerifyVaultPin(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
-	if locked, retry := h.svc.VaultLocked(claims.UserID); locked {
+	if locked, retry := h.svc.VaultLocked(c.Request().Context(), claims.UserID); locked {
+		metrics.Default.Inc("prism_vault_lockouts_total")
 		c.Response().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+		h.audit.Event(c.Request().Context(), claims.UserID, "vault_pin_verify", claims.UserID, false, c.RealIP(), "locked out")
 		return echo.NewHTTPError(http.StatusTooManyRequests, "too many failed attempts, try again later")
 	}
-	ok, err := h.svc.VerifyVaultPin(claims.UserID, body.Pin)
+	ok, err := h.svc.VerifyVaultPin(c.Request().Context(), claims.UserID, body.Pin)
 	if err != nil {
 		log.Printf("VerifyVaultPin error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
 	if !ok {
+		metrics.Default.Inc("prism_vault_pin_failures_total")
+		h.audit.Event(c.Request().Context(), claims.UserID, "vault_pin_verify", claims.UserID, false, c.RealIP(), "invalid pin")
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid pin")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "vault_pin_verify", claims.UserID, true, c.RealIP(), "")
 	// A successful unlock grants a short-lived read token so the vault page
 	// can fetch media server-side without re-sending the PIN on every
 	// request. The token lives in an HttpOnly cookie (vault_token).
@@ -241,10 +252,11 @@ func (h *Handler) DisableVaultPin(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.svc.DisableVaultPin(claims.UserID); err != nil {
+	if err := h.svc.DisableVaultPin(c.Request().Context(), claims.UserID); err != nil {
 		log.Printf("DisableVaultPin error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}
+	h.audit.Event(c.Request().Context(), claims.UserID, "vault_pin_disable", claims.UserID, true, c.RealIP(), "")
 	// Disabling the PIN must not leave a still-valid unlock token behind.
 	h.vaultMgr.ClearCookie(c)
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
@@ -255,7 +267,7 @@ func (h *Handler) GetVaultPinStatus(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	enabled, err := h.svc.GetVaultPinStatus(claims.UserID)
+	enabled, err := h.svc.GetVaultPinStatus(c.Request().Context(), claims.UserID)
 	if err != nil {
 		log.Printf("GetVaultPinStatus error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -274,7 +286,7 @@ func (h *Handler) UpdateUsername(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body")
 	}
-	if err := h.svc.UpdateUsername(claims.UserID, body.Username); err != nil {
+	if err := h.svc.UpdateUsername(c.Request().Context(), claims.UserID, body.Username); err != nil {
 		msg := err.Error()
 		if msg == "username already taken" {
 			return echo.NewHTTPError(http.StatusConflict, msg)
@@ -293,7 +305,7 @@ func (h *Handler) GetStorageUsage(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	usage, err := h.svc.GetStorageUsage(claims.UserID)
+	usage, err := h.svc.GetStorageUsage(c.Request().Context(), claims.UserID)
 	if err != nil {
 		log.Printf("GetStorageUsage error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -307,7 +319,7 @@ func (h *Handler) SetupComplete(c echo.Context) error {
 		return err
 	}
 
-	if err := h.svc.MarkSetupComplete(claims.UserID); err != nil {
+	if err := h.svc.MarkSetupComplete(c.Request().Context(), claims.UserID); err != nil {
 		log.Printf("SetupComplete error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
 	}

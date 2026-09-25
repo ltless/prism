@@ -44,7 +44,7 @@ export function AdjustPanel({
   onQuadtoneColorDChange,
 }: AdjustPanelProps) {
   return (
-    <div className="border-b border-main-border">
+    <div>
       <PanelHeader
         icon={SlidersHorizontal}
         label="Adjust"

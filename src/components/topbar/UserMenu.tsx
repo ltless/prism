@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { GearSix, SignOut } from "@phosphor-icons/react";
-import { m, AnimatePresence } from "motion/react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { EffectiveSession } from "@/lib/auth/useEffectiveSession";
@@ -10,99 +9,112 @@ import type { EffectiveSession } from "@/lib/auth/useEffectiveSession";
 interface UserMenuProps {
   session: EffectiveSession;
   onOpenSettings: () => void;
+  onOpenChange?: (open: boolean) => void;
+  visible?: boolean;
 }
 
-export function UserMenu({ session, onOpenSettings }: UserMenuProps) {
+function Avatar({ image, name, size }: { image: string | null | undefined; name: string; size: number }) {
+  if (image) {
+    return (
+      <Image
+        src={`/api/v1/media/files/${image}`}
+        alt=""
+        fill
+        sizes={`${size}px`}
+        className="rounded-full object-cover"
+        unoptimized
+        priority
+      />
+    );
+  }
+  return (
+    <span className="flex h-full w-full items-center justify-center rounded-full bg-main-text text-[11px] font-medium text-primary-foreground">
+      {name[0]?.toUpperCase() || "U"}
+    </span>
+  );
+}
+
+export function UserMenu({ session, onOpenSettings, onOpenChange, visible = true }: UserMenuProps) {
   const { logout } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => { onOpenChangeRef.current = onOpenChange; }, [onOpenChange]);
+  const setIsOpen = (open: boolean) => { setOpen(open); onOpenChangeRef.current?.(open); };
+  const name = session?.user?.name || "User";
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (ref.current && !ref.current.contains(event.target as Node)) setIsOpen(false);
     }
-    const handleScroll = () => setIsOpen(false);
+    const handleScroll = (event: Event) => {
+      const node = event.target;
+      if (node instanceof Node && ref.current?.contains(node)) return;
+      setIsOpen(false);
+    };
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      window.addEventListener("scroll", handleScroll, { capture: true, once: true });
+      document.addEventListener("scroll", handleScroll, { capture: true, once: true });
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", handleScroll, { capture: true });
+      document.removeEventListener("scroll", handleScroll, true);
     };
   }, [isOpen]);
 
+  const item = "flex h-9 w-full items-center gap-2.5 rounded-full px-3 text-[13px] tracking-[-0.01em] text-main-text/80 hover:bg-main-text/[0.05] hover:text-main-text cursor-pointer";
+
   return (
-    <div className="relative" ref={ref}>
+    <div className={visible ? "relative" : "relative hidden"} ref={ref}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Open user menu"
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        className="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
+        className="relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full ring-1 ring-main-text/10"
       >
-        {session?.user?.image ? (
-          <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill sizes="28px" className="rounded-full object-cover" unoptimized priority />
-        ) : (
-          <div className="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden">
-            {session?.user?.name?.[0]?.toUpperCase() || "U"}
-          </div>
-        )}
+        <Avatar image={session?.user?.image} name={name} size={36} />
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <m.div
-            role="menu"
-            aria-label="User menu"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute top-9 right-0 w-44 bg-panel-bg border border-main-border/50 shadow-elevated rounded-md overflow-hidden z-[200]"
-          >
-            <div className="px-3 py-2 border-b border-main-border/30">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full shrink-0 relative overflow-hidden">
-                  {session?.user?.image ? (
-                    <Image src={`/api/v1/media/files/${session.user.image}`} alt="User avatar" fill sizes="28px" className="rounded-full object-cover" unoptimized priority />
-                  ) : (
-                    <div className="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground">
-                      {session?.user?.name?.[0]?.toUpperCase() || "U"}
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-main-text truncate">{session?.user?.name || "User"}</p>
-                  <p className="text-[10px] text-muted-text truncate">{session?.user?.role || "user"}</p>
-                </div>
-              </div>
+      {isOpen && (
+        <div
+          role="menu"
+          aria-label="User menu"
+          className="absolute right-0 top-12 z-[200] w-60 rounded-[1.5rem] bg-main-text/[0.05] p-1.5 ring-1 ring-main-text/10"
+        >
+          <div className="rounded-[calc(1.5rem-0.375rem)] bg-panel-bg p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <div className="flex items-center gap-2.5 px-2.5 py-2">
+              <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                <Avatar image={session?.user?.image} name={name} size={32} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-medium tracking-[-0.01em] text-main-text">{name}</span>
+                <span className="block truncate text-[10px] uppercase tracking-[0.14em] text-muted-text">{session?.user?.role || "user"}</span>
+              </span>
             </div>
 
-            <div className="p-0.5">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => { onOpenSettings(); setIsOpen(false); }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-surface-bg"
-              >
-                <GearSix size={13} weight="light" className="text-muted-text group-hover:text-main-text transition-colors" />
-                <span className="text-[11px] font-medium text-muted-text group-hover:text-main-text">Settings</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => logout()}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
-              >
-                <SignOut size={13} weight="light" className="text-muted-text group-hover:text-rose-500 transition-colors" />
-                <span className="text-[11px] font-medium text-muted-text group-hover:text-rose-500">Sign out</span>
-              </button>
-            </div>
-          </m.div>
-        )}
-      </AnimatePresence>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { onOpenSettings(); setIsOpen(false); }}
+              className={item}
+            >
+              <GearSix size={15} weight="light" />
+              Settings
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => logout()}
+              className="flex h-9 w-full items-center gap-2.5 rounded-full px-3 text-[13px] tracking-[-0.01em] text-muted-text hover:bg-rose-500/10 hover:text-rose-500 cursor-pointer"
+            >
+              <SignOut size={15} weight="light" />
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,23 +17,21 @@ interface GeneralTabProps {
 
 export function GeneralTab({ session, isUploading, coverSrc, profileSrc, onFileSelect, coverInputRef, profileInputRef }: GeneralTabProps) {
   return (
-    <div className="flex flex-col gap-6 py-4">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-main-text">General Settings</h3>
-        <p className="text-[11px] text-muted-text">Manage your identity, profile appearance, and display theme.</p>
+    <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-12">
+      <div className="md:col-span-7">
+        <ProfileCard
+          session={session}
+          isUploading={isUploading}
+          coverSrc={coverSrc}
+          profileSrc={profileSrc}
+          onFileSelect={onFileSelect}
+          coverInputRef={coverInputRef}
+          profileInputRef={profileInputRef}
+        />
       </div>
-
-      <ProfileCard
-        session={session}
-        isUploading={isUploading}
-        coverSrc={coverSrc}
-        profileSrc={profileSrc}
-        onFileSelect={onFileSelect}
-        coverInputRef={coverInputRef}
-        profileInputRef={profileInputRef}
-      />
-
-      <ThemeSelectorCard />
+      <div className="md:col-span-5">
+        <ThemeSelectorCard />
+      </div>
     </div>
   );
 }

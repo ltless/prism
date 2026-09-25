@@ -34,6 +34,12 @@ type Manager struct {
 	ttl    time.Duration
 }
 
+// cookieSecure is set from COOKIE_SECURE at startup. Scheme detection alone
+// misses TLS terminated in front of the process.
+var cookieSecure bool
+
+func SetCookieSecure(secure bool) { cookieSecure = secure }
+
 func NewManager(authSecret string) *Manager {
 	return &Manager{
 		secret: []byte(authSecret + "|vault-unlock-v1"),
@@ -88,7 +94,7 @@ func (m *Manager) Require(c echo.Context, userID string) error {
 }
 
 // SetCookie writes the vault_token cookie with the same profile as the auth
-// cookie: HttpOnly, SameSite=Lax, Secure on HTTPS, MaxAge = TTL.
+// cookie: HttpOnly, SameSite=Lax, Secure on HTTPS or COOKIE_SECURE, MaxAge = TTL.
 func (m *Manager) SetCookie(c echo.Context, token string) {
 	m.writeCookie(c, token, int(m.ttl.Seconds()))
 }
@@ -105,7 +111,7 @@ func (m *Manager) writeCookie(c echo.Context, value string, maxAge int) {
 		Path:     "/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
-		Secure:   c.Scheme() == "https",
+		Secure:   cookieSecure || c.Scheme() == "https",
 		SameSite: http.SameSiteLaxMode,
 	})
 }

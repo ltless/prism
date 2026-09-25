@@ -27,21 +27,18 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  };
 
  return (
- <div className="flex flex-col items-center gap-6">
+ <div className="flex flex-col items-center gap-5">
  {label && (
- <p className="text-[11px] text-muted-text text-center">{label}</p>
+ <p className="text-[12px] text-muted-text text-center">{label}</p>
  )}
 
- {/* Dot display */}
- <div className="flex gap-3">
+ <div className="flex gap-2.5" aria-hidden="true">
  {Array.from({ length: maxLength }).map((_, idx) => (
  <div
  key={idx}
  className={cn(
- "w-2.5 h-2.5 rounded-full transition-colors duration-150",
- digits[idx]
- ? "bg-primary"
- : "bg-main-border/40"
+ "h-2 w-2 rounded-full transition-colors duration-150",
+ digits[idx] ? "bg-primary" : "bg-main-border"
  )}
  />
  ))}
@@ -58,7 +55,7 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  key={d}
  type="button"
  onClick={() => handleDigit(d)}
- className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-main-text hover:bg-surface-bg/80 hover:border-main-border transition-colors cursor-pointer select-none"
+ className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-main-text transition-colors hover:border-border-medium cursor-pointer select-none"
  >
  {d}
  </button>
@@ -70,7 +67,7 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  	onClick={handleBackspace}
  	disabled={value.length === 0}
  	aria-label="Backspace"
- 	className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-muted-text hover:bg-surface-bg/80 hover:border-main-border disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+ 	className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-muted-text transition-colors hover:border-border-medium disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer select-none"
  >
  ⌫
  </button>
@@ -79,7 +76,7 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  <button
  type="button"
  onClick={() => handleDigit("0")}
- className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-main-text hover:bg-surface-bg/80 hover:border-main-border transition-colors cursor-pointer select-none"
+ className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-main-text transition-colors hover:border-border-medium cursor-pointer select-none"
  >
  0
  </button>
@@ -90,7 +87,7 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  	onClick={handleClear}
  	disabled={value.length === 0}
  	aria-label="Clear"
- 	className="w-12 h-12 bg-surface-bg border border-main-border/50 rounded-lg text-[13px] font-medium text-muted-text hover:bg-rose-500/5 hover:border-rose-500/20 hover:text-rose-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors cursor-pointer select-none"
+ 	className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-muted-text transition-colors hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer select-none"
  >
  ✕
  </button>

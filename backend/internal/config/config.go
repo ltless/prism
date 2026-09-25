@@ -19,6 +19,9 @@ type Config struct {
 	ModelsPath                 string
 	CORSOrigin                 string
 	TrustProxy                 bool
+	// CookieSecure forces the Secure flag on auth and vault cookies. Set when
+	// TLS terminates at a proxy: Echo then sees http and would otherwise omit it.
+	CookieSecure               bool
 	InviteCode                 string
 	RequireInvite              bool
 	NukeToken                  string
@@ -61,6 +64,7 @@ func Load() (*Config, error) {
 		ModelsPath:                 getEnv("MODELS_PATH", "../storage/models"),
 		CORSOrigin:                 getEnv("CORS_ORIGIN", "http://localhost:3000"),
 		TrustProxy:                 getEnv("TRUST_PROXY", "false") == "true",
+		CookieSecure:               getEnv("COOKIE_SECURE", "false") == "true",
 		InviteCode:                 os.Getenv("REGISTRATION_INVITE_CODE"),
 		RequireInvite:              getEnv("REQUIRE_INVITE", "true") == "true",
 		NukeToken:                  os.Getenv("NUKE_CONFIRMATION_TOKEN"),

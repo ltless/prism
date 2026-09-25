@@ -752,6 +752,15 @@ describe("applyGaussianBlur (via applyAdjustments)", () => {
     const result = applyAdjustments(withBlur(10), image);
     expect(result.data[3]).toBe(255);
   });
+
+  it("blurs when gaussian blur is the only adjustment", () => {
+    const data = new Uint8ClampedArray([
+      0, 0, 0, 255,
+      255, 0, 0, 255,
+    ]);
+    const result = applyAdjustments(withBlur(10), new ImageData(data, 2, 1));
+    expect(result.data[0]).toBeGreaterThan(0);
+  });
 });
 
 describe("applyMedianFilter (via applyAdjustments)", () => {
@@ -789,6 +798,16 @@ describe("applyMotionBlur (via applyAdjustments)", () => {
     const image = new ImageData(new Uint8ClampedArray([100, 100, 100, 255]), 1, 1);
     const result = applyAdjustments(withMotion(45, 10), image);
     expect(result.data[3]).toBe(255);
+  });
+
+  it("writes the blurred color back onto the pixel", () => {
+    const data = new Uint8ClampedArray([
+      0, 0, 0, 255,
+      255, 0, 0, 255,
+    ]);
+    const result = applyAdjustments(withMotion(0, 1), new ImageData(data, 2, 1));
+    expect(result.data[0]).toBeGreaterThan(0);
+    expect(result.data[0]).toBeLessThan(255);
   });
 });
 
@@ -866,6 +885,17 @@ describe("applyDehaze (via applyAdjustments)", () => {
     const image = new ImageData(new Uint8ClampedArray([100, 100, 100, 255]), 1, 1);
     const result = applyAdjustments(withDehaze(50), image);
     expect(result.data[3]).toBe(255);
+  });
+
+  it("dehaze=+100 changes a hazy pixel while dragging", () => {
+    // Uniform gray cancels (max luminance is the pixel itself). A brighter
+    // neighbor gives the haze estimate something to remove.
+    const image = new ImageData(new Uint8ClampedArray([
+      255, 255, 255, 255,
+      180, 180, 180, 255,
+    ]), 2, 1);
+    const result = applyAdjustments(withDehaze(100), image, true);
+    expect(result.data[4]).toBeLessThan(180);
   });
 });
 

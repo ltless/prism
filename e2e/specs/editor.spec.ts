@@ -20,29 +20,19 @@ test.describe('Editor', () => {
     await dashboard.uploadFile(TEST_FILE);
     await dashboard.waitForNewCard(beforeCount);
 
-    // Click first card to open editor
+    // Click first card to open lightbox editor
     const firstCard = page.locator('[data-media-id]').first();
     await firstCard.dblclick();
     await page.waitForTimeout(2000);
 
-    // Should navigate to editor or open lightbox
-    const inEditor = page.url().includes('/editor/');
-    const lightboxVisible = page.locator('[role="dialog"], .lightbox, .ReactModalPortal').first();
-
-    if (inEditor) {
-      // Editor has save button
-      await expect(page.locator('button:has-text("Save")').first()).toBeVisible({ timeout: 5000 });
-    } else {
-      // Lightbox is visible — click edit button
-      const editBtn = page.locator('button:has-text("Edit"), button[aria-label*="edit"], button[aria-label*="Edit"]').first();
-      if (await editBtn.isVisible({ timeout: 3000 })) {
-        await editBtn.click();
-        await page.waitForTimeout(2000);
-        await expect(page).toHaveURL(/\/editor\//, { timeout: 5000 });
-      } else {
-        // Lightbox visible without explicit edit — still valid
-        await expect(lightboxVisible).toBeVisible({ timeout: 3000 });
-      }
-    }
+    // Lightbox is visible — open the in-line editor
+    const lightbox = page.locator('[role="dialog"]').first();
+    await expect(lightbox).toBeVisible({ timeout: 5000 });
+    await lightbox.locator('button[aria-label="Edit"]').click();
+    // The Edit button toggles the in-line ImageEditor (no URL navigation).
+    // Its top bar renders the menu labels ("File", "Edit"); "Save Copy" only
+    // appears once the File menu is opened.
+    await expect(lightbox.getByText('File').first()).toBeVisible({ timeout: 15000 });
+    await expect(lightbox.getByText('Edit').first()).toBeVisible({ timeout: 15000 });
   });
 });

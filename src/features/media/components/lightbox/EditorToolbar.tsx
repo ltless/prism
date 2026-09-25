@@ -12,6 +12,7 @@ import {
   ArrowsOutCardinal,
   CopySimple,
 } from "@phosphor-icons/react";
+import { cn } from "@/core/utils/cn";
 import type { EditorTool } from "./image-editor/state/editorState";
 
 interface EditorToolbarProps {
@@ -39,8 +40,14 @@ export function EditorToolbar({
   showBefore = false,
   onToggleBeforeAfter,
 }: EditorToolbarProps) {
+  const btn = (on: boolean) => cn(
+    "w-9 h-9 flex items-center justify-center rounded-full cursor-pointer active:scale-[0.96] transition-[transform,background-color,color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+    on ? "bg-white text-[#0c0c0e]" : "text-white/60 hover:text-white hover:bg-white/10",
+  );
+
   return (
-    <div className="w-10 shrink-0 flex flex-col items-center py-2 gap-0.5 border-r border-main-border">
+    <div className="w-[4.25rem] shrink-0 flex flex-col items-center justify-center py-4">
+      <div className="flex flex-col items-center gap-0.5 rounded-full bg-[#0c0c0e]/80 p-1.5 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-2xl">
       {tools.map((tool) => {
         const Icon = tool.icon;
         const isActive = activeTool === tool.id;
@@ -50,29 +57,26 @@ export function EditorToolbar({
             type="button"
             onClick={() => onToolChange(tool.id)}
             title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ""}`}
-            className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-colors ${
-              isActive ? "text-primary bg-primary/10" : "text-muted-text hover:text-main-text hover:bg-surface-bg"
-            }`}
+            aria-pressed={isActive}
+            className={btn(isActive)}
           >
-            <Icon size={16} weight="light" />
+            <Icon size={16} weight={isActive ? "fill" : "light"} />
           </button>
         );
       })}
 
-      <div className="w-6 h-px bg-main-border/30 my-0.5" />
+      <span aria-hidden className="my-1.5 h-px w-5 bg-white/12" />
 
       <button
         type="button"
         onClick={onToggleBeforeAfter}
-        title={`Before/After ( \ )`}
-        className={`w-8 h-8 flex items-center justify-center rounded-md cursor-pointer transition-colors ${
-          showBefore
-            ? "text-primary bg-primary/10"
-            : "text-muted-text hover:text-main-text hover:bg-surface-bg"
-        }`}
+        title="Before/After ( \ )"
+        aria-pressed={showBefore}
+        className={btn(showBefore)}
       >
         <CopySimple size={16} weight={showBefore ? "fill" : "light"} />
       </button>
+      </div>
     </div>
   );
 }

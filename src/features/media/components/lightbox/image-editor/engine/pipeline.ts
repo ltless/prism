@@ -48,6 +48,9 @@ export function hasActiveAdjustments(state: AdjustmentState): boolean {
   if (state.noiseReduction !== 0) return true;
   if (state.vignette !== 0) return true;
   if (state.grain !== 0) return true;
+  if (state.gaussianBlur) return true;
+  if (state.medianFilter) return true;
+  if (state.motionBlur && state.motionBlur.distance > 0) return true;
   if (state.curvePoints?.length) return true;
   if (state.levels && !isNeutralLevels(state.levels)) return true;
   if (state.posterize !== 0) return true;
@@ -100,12 +103,12 @@ export function applyAdjustments(
   current = applyWhites(state.whites, current);
   current = applyBlacks(state.blacks, current);
 
-  // Local/tone adjustments
+  // Local/tone adjustments. Texture and dehaze are cheap per-pixel passes,
+  // so they stay on during a drag — skipping them made the Effects sliders
+  // look dead until the pointer was released.
   current = applyClarity(state.clarity, current);
-  if (!isDragging) {
-    current = applyTexture(state.texture, current);
-    current = applyDehaze(state.dehaze, current);
-  }
+  current = applyTexture(state.texture, current);
+  current = applyDehaze(state.dehaze, current);
 
   // Detail
   if (!isDragging) {

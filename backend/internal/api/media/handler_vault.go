@@ -45,11 +45,11 @@ func updateMapFrom(body mediaUpdateBody) map[string]interface{} {
 
 // checkVaultPin validates the vault PIN with shared lockout accounting.
 func (h *Handler) checkVaultPin(c echo.Context, claims *auth.Claims, pin string) error {
-	if locked, retry := h.svc.VaultLocked(claims.UserID); locked {
+	if locked, retry := h.svc.VaultLocked(c.Request().Context(), claims.UserID); locked {
 		c.Response().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
 		return echo.NewHTTPError(http.StatusTooManyRequests, "too many failed attempts, try again later")
 	}
-	allowed, err := h.svc.VaultUnlockAllowed(claims.UserID, pin)
+	allowed, err := h.svc.VaultUnlockAllowed(c.Request().Context(), claims.UserID, pin)
 	if err != nil {
 		log.Printf("VaultUnlockAllowed error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")

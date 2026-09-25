@@ -2,11 +2,9 @@
 
 import { useState, memo, useMemo } from "react";
 import { Folder, Trash, Heart, FolderSimple, Download, Hash, Pencil, Lock, LockOpen, Star, Check } from "@phosphor-icons/react";
-import { m } from "motion/react";
 import { ContextMenu } from "./ContextMenu";
 import { cn } from "@/core/utils/cn";
 import { MediaItem, Folder as FolderType } from "../types";
-import { useReducedMotion } from "@/shared/hooks/useReducedMotion";
 
 import { useTranscodePolling } from "../hooks/useTranscodePolling";
 import { formatDuration } from "@/core/utils/format";
@@ -22,14 +20,21 @@ function handleDragEnd(e: React.DragEvent) {
 type CardActions = {
   isFav: boolean;
   setRenameModalOpen: (open: boolean) => void;
-  handleMoveToFolder: (folderId: string | null) => void;
+  handleMoveToFolder: (mediaIds: string[], folderId: string | null) => void;
   handleDelete: () => void;
   handleDownload: () => void;
   handleToggleFavorite: () => void;
   handleToggleVault: () => void;
 };
 
-function buildMenuItems(item: MediaItem, folders: FolderType[], actions: CardActions) {
+function buildMenuItems(item: MediaItem, folders: FolderType[], isSelected: boolean, actions: CardActions) {
+  // Mirrors the drag payload (startCardDrag): a right-click on a selected card
+  // moves the whole selection, an unselected card moves only itself.
+  const resolveMoveIds = (): string[] => {
+    const sel = getDragSelection();
+    return isSelected && sel.ids.length > 0 ? sel.ids : [item.id];
+  };
+
   return [
     { label: "Rename", icon: Pencil, onClick: () => actions.setRenameModalOpen(true) },
     { label: actions.isFav ? "Remove from Favorites" : "Add to Favorites", icon: Heart, onClick: () => actions.handleToggleFavorite() },
@@ -39,11 +44,11 @@ function buildMenuItems(item: MediaItem, folders: FolderType[], actions: CardAct
       onClick: () => { },
       divider: true,
       subItems: [
-        { label: "Root Directory", icon: Folder, onClick: () => actions.handleMoveToFolder(null) },
+        { label: "Root Directory", icon: Folder, onClick: () => actions.handleMoveToFolder(resolveMoveIds(), null) },
         ...folders.filter(f => !f.smartFilter).map(f => ({
           label: f.name,
           icon: Folder,
-          onClick: () => actions.handleMoveToFolder(f.id)
+          onClick: () => actions.handleMoveToFolder(resolveMoveIds(), f.id)
         }))
       ]
     },
@@ -79,7 +84,6 @@ export const MediaCard = memo(function MediaCard({
   hideContextMenu?: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
-  const reduced = useReducedMotion();
   const [isTapped, setIsTapped] = useState(false);
   const [transcodeStatus, setTranscodeStatus] = useState(item.transcodeStatus);
   const [prevTranscodeStatus, setPrevTranscodeStatus] = useState(item.transcodeStatus);
@@ -121,7 +125,7 @@ export const MediaCard = memo(function MediaCard({
   const handleMouseLeave = () => { setIsHovered(false); setIsTapped(false); };
 
   const menuItems = useMemo(
-    () => hideContextMenu ? null : buildMenuItems(item, folders, {
+    () => hideContextMenu ? null : buildMenuItems(item, folders, !!isSelected, {
       isFav,
       setRenameModalOpen,
       handleMoveToFolder,
@@ -130,7 +134,7 @@ export const MediaCard = memo(function MediaCard({
       handleToggleFavorite,
       handleToggleVault,
     }),
-    [item, folders, isFav, hideContextMenu, setRenameModalOpen, handleMoveToFolder, handleDelete, handleDownload, handleToggleFavorite, handleToggleVault],
+    [item, folders, isSelected, isFav, hideContextMenu, setRenameModalOpen, handleMoveToFolder, handleDelete, handleDownload, handleToggleFavorite, handleToggleVault],
   );
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -142,18 +146,17 @@ export const MediaCard = memo(function MediaCard({
   const showOverlay = isHovered || isTapped;
 
   const cardBody = (
+    <div className="rounded-[1.75rem] bg-main-text/[0.045] p-1.5 ring-1 ring-main-text/[0.06]">
     <div
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       className="h-full w-full"
     >
-      <m.div
-        whileTap={reduced ? {} : { scale: 0.97 }}
-        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      <div
         className={cn(
-          "group/card aspect-square bg-surface-bg rounded-xl overflow-hidden group relative cursor-pointer border shadow-sm",
-          isSelected ? "border-primary ring-2 ring-primary/10 scale-[0.98]" : "border-transparent hover:border-main-border/40"
+          "group/card relative aspect-[4/5] cursor-pointer overflow-hidden rounded-[calc(1.75rem-0.375rem)] bg-surface-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
+          isSelected && "ring-1 ring-main-text/70"
         )}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -176,25 +179,20 @@ export const MediaCard = memo(function MediaCard({
         />
 
         {isSelected && (
-          <m.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 25 }}
-            className="absolute top-2 left-2 z-20 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg border-2 border-white pointer-events-none"
-          >
-            <Check size={12} weight="bold" className="text-primary-foreground" />
-          </m.div>
+          <div className="pointer-events-none absolute left-3 top-3 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-main-text">
+            <Check size={11} weight="bold" className="text-app-bg" />
+          </div>
         )}
 
         {!showOverlay && (isFav || item.isVault) && (
           <div className="absolute top-2 right-2 z-10 flex items-center gap-1 pointer-events-none">
             {item.isVault && (
-              <span className="w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/55">
                 <Lock size={12} weight="fill" className="text-white/90" />
               </span>
             )}
             {isFav && (
-              <span className="w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/55">
                 <Star size={12} weight="fill" className="text-yellow-400" />
               </span>
             )}
@@ -210,7 +208,8 @@ export const MediaCard = memo(function MediaCard({
           onDelete={(e) => { e.stopPropagation(); handleDelete(e); }}
           onToggleFavorite={(e) => handleToggleFavorite(e)}
         />
-      </m.div>
+      </div>
+    </div>
     </div>
   );
 

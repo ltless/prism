@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ltless/prism/internal/db"
@@ -15,7 +16,7 @@ func TestTenantPool_RLS_EnforcesIsolation(t *testing.T) {
 
 	mustExec := func(tdb *db.TenantDB, query string, args ...any) {
 		t.Helper()
-		if _, err := tdb.Exec(query, args...); err != nil {
+		if _, err := tdb.Exec(context.Background(), query, args...); err != nil {
 			t.Fatalf("exec %q: %v", query, err)
 		}
 	}
@@ -30,7 +31,7 @@ func TestTenantPool_RLS_EnforcesIsolation(t *testing.T) {
 	}
 
 	// each inserts one media row via a scoped connection
-	tdbA, err := pool.Get("user-a")
+	tdbA, err := pool.Get(context.Background(), "user-a")
 	if err != nil {
 		t.Fatalf("get tenant db A: %v", err)
 	}
@@ -38,7 +39,7 @@ func TestTenantPool_RLS_EnforcesIsolation(t *testing.T) {
 	mustExec(tdbA, "INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		"m-a", "user-a", "A", "a.jpg", "image/jpeg", 1, "h-a")
 
-	tdbB, err := pool.Get("user-b")
+	tdbB, err := pool.Get(context.Background(), "user-b")
 	if err != nil {
 		t.Fatalf("get tenant db B: %v", err)
 	}
@@ -48,7 +49,7 @@ func TestTenantPool_RLS_EnforcesIsolation(t *testing.T) {
 
 	// A deliberately forgets WHERE user_id: RLS must still scope the scan
 	var count int
-	if err := tdbA.QueryRow("SELECT COUNT(*) FROM media").Scan(&count); err != nil {
+	if err := tdbA.QueryRow(context.Background(), "SELECT COUNT(*) FROM media").Scan(&count); err != nil {
 		t.Fatalf("count as user-a: %v", err)
 	}
 	if count != 1 {
@@ -56,7 +57,7 @@ func TestTenantPool_RLS_EnforcesIsolation(t *testing.T) {
 	}
 
 	// A tries to write user-b's row: RLS WITH CHECK must reject
-	if _, err := tdbA.Exec(
+	if _, err := tdbA.Exec(context.Background(),
 		"INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		"m-b2", "user-b", "evil", "x.jpg", "image/jpeg", 1, "h-b2"); err == nil {
 		t.Fatal("RLS failed: user-a inserted a row owned by user-b")
@@ -64,11 +65,11 @@ func TestTenantPool_RLS_EnforcesIsolation(t *testing.T) {
 
 	// A tries to UPDATE with no WHERE: RLS USING silently scopes it to A's
 	// own rows — user-b's title must stay untouched
-	if _, err := tdbA.Exec("UPDATE media SET title = 'stolen'"); err != nil {
+	if _, err := tdbA.Exec(context.Background(), "UPDATE media SET title = 'stolen'"); err != nil {
 		t.Fatalf("update as user-a: %v", err)
 	}
 	var titleB string
-	if err := tdbB.QueryRow("SELECT title FROM media WHERE id = 'm-b'").Scan(&titleB); err != nil {
+	if err := tdbB.QueryRow(context.Background(), "SELECT title FROM media WHERE id = 'm-b'").Scan(&titleB); err != nil {
 		t.Fatalf("read user-b title: %v", err)
 	}
 	if titleB != "B" {
@@ -76,7 +77,7 @@ func TestTenantPool_RLS_EnforcesIsolation(t *testing.T) {
 	}
 	// and A's own row was updated
 	var titleA string
-	if err := tdbA.QueryRow("SELECT title FROM media WHERE id = 'm-a'").Scan(&titleA); err != nil {
+	if err := tdbA.QueryRow(context.Background(), "SELECT title FROM media WHERE id = 'm-a'").Scan(&titleA); err != nil {
 		t.Fatalf("read user-a title: %v", err)
 	}
 	if titleA != "stolen" {
@@ -96,11 +97,11 @@ func TestTenantPool_RLS_FailsClosedWithoutContext(t *testing.T) {
 		t.Fatalf("insert user: %v", err)
 	}
 
-	tdb, err := pool.Get("user-a")
+	tdb, err := pool.Get(context.Background(), "user-a")
 	if err != nil {
 		t.Fatalf("get tenant db: %v", err)
 	}
-	if _, err := tdb.Exec(
+	if _, err := tdb.Exec(context.Background(),
 		"INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		"m-a", "user-a", "A", "a.jpg", "image/jpeg", 1, "h-a"); err != nil {
 		t.Fatalf("insert media: %v", err)

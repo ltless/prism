@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { m } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface SidebarNavItemProps {
@@ -15,10 +14,10 @@ interface SidebarNavItemProps {
 export function SidebarNavItem({ item, isExpanded }: SidebarNavItemProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const viewParam = searchParams.get('v');
-  const activeFolderId = searchParams.get('f');
-  const itemPathBase = item.path.split('?')[0];
-  const itemView = item.path.split('v=')[1];
+  const viewParam = searchParams.get("v");
+  const activeFolderId = searchParams.get("f");
+  const itemPathBase = item.path.split("?")[0];
+  const itemView = item.path.split("v=")[1];
 
   const isActive = itemView
     ? pathname === itemPathBase && viewParam === itemView
@@ -32,33 +31,30 @@ export function SidebarNavItem({ item, isExpanded }: SidebarNavItemProps) {
       title={!isExpanded ? item.name : undefined}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "group/nav relative flex items-center h-9 mx-2 gap-2.5 rounded-xl cursor-pointer shrink-0",
-        "transition-[padding,background-color,color] duration-300 ease-out-expo",
-        isExpanded ? "pl-2 pr-2.5" : "pl-3.5 pr-0",
-        isActive
-          ? "bg-surface-bg text-main-text shadow-sm"
-          : "bg-transparent text-muted-text hover:bg-surface-bg/70 hover:text-main-text"
+        "group/nav relative flex h-11 shrink-0 items-center overflow-hidden rounded-full",
+        isActive ? "text-main-text" : "text-muted-text hover:text-main-text",
       )}
     >
-      {isActive && (
-        <m.span
-          layoutId="sidebar-active-indicator"
-          transition={{ type: "spring", stiffness: 500, damping: 40 }}
-          className="absolute left-0 top-1/2 -mt-2.5 w-[3px] h-5 rounded-full bg-primary"
-        />
-      )}
       <span
         className={cn(
-          "flex items-center justify-center w-5 h-5 shrink-0 transition-transform duration-200",
-          "group-hover/nav:scale-110",
-          isActive ? "text-main-text" : "text-muted-text group-hover/nav:text-main-text"
+          "absolute left-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full",
+          "transition-[background-color,color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          isActive
+            ? "bg-main-text text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]"
+            : "text-muted-text group-hover/nav:bg-main-text/6 group-hover/nav:text-main-text",
         )}
       >
-        <Icon size={isExpanded ? 16 : 18} weight={isActive ? "fill" : "regular"} />
+        <Icon size={15} weight={isActive ? "fill" : "light"} />
       </span>
       <span
-        className="overflow-hidden whitespace-nowrap text-[12px] font-medium transition-[max-width,opacity] duration-300 ease-out-expo"
-        style={{ maxWidth: isExpanded ? "12rem" : "0rem", opacity: isExpanded ? 1 : 0 }}
+        className={cn(
+          "min-w-0 flex-1 overflow-hidden whitespace-nowrap pl-10 pr-3 text-[13px] tracking-[-0.01em]",
+          isActive ? "font-medium text-main-text" : "font-normal text-main-text/75",
+          isExpanded ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-1 opacity-0",
+        )}
+        style={{
+          transition: `opacity 140ms cubic-bezier(0.32,0.72,0,1) ${isExpanded ? "500ms" : "0ms"}, transform 140ms cubic-bezier(0.32,0.72,0,1) ${isExpanded ? "500ms" : "0ms"}`,
+        }}
       >
         {item.name}
       </span>

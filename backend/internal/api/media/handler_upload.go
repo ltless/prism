@@ -2,6 +2,7 @@ package media
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/ltless/prism/internal/auth"
 	mw "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/metrics"
 	"io"
 	"log"
 	"mime/multipart"
@@ -135,6 +137,7 @@ func (h *Handler) Upload(c echo.Context) error {
 	}
 
 	if c.Request().ContentLength > maxUploadSize {
+		metrics.Default.Inc("prism_uploads_failed_total")
 		return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "file too large (max 200MB)")
 	}
 
@@ -143,6 +146,7 @@ func (h *Handler) Upload(c echo.Context) error {
 	// spawning unbounded background CPU (see F2). The slot is handed to the
 	// background job on success and released here on every early return.
 	if !h.pool.acquire() {
+		metrics.Default.Inc("prism_processing_shed_total")
 		return echo.NewHTTPError(http.StatusServiceUnavailable, "processing queue full, try again shortly")
 	}
 	slotReleased := false
@@ -168,7 +172,7 @@ func (h *Handler) Upload(c echo.Context) error {
 	// constraint on hash is the final authority; this is an optimisation that
 	// avoids orphan files on disk. A HashExists failure must not be treated as
 	// "not a duplicate" — fail the request instead of risking a double write.
-	exists, err := h.svc.HashExists(claims.UserID, up.hash)
+	exists, err := h.svc.HashExists(c.Request().Context(), claims.UserID, up.hash)
 	if err != nil {
 		log.Printf("HashExists error: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
@@ -188,10 +192,11 @@ func (h *Handler) Upload(c echo.Context) error {
 	// client already tolerates late metadata (UI polls / refreshes, thumbnail
 	// 404s fall back to placeholder until it appears). If users need instant
 	// thumbs, move only thumbnail generation back inline.
-	item, isDup, err := h.svc.CreateWithinQuota(claims.UserID, "", up.filename, title, mimeType, up.hash, up.size, nil, nil, nil, nil, nil, nil)
+	item, isDup, err := h.svc.CreateWithinQuota(c.Request().Context(), claims.UserID, "", up.filename, title, mimeType, up.hash, up.size, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		// The file is already on disk; remove it if the row didn't land.
 		h.deleteFileLogged(claims.UserID, up.filename)
+		metrics.Default.Inc("prism_uploads_failed_total")
 		if errors.Is(err, ErrQuotaExceeded) {
 			return echo.NewHTTPError(http.StatusRequestEntityTooLarge, "storage quota exceeded")
 		}
@@ -200,8 +205,12 @@ func (h *Handler) Upload(c echo.Context) error {
 	}
 	if isDup {
 		h.deleteFileLogged(claims.UserID, up.filename)
+		metrics.Default.Inc("prism_uploads_total")
 		return c.JSON(http.StatusOK, duplicateUploadResponse(up, isVideo))
 	}
+
+	metrics.Default.Inc("prism_uploads_total")
+	metrics.Default.Add("prism_upload_bytes_total", up.size)
 
 	ts := "async"
 	if isVideo {
@@ -265,7 +274,7 @@ func (h *Handler) processImageMetadataAsync(userID, mediaID, mediaPath string) {
 		}
 	}
 	if len(updates) > 0 {
-		if err := h.svc.Update(userID, mediaID, updates); err != nil {
+		if err := h.svc.Update(context.Background(), userID, mediaID, updates); err != nil {
 			log.Printf("async metadata update: %v", err)
 		}
 	}
@@ -305,14 +314,14 @@ func (h *Handler) processVideoMetadataAsync(userID, mediaID, mediaPath string) {
 	}
 
 	if len(updates) > 0 {
-		if err := h.svc.Update(userID, mediaID, updates); err != nil {
+		if err := h.svc.Update(context.Background(), userID, mediaID, updates); err != nil {
 			log.Printf("async video metadata update: %v", err)
 		}
 	}
 	// Mark transcode done so BatchTranscodeStatus polling settles
 	// (frontend polls while status = "pending").
 	done := "done"
-	if err := h.svc.Update(userID, mediaID, map[string]interface{}{"transcode_status": done}); err != nil {
+	if err := h.svc.Update(context.Background(), userID, mediaID, map[string]interface{}{"transcode_status": done}); err != nil {
 		log.Printf("async transcode status update: %v", err)
 	}
 }

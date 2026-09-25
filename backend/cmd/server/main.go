@@ -14,6 +14,7 @@ import (
 	"github.com/ltless/prism/internal/config"
 	"github.com/ltless/prism/internal/db"
 	mw "github.com/ltless/prism/internal/media"
+	"github.com/ltless/prism/internal/vault"
 )
 
 func main() {
@@ -37,6 +38,8 @@ func main() {
 		jwtDuration = 168 * time.Hour
 	}
 	jwt := auth.NewJWTManager(cfg.JWTSecret, jwtDuration)
+	auth.SetCookieSecure(cfg.CookieSecure)
+	vault.SetCookieSecure(cfg.CookieSecure)
 
 	masterKey, err := mw.LoadMasterKey(cfg.EncryptionMasterKey)
 	if err != nil {
@@ -44,6 +47,7 @@ func main() {
 	}
 
 	e := api.New(global, tenantPool, jwt, cfg, masterKey)
+	startOrphanSweep(global.DB, tenantPool, mw.NewStorage(cfg.StoragePath, masterKey))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

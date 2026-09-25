@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -49,12 +50,42 @@ func TestValidateUpload_TooSmall(t *testing.T) {
 	}
 }
 
-func TestValidateUpload_NoMagicCheck(t *testing.T) {
+func TestValidateUpload_HEIC_ContentChecked(t *testing.T) {
 	s := newTestStorage(t.TempDir())
-	// .heic has no magic signature defined
-	data := []byte("anything")
-	if err := s.ValidateUpload(data, ".heic"); err != nil {
-		t.Fatalf("expected no error for .heic (no magic check), got: %v", err)
+
+	// valid HEIF container: ftyp box + "heic" brand
+	valid := make([]byte, 16)
+	binary.BigEndian.PutUint32(valid[0:4], 16)
+	copy(valid[4:8], "ftyp")
+	copy(valid[8:12], "heic")
+	for _, ext := range []string{".heic", ".heif"} {
+		if err := s.ValidateUpload(valid, ext); err != nil {
+			t.Fatalf("expected valid %s, got: %v", ext, err)
+		}
+	}
+
+	// fake .heic: JPEG magic bytes with a heic extension
+	jpeg := []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 0}
+	if err := s.ValidateUpload(jpeg, ".heic"); err == nil {
+		t.Fatal("expected error for JPEG content with .heic extension")
+	}
+
+	// ftyp present but non-HEIF brand
+	other := make([]byte, 12)
+	binary.BigEndian.PutUint32(other[0:4], 12)
+	copy(other[4:8], "ftyp")
+	copy(other[8:12], "qt  ")
+	if err := s.ValidateUpload(other, ".heic"); err == nil {
+		t.Fatal("expected error for non-HEIF ftyp brand")
+	}
+
+	// AVIF brand accepted under .heif
+	avif := make([]byte, 12)
+	binary.BigEndian.PutUint32(avif[0:4], 12)
+	copy(avif[4:8], "ftyp")
+	copy(avif[8:12], "avif")
+	if err := s.ValidateUpload(avif, ".heif"); err != nil {
+		t.Fatalf("expected valid .heif with avif brand, got: %v", err)
 	}
 }
 
@@ -152,6 +183,27 @@ func newEchoContext() (echo.Context, *httptest.ResponseRecorder) {
 	return e.NewContext(req, rec), rec
 }
 
+func TestServeFile_UnknownTypeDownloads(t *testing.T) {
+	s := newTestStorage(t.TempDir())
+	plain := []byte("not a picture")
+	if _, _, _, err := s.SaveFileFromReader("testuser", bytes.NewReader(plain), "note.bin"); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	c, rec := newEchoContext()
+	if err := s.ServeFile(c, "testuser", "note.bin"); err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/octet-stream" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != "attachment" {
+		t.Fatalf("Content-Disposition = %q, want attachment", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+}
+
 func TestServeThumbnail_PathTraversal(t *testing.T) {
 	s := newTestStorage(t.TempDir())
 	c, _ := newEchoContext()
@@ -199,12 +251,13 @@ func TestServeThumbnail_Valid(t *testing.T) {
 	s := newTestStorage(tmpDir)
 	c, rec := newEchoContext()
 
-	// Create a thumbnail file
 	userID := "testuser"
 	thumbDir := s.thumbDir(userID)
 	os.MkdirAll(thumbDir, 0755)
-	thumbFile := filepath.Join(thumbDir, "abc123.jpg")
-	os.WriteFile(thumbFile, []byte("fake jpg data"), 0644)
+	plain := []byte("fake jpg data")
+	if err := encryptFile(s.masterKey, writeTemp(t, plain), filepath.Join(thumbDir, "abc123.jpg")); err != nil {
+		t.Fatalf("encrypt thumb: %v", err)
+	}
 
 	err := s.ServeThumbnail(c, userID, "abc123.png")
 	if err != nil {
@@ -213,6 +266,42 @@ func TestServeThumbnail_Valid(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", rec.Code)
 	}
+	if !bytes.Equal(rec.Body.Bytes(), plain) {
+		t.Fatal("served thumbnail differs from plaintext")
+	}
+}
+
+func TestServeThumbnail_LegacyPlaintext(t *testing.T) {
+	s := newTestStorage(t.TempDir())
+	userID := "testuser"
+	thumbDir := s.thumbDir(userID)
+	if err := os.MkdirAll(thumbDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	plain := []byte("legacy jpg")
+	if err := os.WriteFile(filepath.Join(thumbDir, "old.jpg"), plain, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, rec := newEchoContext()
+	if err := s.ServeThumbnail(c, userID, "old.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(rec.Body.Bytes(), plain) {
+		t.Fatal("legacy plaintext thumbnail not served")
+	}
+}
+
+func writeTemp(t *testing.T, data []byte) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "plain-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	return f.Name()
 }
 
 func TestResolveUserMediaPath_SymlinkEscape(t *testing.T) {
@@ -425,6 +514,12 @@ func TestStorage_EncryptAndServeRoundTrip(t *testing.T) {
 	if !bytes.Equal(rec.Body.Bytes(), plain) {
 		t.Fatal("served bytes differ from original plaintext")
 	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != "inline" {
+		t.Fatalf("Content-Disposition = %q, want inline", got)
+	}
 
 	// OpenDecryptedTemp returns a seekable temp copy that vanishes on Close.
 	decrypted, err := s.OpenDecryptedTemp(mediaPath)
@@ -444,5 +539,39 @@ func TestStorage_EncryptAndServeRoundTrip(t *testing.T) {
 	}
 	if _, err := os.Stat(tmpName); !os.IsNotExist(err) {
 		t.Fatal("plaintext temp file survived Close()")
+	}
+}
+
+// sanitizePath must be safe on its own — the fallback path in mediaDir() is
+// not re-validated by containedIn. It may only strip to an innocuous single
+// component, never a traversal that filepath.Join would lift up a level.
+func TestSanitizePath_TraversalInputs(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"user-1", "user-1"},
+		{"..", ""},
+		{"../", ""},
+		{"../../etc", "....etc"},
+		{"../../etc/passwd", "....etcpasswd"},
+		{"a/../../b", "a....b"},
+		{"/etc", "etc"},
+		{`..\..\evil`, `....evil`}, // backslash is not a separator on the serving host
+		{"/abs/path", "abspath"},
+	}
+	for _, tc := range cases {
+		got := sanitizePath(tc.in)
+		if got != tc.want {
+			t.Errorf("sanitizePath(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+		// invariant: the sanitized value joins in as a single innocent
+		// component — up to base's parent is an escape.
+		base := "/storage/base"
+		j := filepath.Join(base, got)
+		rel, err := filepath.Rel(base, j)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			t.Errorf("sanitizePath(%q) escapes base: %q", tc.in, got)
+		}
 	}
 }

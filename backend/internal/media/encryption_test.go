@@ -147,7 +147,6 @@ func TestIsEncrypted(t *testing.T) {
 	}
 }
 
-
 func TestDecryptFromFile_HugeChunkLen_Rejected(t *testing.T) {
 	mk := testMasterKey()
 	input := bytes.Repeat([]byte{0x11}, 1024)

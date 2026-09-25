@@ -4,11 +4,11 @@ import { Info } from "@phosphor-icons/react";
 import { PanelHeader, InfoRow, CursorPosInfo } from "../../EditorSidebar";
 
 function formatSize(w: number, h: number) {
-  return !w || !h ? "—" : `${w} × ${h}`;
+  return !w || !h ? "n/a" : `${w} x ${h}`;
 }
 
 function formatMimeType(m: string) {
-  if (!m) return "—";
+  if (!m) return "n/a";
   if (m.includes("jpeg") || m.includes("jpg")) return "JPEG";
   if (m.includes("png")) return "PNG";
   if (m.includes("webp")) return "WebP";
@@ -28,7 +28,7 @@ interface InfoPanelProps {
 
 export function InfoPanel({ imageWidth, imageHeight, mimeType, zoom, sampledColor, canvasContainerRef, onClose }: InfoPanelProps) {
   return (
-    <div className="border-b border-main-border">
+    <div>
       <PanelHeader icon={Info} label="Info" onClose={onClose} />
       <div className="px-3 pb-3 pt-2 space-y-2">
         <InfoRow label="Dimensions" value={formatSize(imageWidth, imageHeight)} />

@@ -1,6 +1,7 @@
 package folders
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -25,7 +26,7 @@ func setupTestPool(t *testing.T) *db.TenantPool {
 func TestFolderService_List_Empty(t *testing.T) {
 	pool := setupTestPool(t)
 	svc := NewService(pool)
-	resp, err := svc.List("test-user")
+	resp, err := svc.List(context.Background(), "test-user")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -37,7 +38,7 @@ func TestFolderService_List_Empty(t *testing.T) {
 func TestFolderService_Create_Valid(t *testing.T) {
 	pool := setupTestPool(t)
 	svc := NewService(pool)
-	f, err := svc.Create("test-user", "My Folder", "blue", "manual", "")
+	f, err := svc.Create(context.Background(), "test-user", "My Folder", "blue", "manual", "")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -56,7 +57,7 @@ func TestFolderService_Create_SmartFolder(t *testing.T) {
 	pool := setupTestPool(t)
 	svc := NewService(pool)
 	fq := `{"categories":["Nature"],"minScore":0.5}`
-	f, err := svc.Create("test-user", "Smart Nature", "green", "smart", fq)
+	f, err := svc.Create(context.Background(), "test-user", "Smart Nature", "green", "smart", fq)
 	if err != nil {
 		t.Fatalf("Create smart folder: %v", err)
 	}
@@ -71,13 +72,13 @@ func TestFolderService_Create_SmartFolder(t *testing.T) {
 func TestFolderService_Update(t *testing.T) {
 	pool := setupTestPool(t)
 	svc := NewService(pool)
-	f, _ := svc.Create("test-user", "Old Name", "red", "manual", "")
-	err := svc.Update("test-user", f.ID, "New Name")
+	f, _ := svc.Create(context.Background(), "test-user", "Old Name", "red", "manual", "")
+	err := svc.Update(context.Background(), "test-user", f.ID, "New Name")
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
-	resp, _ := svc.List("test-user")
+	resp, _ := svc.List(context.Background(), "test-user")
 	if len(resp.Items) != 1 || resp.Items[0].Name != "New Name" {
 		t.Fatalf("expected folder renamed to 'New Name', got '%s'", resp.Items[0].Name)
 	}
@@ -86,13 +87,13 @@ func TestFolderService_Update(t *testing.T) {
 func TestFolderService_Delete(t *testing.T) {
 	pool := setupTestPool(t)
 	svc := NewService(pool)
-	f, _ := svc.Create("test-user", "Delete Me", "red", "manual", "")
-	err := svc.Delete("test-user", f.ID)
+	f, _ := svc.Create(context.Background(), "test-user", "Delete Me", "red", "manual", "")
+	err := svc.Delete(context.Background(), "test-user", f.ID)
 	if err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 
-	resp, _ := svc.List("test-user")
+	resp, _ := svc.List(context.Background(), "test-user")
 	if len(resp.Items) != 0 {
 		t.Fatalf("expected 0 folders after delete, got %d", len(resp.Items))
 	}
@@ -101,26 +102,26 @@ func TestFolderService_Delete(t *testing.T) {
 func TestFolderService_DeleteWithMediaUnlinks(t *testing.T) {
 	pool := setupTestPool(t)
 	svc := NewService(pool)
-	f, _ := svc.Create("test-user", "Folder", "red", "manual", "")
+	f, _ := svc.Create(context.Background(), "test-user", "Folder", "red", "manual", "")
 
 	// Insert media with this folder_id
-	tdb, _ := pool.Get("test-user")
+	tdb, _ := pool.Get(context.Background(), "test-user")
 	defer tdb.Close()
 
-	_, err := tdb.Exec("INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash, folder_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+	_, err := tdb.Exec(context.Background(), "INSERT INTO media (id, user_id, title, file_path, mime_type, size, hash, folder_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
 		"media-1", "test-user", "Test", "f.jpg", "image/jpeg", 100, "h1", f.ID, 1000)
 	if err != nil {
 		t.Fatalf("insert media: %v", err)
 	}
 
-	err = svc.Delete("test-user", f.ID)
+	err = svc.Delete(context.Background(), "test-user", f.ID)
 	if err != nil {
 		t.Fatalf("Delete with media: %v", err)
 	}
 
 	// Verify media folder_id is now NULL
 	var folderID sql.NullString
-	tdb.QueryRow("SELECT folder_id FROM media WHERE id = $1", "media-1").Scan(&folderID)
+	tdb.QueryRow(context.Background(), "SELECT folder_id FROM media WHERE id = $1", "media-1").Scan(&folderID)
 	if folderID.Valid {
 		t.Fatal("expected media folder_id to be NULL after folder delete")
 	}
@@ -129,11 +130,11 @@ func TestFolderService_DeleteWithMediaUnlinks(t *testing.T) {
 func TestFolderService_List_Multiple(t *testing.T) {
 	pool := setupTestPool(t)
 	svc := NewService(pool)
-	svc.Create("test-user", "B", "red", "manual", "")
-	svc.Create("test-user", "A", "blue", "manual", "")
-	svc.Create("test-user", "C", "green", "manual", "")
+	svc.Create(context.Background(), "test-user", "B", "red", "manual", "")
+	svc.Create(context.Background(), "test-user", "A", "blue", "manual", "")
+	svc.Create(context.Background(), "test-user", "C", "green", "manual", "")
 
-	resp, err := svc.List("test-user")
+	resp, err := svc.List(context.Background(), "test-user")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}

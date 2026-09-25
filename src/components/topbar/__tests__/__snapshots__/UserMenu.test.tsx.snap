@@ -9,99 +9,85 @@ exports[`UserMenu > opens dropdown on click 1`] = `
       aria-expanded="true"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
+      class="relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full ring-1 ring-main-text/10"
       type="button"
     >
-      <div
-        class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden"
+      <span
+        class="flex h-full w-full items-center justify-center rounded-full bg-main-text text-[11px] font-medium text-primary-foreground"
       >
         A
-      </div>
+      </span>
     </button>
     <div
       aria-label="User menu"
-      class="absolute top-9 right-0 w-44 bg-panel-bg border border-main-border/50 shadow-elevated rounded-md overflow-hidden z-[200]"
+      class="absolute right-0 top-12 z-[200] w-60 rounded-[1.5rem] bg-main-text/[0.05] p-1.5 ring-1 ring-main-text/10"
       role="menu"
     >
       <div
-        class="px-3 py-2 border-b border-main-border/30"
+        class="rounded-[calc(1.5rem-0.375rem)] bg-panel-bg p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
       >
         <div
-          class="flex items-center gap-2"
+          class="flex items-center gap-2.5 px-2.5 py-2"
         >
-          <div
-            class="w-7 h-7 rounded-full shrink-0 relative overflow-hidden"
+          <span
+            class="relative h-8 w-8 shrink-0 overflow-hidden rounded-full"
           >
-            <div
-              class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground"
+            <span
+              class="flex h-full w-full items-center justify-center rounded-full bg-main-text text-[11px] font-medium text-primary-foreground"
             >
               A
-            </div>
-          </div>
-          <div
+            </span>
+          </span>
+          <span
             class="min-w-0"
           >
-            <p
-              class="text-[11px] font-medium text-main-text truncate"
+            <span
+              class="block truncate text-[13px] font-medium tracking-[-0.01em] text-main-text"
             >
               Alice
-            </p>
-            <p
-              class="text-[10px] text-muted-text truncate"
+            </span>
+            <span
+              class="block truncate text-[10px] uppercase tracking-[0.14em] text-muted-text"
             >
               admin
-            </p>
-          </div>
+            </span>
+          </span>
         </div>
-      </div>
-      <div
-        class="p-0.5"
-      >
         <button
-          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-surface-bg"
+          class="flex h-9 w-full items-center gap-2.5 rounded-full px-3 text-[13px] tracking-[-0.01em] text-main-text/80 hover:bg-main-text/[0.05] hover:text-main-text cursor-pointer"
           role="menuitem"
           type="button"
         >
           <svg
-            class="text-muted-text group-hover:text-main-text transition-colors"
             fill="currentColor"
-            height="13"
+            height="15"
             viewBox="0 0 256 256"
-            width="13"
+            width="15"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
               d="M128,82a46,46,0,1,0,46,46A46.06,46.06,0,0,0,128,82Zm0,80a34,34,0,1,1,34-34A34,34,0,0,1,128,162Zm108-54.4a6,6,0,0,0-2.92-4L202.64,86.22l-.42-.71L202.1,51.2A6,6,0,0,0,200,46.64a110.12,110.12,0,0,0-36.07-20.31,6,6,0,0,0-4.84.45L128.46,43.86h-1L96.91,26.76a6,6,0,0,0-4.86-.44A109.92,109.92,0,0,0,56,46.68a6,6,0,0,0-2.12,4.55l-.16,34.34c-.14.23-.28.47-.41.71L22.91,103.57A6,6,0,0,0,20,107.62a104.81,104.81,0,0,0,0,40.78,6,6,0,0,0,2.92,4l30.42,17.33.42.71.12,34.31A6,6,0,0,0,56,209.36a110.12,110.12,0,0,0,36.07,20.31,6,6,0,0,0,4.84-.45l30.61-17.08h1l30.56,17.1A6.09,6.09,0,0,0,162,230a5.83,5.83,0,0,0,1.93-.32,109.92,109.92,0,0,0,36-20.36,6,6,0,0,0,2.12-4.55l.16-34.34c.14-.23.28-.47.41-.71l30.42-17.29a6,6,0,0,0,2.92-4.05A104.81,104.81,0,0,0,236,107.6Zm-11.25,35.79L195.32,160.1a6.07,6.07,0,0,0-2.28,2.3c-.59,1-1.21,2.11-1.86,3.14a6,6,0,0,0-.91,3.16l-.16,33.21a98.15,98.15,0,0,1-27.52,15.53L133,200.88a6,6,0,0,0-2.93-.77h-.14c-1.24,0-2.5,0-3.74,0a6,6,0,0,0-3.07.76L93.45,217.43a98,98,0,0,1-27.56-15.49l-.12-33.17a6,6,0,0,0-.91-3.16c-.64-1-1.27-2.08-1.86-3.14a6,6,0,0,0-2.27-2.3L31.3,143.4a93,93,0,0,1,0-30.79L60.68,95.9A6.07,6.07,0,0,0,63,93.6c.59-1,1.21-2.11,1.86-3.14a6,6,0,0,0,.91-3.16l.16-33.21A98.15,98.15,0,0,1,93.41,38.56L123,55.12a5.81,5.81,0,0,0,3.07.76c1.24,0,2.5,0,3.74,0a6,6,0,0,0,3.07-.76l29.65-16.56a98,98,0,0,1,27.56,15.49l.12,33.17a6,6,0,0,0,.91,3.16c.64,1,1.27,2.08,1.86,3.14a6,6,0,0,0,2.27,2.3L224.7,112.6A93,93,0,0,1,224.73,143.39Z"
             />
           </svg>
-          <span
-            class="text-[11px] font-medium text-muted-text group-hover:text-main-text"
-          >
-            Settings
-          </span>
+          Settings
         </button>
         <button
-          class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-left group cursor-pointer hover:bg-rose-500/5"
+          class="flex h-9 w-full items-center gap-2.5 rounded-full px-3 text-[13px] tracking-[-0.01em] text-muted-text hover:bg-rose-500/10 hover:text-rose-500 cursor-pointer"
           role="menuitem"
           type="button"
         >
           <svg
-            class="text-muted-text group-hover:text-rose-500 transition-colors"
             fill="currentColor"
-            height="13"
+            height="15"
             viewBox="0 0 256 256"
-            width="13"
+            width="15"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
               d="M118,216a6,6,0,0,1-6,6H48a6,6,0,0,1-6-6V40a6,6,0,0,1,6-6h64a6,6,0,0,1,0,12H54V210h58A6,6,0,0,1,118,216Zm110.24-92.24-40-40a6,6,0,0,0-8.48,8.48L209.51,122H112a6,6,0,0,0,0,12h97.51l-29.75,29.76a6,6,0,1,0,8.48,8.48l40-40A6,6,0,0,0,228.24,123.76Z"
             />
           </svg>
-          <span
-            class="text-[11px] font-medium text-muted-text group-hover:text-rose-500"
-          >
-            Sign out
-          </span>
+          Sign out
         </button>
       </div>
     </div>
@@ -118,14 +104,14 @@ exports[`UserMenu > renders avatar with initial letter when no image 1`] = `
       aria-expanded="false"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
+      class="relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full ring-1 ring-main-text/10"
       type="button"
     >
-      <div
-        class="w-full h-full rounded-full bg-primary flex items-center justify-center text-[10px] font-semibold text-primary-foreground overflow-hidden"
+      <span
+        class="flex h-full w-full items-center justify-center rounded-full bg-main-text text-[11px] font-medium text-primary-foreground"
       >
         A
-      </div>
+      </span>
     </button>
   </div>
 </div>
@@ -140,13 +126,13 @@ exports[`UserMenu > renders avatar with user image when available 1`] = `
       aria-expanded="false"
       aria-haspopup="menu"
       aria-label="Open user menu"
-      class="relative w-7 h-7 rounded-full flex items-center justify-center p-0.5 hover:ring-2 hover:ring-primary/15 transition-shadow duration-150 cursor-pointer overflow-hidden"
+      class="relative flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full ring-1 ring-main-text/10"
       type="button"
     >
       <img
-        alt="User avatar"
+        alt=""
         class="rounded-full object-cover"
-        sizes="28px"
+        sizes="36px"
         src="/api/v1/media/files//avatars/test.png"
       />
     </button>

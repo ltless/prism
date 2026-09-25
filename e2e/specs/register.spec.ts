@@ -14,8 +14,8 @@ test.describe('Registration', () => {
 
     await register.register(TEST_USER, TEST_PASS);
 
-    // Should now be on setup wizard
-    await expect(page).toHaveURL(/\/setup/);
+    // Valid invite code accepted → setup wizard
+    await expect(page).toHaveURL(/\/setup/, { timeout: 15000 });
 
     // Complete the setup wizard
     const setup = new SetupPage(page);
@@ -25,7 +25,24 @@ test.describe('Registration', () => {
     await expect(page).toHaveURL('/dashboard');
 
     // Verify media grid or empty state is visible
-    await page.waitForTimeout(2000);
-    await expect(page.locator('[data-testid="media-grid"], [data-testid="empty-library"]').first()).toBeVisible({ timeout: 10000 });
+    const cards = page.locator('[data-media-id]');
+    if ((await cards.count()) > 0) {
+      await expect(cards.first()).toBeVisible({ timeout: 10000 });
+    } else {
+      await page.waitForFunction(
+        () => (document.body.textContent || '').includes('No Files Yet'),
+        { timeout: 10000 },
+      );
+    }
+  });
+
+  test('register rejects a wrong invite code', async ({ page }) => {
+    const register = new RegisterPage(page);
+    await register.goto();
+    await register.register(`e2e-bad-${Date.now()}`, TEST_PASS, 'definitely-not-the-code');
+
+    // Rejected: inline error (Next's route announcer is also role=alert — take first), no redirect
+    await expect(page.locator('[role="alert"]').first()).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/register/);
   });
 });

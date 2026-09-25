@@ -1,13 +1,12 @@
 "use client";
 
-import { Check, Palette } from "@phosphor-icons/react";
+import { Check } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
-import { SectionCard } from "@/shared/components/SectionCard";
+import { SettingsGroup } from "./SettingsGroup";
 import { useTheme } from "@/components/ThemeProvider";
 
 function ThemeOption({
-  mode, label, active, previewBg, sidebar, sidebarBar, rowBg, rowDot, cellClass,
-  setTheme,
+  mode, label, active, previewBg, sidebar, sidebarBar, rowBg, cellClass, setTheme,
 }: {
   mode: "dark" | "light";
   label: string;
@@ -16,7 +15,6 @@ function ThemeOption({
   sidebar: string;
   sidebarBar: string;
   rowBg: string;
-  rowDot: string;
   cellClass: string;
   setTheme: (t: "dark" | "light") => void;
 }) {
@@ -26,40 +24,34 @@ function ThemeOption({
       onClick={() => setTheme(mode)}
       aria-pressed={active}
       className={cn(
-        "p-3 rounded-xl border relative overflow-hidden group cursor-pointer transition-[border-color,background-color,transform] duration-300 text-left",
-        active
-          ? "border-primary bg-primary/[0.02] shadow-sm scale-[1.01]"
-          : "border-main-border/50 bg-app-bg/30 hover:border-main-border/80 hover:bg-app-bg/50"
+        "relative w-full overflow-hidden rounded-2xl p-2 text-left cursor-pointer ring-1 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]",
+        active ? "ring-primary" : "ring-black/10 hover:ring-black/20 dark:ring-white/10 dark:hover:ring-white/20",
       )}
     >
-      {/* UI Mockup preview */}
-      <div className={cn("w-full h-16 border rounded-lg mb-3 flex p-1.5 gap-1.5 overflow-hidden shadow-sm", previewBg)}>
-        <div className={cn("w-7 h-full rounded-md flex flex-col gap-1 p-1", sidebar)}>
+      <div className={cn("flex h-16 gap-1.5 overflow-hidden rounded-xl p-1.5", previewBg)}>
+        <div className={cn("flex w-8 flex-col gap-1 rounded-md p-1", sidebar)}>
           <div className={cn("h-1 w-full rounded-full", sidebarBar)} />
           <div className={cn("h-1 w-4 rounded-full", sidebarBar)} />
         </div>
-        <div className="flex-1 flex flex-col gap-1">
-          <div className={cn("h-2 w-full rounded-md flex items-center px-1", rowBg)}>
-            <div className="w-1.5 h-1 bg-primary rounded-full" />
+        <div className="flex flex-1 flex-col gap-1">
+          <div className={cn("flex h-2 w-full items-center rounded-md px-1", rowBg)}>
+            <div className="h-1 w-1.5 rounded-full bg-primary" />
           </div>
-          <div className="grid grid-cols-3 gap-1 flex-1">
-            <div className={cn("rounded-md border flex items-center justify-center", cellClass)}>
-              <div className={cn("w-2.5 h-2.5 bg-primary/20 rounded-full", rowDot)} />
-            </div>
-            <div className={cn("rounded-md border", cellClass)} />
-            <div className={cn("rounded-md border", cellClass)} />
+          <div className="grid flex-1 grid-cols-3 gap-1">
+            <div className={cn("rounded-md", cellClass)} />
+            <div className={cn("rounded-md", cellClass)} />
+            <div className={cn("rounded-md", cellClass)} />
           </div>
         </div>
       </div>
-      <p className={cn(
-        "text-[11px] text-center font-medium transition-colors",
-        active ? "text-main-text font-semibold" : "text-muted-text group-hover:text-main-text"
-      )}>{label}</p>
-      {active && (
-        <div className="absolute top-2 right-2 w-4 h-4 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-sm">
-          <Check size={10} weight="bold" />
-        </div>
-      )}
+      <span className="mt-2 flex items-center justify-between px-1 pb-0.5">
+        <span className={cn("text-[13px]", active ? "font-medium text-main-text" : "text-muted-text")}>{label}</span>
+        {active && (
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Check size={9} weight="bold" />
+          </span>
+        )}
+      </span>
     </button>
   );
 }
@@ -68,34 +60,31 @@ export function ThemeSelectorCard() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <SectionCard icon={Palette} title="Display Theme" bodyClassName="flex flex-col gap-4">
-      <p className="text-[11px] text-muted-text">Select how you want the Prism interface to look on your device.</p>
-      <div className="grid grid-cols-2 gap-4">
+    <SettingsGroup title="Appearance" description="Applies immediately on this device.">
+      <div className="flex flex-col gap-2 p-3">
         <ThemeOption
           mode="dark"
-          label="Dark Mode"
+          label="Dark"
           active={theme === "dark"}
-          previewBg="bg-[#0E0E0D] border-white/5"
+          previewBg="bg-[#0E0E0D]"
           sidebar="bg-[#181816]"
           sidebarBar="bg-[#2B2B28]"
           rowBg="bg-[#181816]"
-          rowDot=""
-          cellClass="bg-[#181816] border-white/5"
+          cellClass="bg-[#181816]"
           setTheme={setTheme}
         />
         <ThemeOption
           mode="light"
-          label="Light Mode"
+          label="Light"
           active={theme === "light"}
-          previewBg="bg-[#F9F8F6] border-black/5"
-          sidebar="bg-[#EDEDE9]"
-          sidebarBar="bg-[#D6D6D0]"
-          rowBg="bg-[#EDEDE9]"
-          rowDot=""
-          cellClass="bg-white border-black/5"
+          previewBg="bg-[#F4F4F5]"
+          sidebar="bg-[#E4E4E7]"
+          sidebarBar="bg-[#D4D4D8]"
+          rowBg="bg-[#E4E4E7]"
+          cellClass="bg-white"
           setTheme={setTheme}
         />
       </div>
-    </SectionCard>
+    </SettingsGroup>
   );
 }

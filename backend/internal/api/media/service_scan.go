@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"github.com/ltless/prism/internal/db"
@@ -40,8 +41,8 @@ const mediaSelectCols = `id, title, file_path, mime_type, size, width, height, h
 
 // scanMediaPageWithTotal runs a paged media SELECT carrying a COUNT(*) OVER()
 // total column and drains it into items + total.
-func scanMediaPageWithTotal(tdb *db.TenantDB, query, totalCol string, args []interface{}) ([]MediaItem, int, error) {
-	rows, err := tdb.Query(query, args...)
+func scanMediaPageWithTotal(ctx context.Context, tdb *db.TenantDB, query, totalCol string, args []interface{}) ([]MediaItem, int, error) {
+	rows, err := tdb.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query media: %w", err)
 	}
@@ -191,8 +192,8 @@ func scanMediaItemWithTotal(rows *sql.Rows, totalCol string) (*MediaItem, int, e
 }
 
 // scanMediaRows runs a media SELECT and scans all rows into MediaItems.
-func scanMediaRows(tdb *db.TenantDB, q string, args []interface{}) ([]MediaItem, error) {
-	rows, err := tdb.Query(q, args...)
+func scanMediaRows(ctx context.Context, tdb *db.TenantDB, q string, args []interface{}) ([]MediaItem, error) {
+	rows, err := tdb.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query media: %w", err)
 	}

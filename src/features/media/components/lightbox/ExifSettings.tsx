@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera } from "@phosphor-icons/react";
-import { SectionCard, Field } from "@/shared/components/SectionCard";
+import { LightboxSheet, SheetField } from "./LightboxSheet";
 
 interface ExifSettingsProps {
   metadata: {
@@ -84,12 +84,12 @@ export function ExifSettings({ metadata }: ExifSettingsProps) {
   if (fields.length === 0) return null;
 
   return (
-    <SectionCard compact icon={Camera} title="Camera">
-      <div className="grid grid-cols-2 gap-2.5">
+    <LightboxSheet icon={Camera} title="Camera">
+      <div className="grid grid-cols-2 gap-3">
         {fields.map(f => (
-          <Field key={f.label} label={f.label} value={f.value} />
+          <SheetField key={f.label} label={f.label} value={f.value} />
         ))}
       </div>
-    </SectionCard>
+    </LightboxSheet>
   );
 }

@@ -6,16 +6,18 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/ltless/prism/internal/audit"
 	"github.com/ltless/prism/internal/vault"
 )
 
 type Handler struct {
 	service  *Service
 	vaultMgr *vault.Manager
+	audit    *audit.Recorder
 }
 
-func NewHandler(service *Service, vaultMgr *vault.Manager) *Handler {
-	return &Handler{service: service, vaultMgr: vaultMgr}
+func NewHandler(service *Service, vaultMgr *vault.Manager, auditRec *audit.Recorder) *Handler {
+	return &Handler{service: service, vaultMgr: vaultMgr, audit: auditRec}
 }
 
 func (h *Handler) Login(c echo.Context) error {
@@ -38,6 +40,7 @@ func (h *Handler) Login(c echo.Context) error {
 	}
 
 	SetAuthCookie(c, resp.Token, 7*24*3600)
+	h.audit.Event(c.Request().Context(), resp.UserID, "login", resp.Username, true, c.RealIP(), "")
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -65,12 +68,16 @@ func (h *Handler) Register(c echo.Context) error {
 	}
 
 	SetAuthCookie(c, resp.Token, 7*24*3600)
+	h.audit.Event(c.Request().Context(), resp.UserID, "register", resp.Username, true, c.RealIP(), "")
 	return c.JSON(http.StatusCreated, resp)
 }
 
 func (h *Handler) Logout(c echo.Context) error {
 	ClearAuthCookie(c)
 	h.vaultMgr.ClearCookie(c)
+	if claims := GetClaims(c); claims != nil {
+		h.audit.Event(c.Request().Context(), claims.UserID, "logout", claims.Username, true, c.RealIP(), "")
+	}
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 
@@ -100,6 +107,7 @@ func (h *Handler) ChangePassword(c echo.Context) error {
 		}
 	}
 
+	h.audit.Event(c.Request().Context(), claims.UserID, "change_password", claims.UserID, true, c.RealIP(), "")
 	return c.JSON(http.StatusOK, map[string]bool{"success": true})
 }
 

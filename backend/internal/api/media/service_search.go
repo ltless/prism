@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -62,6 +63,9 @@ type SearchParams struct {
 	// the caller holds a valid vault-unlock token; otherwise search would leak
 	// vault items.
 	IncludeVault bool
+	// NameOnly restricts the text match to the file title. Off by default,
+	// so a query also hits AI tags inside metadata.
+	NameOnly bool
 }
 
 // buildSearchWhere assembles Search's filter set (F13 extraction): tenant
@@ -78,14 +82,17 @@ func buildSearchWhere(userID string, params SearchParams) listFilters {
 	}
 	argIdx := 2
 
-	// Text search — title OR metadata JSONB LIKE (matches Drizzle behaviour).
+	// Text search. Name matches the title; describe also matches AI tags
+	// stored in metadata (the Drizzle behaviour).
 	if params.Query != "" {
 		escaped := strings.ReplaceAll(params.Query, "%", "\\%")
 		escaped = strings.ReplaceAll(escaped, "_", "\\_")
 		qLike := "%" + strings.ToLower(escaped) + "%"
-		f.where = append(f.where, fmt.Sprintf(
-			"(LOWER(title) ILIKE $%[1]d ESCAPE '\\' OR (metadata IS NOT NULL AND LOWER(metadata::text) LIKE $%[1]d ESCAPE '\\'))",
-			argIdx))
+		clause := "LOWER(title) ILIKE $%[1]d ESCAPE '\\'"
+		if !params.NameOnly {
+			clause = "(" + clause + " OR (metadata IS NOT NULL AND LOWER(metadata::text) LIKE $%[1]d ESCAPE '\\'))"
+		}
+		f.where = append(f.where, fmt.Sprintf(clause, argIdx))
 		f.args = append(f.args, qLike)
 		argIdx++
 	}
@@ -172,8 +179,8 @@ func appendSearchDedup(f *listFilters, userID string, params SearchParams) {
 	f.where = append(f.where, "id IN ("+rewritten+")")
 }
 
-func (s *Service) Search(userID string, params SearchParams) (*ListResponse, error) {
-	tdb, err := s.pool.Get(userID)
+func (s *Service) Search(ctx context.Context, userID string, params SearchParams) (*ListResponse, error) {
+	tdb, err := s.pool.Get(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get tenant db: %w", err)
 	}
@@ -185,7 +192,7 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 
 	var total int
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media WHERE %s", whereClause)
-	if err := tdb.QueryRow(countQuery, f.args...).Scan(&total); err != nil {
+	if err := tdb.QueryRow(ctx, countQuery, f.args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count search: %w", err)
 	}
 
@@ -202,7 +209,7 @@ func (s *Service) Search(userID string, params SearchParams) (*ListResponse, err
 		FROM media WHERE %s ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d`,
 		mediaSelectCols, whereClause, params.Limit, (params.Page-1)*params.Limit)
 
-	items, err := scanMediaRows(tdb, query, f.args)
+	items, err := scanMediaRows(ctx, tdb, query, f.args)
 	if err != nil {
 		return nil, fmt.Errorf("query search: %w", err)
 	}

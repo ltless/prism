@@ -111,7 +111,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Build app (prod — rewrites bake BACKEND_URL at build time)
         run: pnpm build
-      - name: Start app (prod: Go backend + next start)
+      - name: 'Start app (prod: Go backend + next start)'
         run: |
           pnpm start:be > /tmp/prism-be.log 2>&1 &
           pnpm start > /tmp/prism-next.log 2>&1 &

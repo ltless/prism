@@ -95,7 +95,7 @@ export function EditorCanvasArea({
               maxPreviewSize={maxPreviewSize}
             />
             {view.before && (
-              <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-full bg-[#0c0c0e]/75 ring-1 ring-white/12 text-[10px] font-medium uppercase tracking-[0.16em] text-white/70 pointer-events-none backdrop-blur-xl">
+              <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-full bg-[#0c0c0e] ring-1 ring-white/12 text-[10px] font-medium uppercase tracking-[0.16em] text-white/70 pointer-events-none">
                 BEFORE
               </div>
             )}

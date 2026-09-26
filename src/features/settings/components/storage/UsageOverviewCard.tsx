@@ -1,5 +1,6 @@
 "use client";
 
+import { m } from "motion/react";
 import { cn } from "@/core/utils/cn";
 import { formatBytes } from "@/core/utils/format";
 import { SettingsGroup } from "../SettingsGroup";
@@ -57,12 +58,19 @@ function UsageSummary({ data, hasLimit, percentage }: { data: StorageData | null
         </p>
       </div>
       {hasLimit && data && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-bg">
-          <div
-            className={cn("h-full rounded-full bg-gradient-to-r", barColor(percentage))}
-            style={{ width: `${Math.max(1.5, percentage)}%` }}
-          />
-        </div>
+        <>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-bg">
+            <m.div
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.max(1.5, percentage)}%` }}
+              transition={{ duration: 0.9, ease: [0.32, 0.72, 0, 1] }}
+              className={cn("h-full rounded-full bg-gradient-to-r", barColor(percentage))}
+            />
+          </div>
+          <p className="text-[11px] tabular-nums tracking-wide text-muted-text">
+            {Math.round(percentage)}% of {formatBytes(data.limitBytes ?? 0)}
+          </p>
+        </>
       )}
     </div>
   );

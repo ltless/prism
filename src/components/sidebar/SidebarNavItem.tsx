@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { m } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface SidebarNavItemProps {
@@ -38,13 +41,18 @@ export function SidebarNavItem({ item, isExpanded }: SidebarNavItemProps) {
       <span
         className={cn(
           "absolute left-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full",
-          "transition-[background-color,color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
-          isActive
-            ? "bg-main-text text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]"
-            : "text-muted-text group-hover/nav:bg-main-text/6 group-hover/nav:text-main-text",
+          isActive ? "text-app-bg" : "text-muted-text group-hover/nav:bg-main-text/6 group-hover/nav:text-main-text",
         )}
+        style={{ transition: "color 400ms cubic-bezier(0.32,0.72,0,1)" }}
       >
-        <Icon size={15} weight={isActive ? "fill" : "light"} />
+        {isActive && (
+          <m.span
+            layoutId="sidebar-nav-disc"
+            transition={{ type: "spring", stiffness: 480, damping: 34 }}
+            className="absolute inset-0 rounded-full bg-main-text shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]"
+          />
+        )}
+        <Icon size={15} weight={isActive ? "fill" : "light"} className="relative" />
       </span>
       <span
         className={cn(

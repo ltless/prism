@@ -41,15 +41,14 @@ export function StorageTab() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <UsageOverviewCard data={data} isLoading={isLoading} />
 
       {isAdmin && (
-        <GlobalQuotaSection data={data} isLoading={isLoading} onDataChange={setData} />
-      )}
-
-      {isAdmin && (
-        <AdminQuotaSection data={data} setData={setData} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <GlobalQuotaSection data={data} isLoading={isLoading} onDataChange={setData} />
+          <AdminQuotaSection data={data} setData={setData} />
+        </div>
       )}
 
       <DangerZoneSection />

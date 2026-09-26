@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Camera, Image as ImageIcon, Spinner } from "@phosphor-icons/react";
 import { SettingsGroup } from "./SettingsGroup";
+import { pillPrimary, field } from "@/shared/components/ui/styles";
 import { updateUsernameAction } from "@/features/profile/services/profileActions";
 import { toast } from "sonner";
 import type { EffectiveSession } from "@/lib/auth/useEffectiveSession";
@@ -45,10 +46,10 @@ export function ProfileCard({ session, isUploading, coverSrc, profileSrc, onFile
         type="button"
         onClick={() => coverInputRef.current?.click()}
         aria-label="Change cover image"
-        className="relative block h-28 w-full cursor-pointer overflow-hidden bg-surface-bg"
+        className="group relative block h-28 w-full cursor-pointer overflow-hidden bg-surface-bg"
       >
         {coverSrc ? (
-          <Image src={coverSrc} alt="" fill sizes="640px" className="object-cover" unoptimized />
+          <Image src={coverSrc} alt="" fill sizes="640px" className="object-cover transition-transform duration-700 ease-spring group-hover:scale-[1.03]" unoptimized />
         ) : (
           <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-black/[0.04] to-black/[0.1] dark:from-white/[0.04] dark:to-white/[0.1]">
             <ImageIcon className="h-5 w-5 text-muted-text" weight="light" />
@@ -68,16 +69,16 @@ export function ProfileCard({ session, isUploading, coverSrc, profileSrc, onFile
             type="button"
             onClick={() => profileInputRef.current?.click()}
             aria-label="Change profile photo"
-            className="relative -mt-8 h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-bg ring-[3px] ring-panel-bg cursor-pointer"
+            className="group relative -mt-8 h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-bg ring-[3px] ring-panel-bg cursor-pointer"
           >
             {profileSrc ? (
-              <Image src={profileSrc} alt="" fill sizes="64px" className="object-cover" unoptimized />
+              <Image src={profileSrc} alt="" fill sizes="64px" className="object-cover transition-transform duration-700 ease-spring group-hover:scale-[1.06]" unoptimized />
             ) : (
               <span className="flex h-full w-full items-center justify-center bg-primary text-lg font-medium text-primary-foreground uppercase">
                 {session?.user?.name?.[0] || "U"}
               </span>
             )}
-            <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-500 hover:opacity-100">
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
               {isUploading === "image" ? <Spinner className="h-4 w-4 animate-spin text-white" /> : <Camera className="h-4 w-4 text-white" weight="light" />}
             </span>
             <input type="file" ref={profileInputRef} className="hidden" accept="image/*" onChange={(e) => onFileSelect(e, "image")} />
@@ -95,13 +96,13 @@ export function ProfileCard({ session, isUploading, coverSrc, profileSrc, onFile
               id="username-input"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              className="w-full rounded-full border border-main-border bg-app-bg px-4 py-2 text-[13px] text-main-text outline-none focus:border-border-medium"
+              className={`${field} h-10 flex-1`}
             />
             <button
               type="button"
               onClick={handleSaveUsername}
               disabled={isSavingUsername || !dirty}
-              className="shrink-0 rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground disabled:opacity-40 cursor-pointer"
+              className={`${pillPrimary} shrink-0 px-5`}
             >
               {isSavingUsername ? "Saving" : "Save"}
             </button>

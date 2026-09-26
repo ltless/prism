@@ -65,7 +65,7 @@ export function LibraryPicker({ onSelect, onClose }: LibraryPickerProps) {
     <dialog
       ref={dialogRef}
       aria-label="Open from library"
-      className="fixed inset-0 z-50 m-auto w-[min(560px,calc(100vw-2rem))] max-h-[70vh] bg-[#101012] text-white ring-1 ring-white/12 rounded-[1.4rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_30px_80px_rgba(0,0,0,0.55)] flex flex-col overflow-hidden outline-none backdrop:bg-black/60 backdrop:backdrop-blur-md"
+      className="fixed inset-0 z-50 m-auto w-[min(560px,calc(100vw-2rem))] max-h-[70vh] bg-[#101012] text-white ring-1 ring-white/12 rounded-[1.4rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_30px_80px_rgba(0,0,0,0.55)] flex flex-col overflow-hidden outline-none backdrop:bg-black/60"
       onClose={onClose}
     >
       <header className="flex items-center justify-between px-4 h-12">

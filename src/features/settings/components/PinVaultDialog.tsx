@@ -84,20 +84,23 @@ export function PinVaultDialog({
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative mx-4 w-full max-w-xs rounded-[1.75rem] bg-panel-bg px-5 pb-5 pt-4 shadow-modal ring-1 ring-black/10 dark:ring-white/10"
+            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+            className="relative mx-4 w-full max-w-xs rounded-[2rem] bg-panel-bg px-5 pb-5 pt-4 shadow-modal ring-1 ring-black/10 dark:ring-white/10"
           >
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-[13px] font-medium text-main-text">
-                {dialog === "set" ? "Set PIN" : dialog === "change" ? "Change PIN" : "Remove PIN"}
-              </p>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-text">Vault</p>
+                <p className="mt-0.5 text-[14px] font-medium text-main-text">
+                  {dialog === "set" ? "Set PIN" : dialog === "change" ? "Change PIN" : "Remove PIN"}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="rounded-lg p-1 text-muted-text transition-colors hover:bg-surface-bg hover:text-main-text cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/[0.05] text-muted-text transition-transform duration-500 ease-spring hover:bg-black/[0.08] hover:text-main-text cursor-pointer dark:bg-white/10 dark:hover:bg-white/15"
               >
-                <X size={14} weight="light" />
+                <X size={13} weight="light" />
               </button>
             </div>
 

@@ -47,7 +47,7 @@ export function EditorToolbar({
 
   return (
     <div className="w-[4.25rem] shrink-0 flex flex-col items-center justify-center py-4">
-      <div className="flex flex-col items-center gap-0.5 rounded-full bg-[#0c0c0e]/80 p-1.5 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-2xl">
+      <div className="flex flex-col items-center gap-0.5 rounded-full bg-[#0c0c0e] p-1.5 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
       {tools.map((tool) => {
         const Icon = tool.icon;
         const isActive = activeTool === tool.id;

@@ -16,47 +16,47 @@ export function ProfileStep({ profileImage, coverImage, isUploading, onFileUploa
  const coverInputRef = useRef<HTMLInputElement>(null);
 
  return (
- <div className="space-y-5 w-full flex flex-col items-center">
+ <div className="flex w-full flex-col items-center gap-5">
  <input type="file" className="hidden" ref={coverInputRef} onChange={(e) => onFileUpload(e, 'cover')} accept="image/*" />
  <input type="file" className="hidden" ref={profileInputRef} onChange={(e) => onFileUpload(e, 'profile')} accept="image/*" />
 
-  <div className="w-full relative">
-  <button type="button" onClick={() => coverInputRef.current?.click()} className="w-full h-28 rounded-xl bg-surface-bg border border-main-border/50 overflow-hidden group cursor-pointer relative block">
+  <div className="relative w-full rounded-[1.75rem] bg-black/[0.03] p-1.5 ring-1 ring-black/5 dark:bg-white/[0.04] dark:ring-white/10">
+  <div className="relative overflow-hidden rounded-[calc(1.75rem-0.375rem)] bg-surface-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+  <button type="button" onClick={() => coverInputRef.current?.click()} aria-label="Upload cover photo" className="group relative block h-28 w-full cursor-pointer overflow-hidden">
   {coverImage ? (
-  <Image src={`/api/v1/media/files/${coverImage}`} alt="Cover" fill sizes="(max-width: 768px) 100vw, 500px" className="object-cover" unoptimized priority />
+  <Image src={`/api/v1/media/files/${coverImage}`} alt="Cover" fill sizes="(max-width: 768px) 100vw, 500px" className="object-cover transition-transform duration-700 ease-spring group-hover:scale-[1.03]" unoptimized priority />
   ) : (
-  <div className="w-full h-full flex items-center justify-center text-muted-text/30 group-hover:text-muted-text/50 transition-colors">
-  {isUploading === 'cover' ? <Spinner className="animate-spin" weight="light" /> : <ImageIcon size={24} weight="light" />}
+  <div className="flex h-full w-full items-center justify-center text-muted-text/40 transition-colors duration-500 ease-spring group-hover:text-muted-text/70">
+  {isUploading === 'cover' ? <Spinner size={22} className="animate-spin" weight="light" /> : <ImageIcon size={22} weight="light" />}
   </div>
   )}
-  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-  <div className="bg-panel-bg/90 p-2 rounded-lg shadow-sm">
-  <Camera size={14} weight="light" className="text-main-text" />
-  </div>
-  </div>
+  <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-500 ease-spring group-hover:opacity-100">
+  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-panel-bg">
+  <Camera size={15} weight="light" className="text-main-text" />
+  </span>
+  </span>
   </button>
+  </div>
 
   <div className="absolute -bottom-7 left-5">
-  <button type="button" onClick={() => profileInputRef.current?.click()} className="w-16 h-16 rounded-full bg-app-bg border-[3px] border-panel-bg shadow-md overflow-hidden group cursor-pointer relative block">
+  <button type="button" onClick={() => profileInputRef.current?.click()} aria-label="Upload profile photo" className="group relative block h-16 w-16 cursor-pointer overflow-hidden rounded-full bg-surface-bg ring-[3px] ring-panel-bg">
   {profileImage ? (
-  <Image src={`/api/v1/media/files/${profileImage}`} alt="Profile" fill sizes="64px" className="object-cover" unoptimized priority />
+  <Image src={`/api/v1/media/files/${profileImage}`} alt="Profile" fill sizes="64px" className="object-cover transition-transform duration-700 ease-spring group-hover:scale-[1.06]" unoptimized priority />
   ) : (
-  <div className="w-full h-full bg-surface-bg flex items-center justify-center text-muted-text/30 group-hover:text-muted-text/50 transition-colors">
-  {isUploading === 'profile' ? <Spinner className="animate-spin" weight="light" /> : <User size={20} weight="light" />}
+  <div className="flex h-full w-full items-center justify-center text-muted-text/40 transition-colors duration-500 ease-spring group-hover:text-muted-text/70">
+  {isUploading === 'profile' ? <Spinner size={18} className="animate-spin" weight="light" /> : <User size={18} weight="light" />}
   </div>
   )}
-  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-  <Plus size={16} weight="bold" className="text-white" />
-  </div>
+  <span className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-500 ease-spring group-hover:opacity-100">
+  <Plus size={15} weight="light" className="text-white" />
+  </span>
   </button>
   </div>
   </div>
 
- <div className="pt-8 w-full text-center">
- <p className="text-[11px] text-muted-text">
- Click to upload your profile and cover photo.
+ <p className="pt-8 text-center text-[12px] text-muted-text">
+ Click to upload a profile and cover photo. You can change both later.
  </p>
- </div>
  </div>
  );
 }

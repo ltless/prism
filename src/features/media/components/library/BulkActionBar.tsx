@@ -18,7 +18,7 @@ export function BulkActionBar({ selectedIds, isSelecting, onFavorite, onCopy, on
  if (count === 0 || isSelecting) return null;
  return (
  <div
-  className="fixed bottom-[calc(var(--mobile-nav-h)+1rem)] left-1/2 z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-1 rounded-full bg-app-bg/80 p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.08)] ring-1 ring-main-text/10 backdrop-blur-2xl md:bottom-8 md:max-w-none"
+   className="fixed bottom-[calc(var(--mobile-nav-h)+1rem)] left-1/2 z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-1 rounded-full bg-app-bg p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.08)] ring-1 ring-main-text/10 md:bottom-8 md:max-w-none"
  >
  <div className="hidden items-center rounded-full bg-main-text px-4 py-2 text-app-bg md:flex">
  <span className="text-[12px] font-medium tabular-nums">{count} selected</span>

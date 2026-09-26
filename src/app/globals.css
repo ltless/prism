@@ -46,10 +46,7 @@
 
   --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 1px 5px rgba(0,0,0,0.06);
   --shadow-elevated: 0 8px 32px -12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.05);
-  --shadow-glass: 0 16px 48px -12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
   --shadow-modal: 0 32px 80px -20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
-
-  --backdrop-blur: blur(20px);
 }
 
 :root {

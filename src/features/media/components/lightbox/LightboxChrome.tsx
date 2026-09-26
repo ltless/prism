@@ -5,8 +5,11 @@ import { cn } from "@/core/utils/cn";
 
 const EASE = "cubic-bezier(0.32,0.72,0,1)";
 
-/** Glass island. Fixed chrome only, so backdrop-blur stays legal. */
-export function GlassIsland({
+/**
+ * Fixed chrome island. Deliberately opaque: no translucency, no backdrop-filter.
+ * The name used to be GlassIsland, which was a lie — the fill is solid #0c0c0e.
+ */
+export function ChromeIsland({
   className,
   children,
 }: {
@@ -17,9 +20,8 @@ export function GlassIsland({
     <div
       className={cn(
         "pointer-events-auto rounded-full p-1",
-        "bg-[#0c0c0e]/72 ring-1 ring-white/12",
+        "bg-[#0c0c0e] ring-1 ring-white/12",
         "shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]",
-        "backdrop-blur-2xl",
         className,
       )}
       style={{ transition: `transform 500ms ${EASE}, opacity 500ms ${EASE}` }}

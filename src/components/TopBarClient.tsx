@@ -117,7 +117,7 @@ export function TopBar() {
         onMouseLeave={release}
         style={expandedW ? { width: compact ? compactW : expandedW } : undefined}
         className={cn(
-          "pointer-events-auto flex items-center gap-1 rounded-full bg-app-bg/80 p-1.5 ring-1 ring-main-text/10 backdrop-blur-2xl",
+          "pointer-events-auto flex items-center gap-1 rounded-full bg-app-bg p-1.5 ring-1 ring-main-text/10",
           "transition-[width]",
           motion,
           !expandedW && "w-[min(42rem,100%)]",

@@ -170,7 +170,7 @@ export function EditorSidebar({
   return (
     <div className="flex shrink-0 py-3 pr-3">
       {isOpen && (
-        <div className="lb-editor-sheet w-72 mr-2 flex flex-col overflow-y-auto custom-scroll rounded-[1.4rem] bg-[#101012]/92 text-white ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-2xl [--text-main:#f4f4f5] [--text-muted:rgba(255,255,255,0.48)] [--border-soft:rgba(255,255,255,0.1)] [--border-medium:rgba(255,255,255,0.16)] [--bg-surface:rgba(255,255,255,0.06)] [--bg-panel:#141416] [--accent-rgb:255_255_255] [--text-on-primary:#0c0c0e]">
+        <div className="lb-editor-sheet w-72 mr-2 flex flex-col overflow-y-auto custom-scroll rounded-[1.4rem] bg-[#101012] text-white ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] [--text-main:#f4f4f5] [--text-muted:rgba(255,255,255,0.48)] [--border-soft:rgba(255,255,255,0.1)] [--border-medium:rgba(255,255,255,0.16)] [--bg-surface:rgba(255,255,255,0.06)] [--bg-panel:#141416] [--accent-rgb:255_255_255] [--text-on-primary:#0c0c0e]">
           {active === "navigator" && (
             <NavigatorPanel
               mediaUrl={mediaUrl}
@@ -266,7 +266,7 @@ export function EditorSidebar({
       )}
 
       <div className="w-12 shrink-0 flex flex-col items-center justify-center">
-        <div className="flex flex-col items-center gap-0.5 rounded-full bg-[#0c0c0e]/80 p-1.5 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] backdrop-blur-2xl">
+        <div className="flex flex-col items-center gap-0.5 rounded-full bg-[#0c0c0e] p-1.5 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const on = isOpen && active === tab.id;

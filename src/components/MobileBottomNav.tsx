@@ -34,9 +34,9 @@ export function MobileBottomNav({ folders }: { folders: FolderType[] }) {
     <>
       <nav
         aria-label="Primary"
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))] pointer-events-none"
+        className="md:hidden fixed bottom-0 inset-x-0 z-mobile-sidebar px-3 pb-[max(0.6rem,env(safe-area-inset-bottom))] pointer-events-none"
       >
-        <div className="pointer-events-auto flex h-16 items-center justify-around rounded-full bg-white/70 p-1.5 ring-1 ring-black/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_40px_rgba(10,10,11,0.08)] backdrop-blur-2xl dark:bg-[#101012]/82 dark:ring-white/10 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_16px_40px_rgba(0,0,0,0.4)]">
+        <div className="pointer-events-auto flex h-16 items-center justify-around rounded-full bg-panel-bg p-1.5 ring-1 ring-main-text/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_40px_rgba(10,10,11,0.08)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_16px_40px_rgba(0,0,0,0.4)]">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = tab.match(pathname);
@@ -49,11 +49,20 @@ export function MobileBottomNav({ folders }: { folders: FolderType[] }) {
               >
                 <span
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-full transition-[background-color,color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
-                    active ? "bg-main-text text-primary-foreground" : "text-muted-text",
+                    "flex h-7 w-7 items-center justify-center rounded-full",
+                    active ? "bg-main-text text-app-bg" : "text-muted-text",
                   )}
                 >
-                  <Icon size={16} weight={active ? "fill" : "light"} />
+                  {active ? (
+                    <m.span
+                      key="active"
+                      initial={{ scale: 0.7, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      className="absolute inset-0 rounded-full bg-main-text"
+                    />
+                  ) : null}
+                  <Icon size={16} weight={active ? "fill" : "light"} className={cn("relative", active && "text-app-bg")} />
                 </span>
                 <span className={cn("text-[10px] font-medium tracking-[-0.01em]", active ? "text-main-text" : "text-muted-text")}>
                   {tab.label}
@@ -86,7 +95,7 @@ export function MobileBottomNav({ folders }: { folders: FolderType[] }) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setMoreOpen(false)}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] md:hidden"
+              className="fixed inset-0 z-modal-backdrop bg-black/40 md:hidden"
             />
             <m.div
               role="dialog"
@@ -96,7 +105,7 @@ export function MobileBottomNav({ folders }: { folders: FolderType[] }) {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-              className="fixed inset-x-2 bottom-2 z-[45] flex max-h-[75vh] flex-col overflow-hidden rounded-[1.6rem] bg-white/80 p-1.5 ring-1 ring-black/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_-20px_60px_rgba(10,10,11,0.12)] backdrop-blur-2xl md:hidden dark:bg-[#101012]/90 dark:ring-white/10 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] pb-[env(safe-area-inset-bottom)]"
+              className="fixed inset-x-2 bottom-2 z-modal flex max-h-[75vh] flex-col overflow-hidden rounded-[1.6rem] bg-panel-bg p-1.5 ring-1 ring-main-text/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_-20px_60px_rgba(10,10,11,0.12)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] pb-[env(safe-area-inset-bottom)]"
             >
               <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-main-text/15" />
               <div className="flex h-11 shrink-0 items-center justify-between px-4">

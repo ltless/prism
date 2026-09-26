@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { m } from "motion/react";
+import { Check } from "@phosphor-icons/react";
+import { AuthShell, AuthError, AuthField, AuthSubmit } from "@/shared/components/AuthShell";
 import { BrandLogo } from "@/shared/components/BrandLogo";
 
 export default function RegisterPage() {
@@ -58,116 +60,87 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay">
+      <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-app-bg p-6">
         <m.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-3"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.32, 0.72, 0, 1] }}
+          className="flex w-full max-w-sm flex-col items-center gap-6 rounded-[2rem] bg-black/[0.03] p-1.5 text-center ring-1 ring-black/5 dark:bg-white/[0.04] dark:ring-white/10"
         >
-          <div className="mx-auto mb-4"><BrandLogo /></div>
-          <h2 className="text-base font-semibold text-main-text">Account created</h2>
-          <p className="text-[11px] text-muted-text">Redirecting to setup...</p>
+          <div className="flex w-full flex-col items-center gap-5 rounded-[calc(2rem-0.375rem)] bg-panel-bg px-8 py-12 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+            <BrandLogo size={44} />
+            <m.span
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 480, damping: 26, delay: 0.12 }}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground"
+            >
+              <Check size={16} weight="bold" />
+            </m.span>
+            <h2 className="text-[20px] font-medium tracking-tight text-main-text">Account created</h2>
+            <p className="text-[13px] text-muted-text">Taking you to setup…</p>
+          </div>
         </m.div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-app-bg flex items-center justify-center p-6 z-auth-overlay opacity-100">
-      <div className="w-full max-w-[320px] flex flex-col gap-8 relative z-10">
-          {/* Logo */}
-          <div className="flex flex-col items-center gap-3">
-            <BrandLogo />
-            <h1 className="text-base font-semibold text-main-text">Create account</h1>
+    <AuthShell
+      headline="Start your local library."
+      footer={
+        <>
+          Already have an account?{" "}
+          <Link href="/login" className="text-main-text underline decoration-main-border underline-offset-4 transition-colors hover:decoration-main-text">
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-text">Register</p>
+          <h2 className="mt-1.5 text-[22px] font-medium tracking-tight text-main-text">Create an account</h2>
         </div>
 
-        {/* Card */}
-        <div className="bg-panel-bg rounded-xl p-6 shadow-elevated border border-main-border">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-            {error && (
-              <div role="alert" aria-live="assertive" className="text-[11px] font-medium text-rose-500 text-center py-2 rounded-md bg-rose-500/5 border border-rose-500/10 animate-in fade-in slide-in-from-top-2">
-                {error}
-              </div>
-            )}
+        {error && <AuthError message={error} />}
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="username" className="text-[11px] font-medium text-muted-text">Username</label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                required
-                aria-required="true"
-                placeholder="Choose a username"
-                className="w-full h-9 bg-surface-bg border border-main-border/50 rounded-md px-2.5 text-[13px] text-main-text placeholder:text-muted-text/40 focus:border-primary outline-none transition-colors"
-              />
-            </div>
+        <AuthField
+          id="username"
+          name="username"
+          label="Username"
+          type="text"
+          autoComplete="username"
+          placeholder="Choose a username"
+        />
+        <AuthField
+          id="inviteCode"
+          name="inviteCode"
+          label="Invite code"
+          type="text"
+          placeholder="Enter invite code"
+          required={false}
+          aria-required={false}
+        />
+        <AuthField
+          id="password"
+          name="password"
+          label="Password"
+          type="password"
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+        />
+        <AuthField
+          id="confirmPassword"
+          name="confirmPassword"
+          label="Confirm"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Repeat your password"
+        />
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="inviteCode" className="text-[11px] font-medium text-muted-text">
-                Invite code
-              </label>
-              <input
-                id="inviteCode"
-                name="inviteCode"
-                type="text"
-                placeholder="Enter invite code"
-                className="w-full h-9 bg-surface-bg border border-main-border/50 rounded-md px-2.5 text-[13px] text-main-text placeholder:text-muted-text/40 focus:border-primary outline-none transition-colors"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-[11px] font-medium text-muted-text">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                aria-required="true"
-                placeholder="Create a password"
-                className="w-full h-9 bg-surface-bg border border-main-border/50 rounded-md px-2.5 text-[13px] text-main-text placeholder:text-muted-text/40 focus:border-primary outline-none transition-colors"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="confirmPassword" className="text-[11px] font-medium text-muted-text">Confirm password</label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                aria-required="true"
-                placeholder="Confirm your password"
-                className="w-full h-9 bg-surface-bg border border-main-border/50 rounded-md px-2.5 text-[13px] text-main-text placeholder:text-muted-text/40 focus:border-primary outline-none transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-9 bg-primary text-primary-foreground rounded-md flex items-center justify-center gap-2 text-[12px] font-medium hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-[opacity,transform] cursor-pointer mt-1"
-            >
-              {loading ? (
-                <div className="w-3.5 h-3.5 border-[1.5px] border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-              ) : (
-                "Create Account"
-              )}
-            </button>
-          </form>
-
-          <div className="text-center mt-4 pt-3 border-t border-main-border/30">
-            <p className="text-[11px] text-muted-text">
-              Already have an account?{" "}
-              <Link href="/login" className="text-main-text hover:text-primary transition-colors">
-                Sign in
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+        <AuthSubmit loading={loading}>Create account</AuthSubmit>
+      </form>
+    </AuthShell>
   );
 }

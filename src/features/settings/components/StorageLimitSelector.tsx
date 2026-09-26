@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/core/utils/cn";
+import { field } from "@/shared/components/ui/styles";
 
 const GB = 1024 * 1024 * 1024;
 
@@ -40,13 +41,13 @@ export function StorageLimitSelector({ value, onChange, options = defaultOptions
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "h-12 flex flex-col items-center justify-center rounded-full border transition-[color,background-color,border-color] cursor-pointer",
+              "h-12 flex flex-col items-center justify-center rounded-full transition-all duration-500 ease-spring cursor-pointer",
               value === opt.value
-                ? "bg-primary border-primary text-primary-foreground shadow-sm"
-                : "bg-surface-bg border-main-border/40 text-muted-text hover:border-primary/30"
+                ? "bg-main-text text-app-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
+                : "bg-surface-bg text-muted-text ring-1 ring-black/[0.05] hover:text-main-text dark:ring-white/[0.08]"
             )}
           >
-            <span className="text-xs">{opt.label}</span>
+            <span className="text-[13px] font-medium tracking-tight">{opt.label}</span>
           </button>
         ))}
       </div>
@@ -64,9 +65,9 @@ export function StorageLimitSelector({ value, onChange, options = defaultOptions
           }}
           placeholder="Custom GB"
           aria-label="Custom storage limit in GB"
-          className="flex-1 h-10 px-4 bg-surface-bg border border-main-border/40 rounded-full text-[13px] text-main-text placeholder:text-muted-text/50 outline-none focus:border-primary/50 transition-colors"
+          className={`${field} h-10 flex-1`}
         />
-        <span className="text-xs text-muted-text font-medium shrink-0">GB</span>
+        <span className="shrink-0 text-[12px] font-medium text-muted-text">GB</span>
       </div>
     </div>
   );

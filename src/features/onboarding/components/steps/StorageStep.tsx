@@ -11,48 +11,62 @@ interface StorageStepProps {
   onGlobalLimitChange: (v: number | null) => void;
 }
 
-export function StorageStep({ selectedOwnLimit, onOwnLimitChange, selectedGlobalLimit, onGlobalLimitChange }: StorageStepProps) {
+function QuotaBlock({
+  icon: Icon,
+  title,
+  caption,
+  value,
+  summary,
+  onChange,
+}: {
+  icon: typeof HardDrive;
+  title: string;
+  caption: string;
+  value: number | null;
+  summary: string;
+  onChange: (v: number | null) => void;
+}) {
   return (
-    <div className="flex flex-col gap-5 w-full">
-      {/* Admin's own quota */}
-      <div className="flex flex-col gap-3">
-        <div className="p-3 bg-primary/5 border border-primary/10 rounded-xl flex items-center gap-3">
-          <div className="w-9 h-9 bg-primary text-primary-foreground rounded-lg flex items-center justify-center shrink-0">
-            <HardDrive size={16} weight="light" />
-          </div>
-          <div className="flex-1">
-            <h4 className="text-[12px] font-medium text-main-text">Your Storage</h4>
-            <p className="text-xs text-muted-text">Your own allocation as administrator</p>
-          </div>
-        </div>
-        <StorageLimitSelector value={selectedOwnLimit} onChange={onOwnLimitChange} />
-        <div className="p-2.5 bg-surface-bg rounded-lg border border-main-border/50 flex items-center gap-2.5">
-          <Cube size={13} weight="light" className="text-muted-text" />
-          <p className="text-[11px] text-muted-text">
-            {selectedOwnLimit ? `Your quota: ${formatBytes(selectedOwnLimit)}` : "Your storage: unlimited"}
-          </p>
+    <div className="flex flex-col gap-3 rounded-[1.5rem] bg-black/[0.03] p-4 ring-1 ring-black/5 dark:bg-white/[0.04] dark:ring-white/10">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-main-text text-app-bg">
+          <Icon size={16} weight="light" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium tracking-tight text-main-text">{title}</p>
+          <p className="text-[12px] text-muted-text">{caption}</p>
         </div>
       </div>
 
-      {/* Global default quota (for standard users) */}
-      <div className="flex flex-col gap-3 pt-2 border-t border-main-border/30">
-        <div className="p-3 bg-violet-500/5 border border-violet-500/10 rounded-xl flex items-center gap-3">
-          <div className="w-9 h-9 bg-violet-500 text-white rounded-lg flex items-center justify-center shrink-0">
-            <Users size={16} weight="light" />
-          </div>
-          <div className="flex-1">
-            <h4 className="text-[12px] font-medium text-main-text">Global Default</h4>
-            <p className="text-xs text-muted-text">What every standard user gets</p>
-          </div>
-        </div>
-        <StorageLimitSelector value={selectedGlobalLimit} onChange={onGlobalLimitChange} />
-        <div className="p-2.5 bg-surface-bg rounded-lg border border-main-border/50 flex items-center gap-2.5">
-          <Cube size={13} weight="light" className="text-muted-text" />
-          <p className="text-[11px] text-muted-text">
-            {selectedGlobalLimit ? `Standard users: ${formatBytes(selectedGlobalLimit)}` : "Standard users: unlimited"}
-          </p>
-        </div>
-      </div>
+      <StorageLimitSelector value={value} onChange={onChange} />
+
+      <p className="flex items-center gap-2 text-[12px] text-muted-text">
+        <Cube size={13} weight="light" />
+        {summary}
+      </p>
+    </div>
+  );
+}
+
+export function StorageStep({ selectedOwnLimit, onOwnLimitChange, selectedGlobalLimit, onGlobalLimitChange }: StorageStepProps) {
+  return (
+    <div className="flex w-full flex-col gap-4">
+      <QuotaBlock
+        icon={HardDrive}
+        title="Your storage"
+        caption="Your own allocation"
+        value={selectedOwnLimit}
+        summary={selectedOwnLimit ? `Your quota: ${formatBytes(selectedOwnLimit)}` : "Your storage: unlimited"}
+        onChange={onOwnLimitChange}
+      />
+      <QuotaBlock
+        icon={Users}
+        title="Global default"
+        caption="What every standard user gets"
+        value={selectedGlobalLimit}
+        summary={selectedGlobalLimit ? `Standard users: ${formatBytes(selectedGlobalLimit)}` : "Standard users: unlimited"}
+        onChange={onGlobalLimitChange}
+      />
     </div>
   );
 }

@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Spinner } from "@phosphor-icons/react";
 import { SettingsGroup } from "../SettingsGroup";
+import { pillPrimary } from "@/shared/components/ui/styles";
 import { StorageLimitSelector } from "@/features/settings/components/StorageLimitSelector";
 import { toast } from "sonner";
+import { formatBytes } from "@/core/utils/format";
 import type { StorageData } from "./UsageOverviewCard";
 
 export function AdminQuotaSection({ data, setData }: {
@@ -34,15 +36,15 @@ export function AdminQuotaSection({ data, setData }: {
   };
 
   return (
-    <SettingsGroup title="Your limit" description={selectedLimit ? `${selectedLimit / (1024 * 1024 * 1024)} GB on this account.` : "No limit on this account."}>
-      <div className="flex flex-col gap-3 p-4">
+    <SettingsGroup title="Your limit" description={selectedLimit ? `${formatBytes(selectedLimit)} on this account.` : "No limit on this account."}>
+      <div className="flex flex-col gap-3 px-5 py-5">
         <StorageLimitSelector value={selectedLimit} onChange={setSelectedLimit} />
         <div className="flex justify-end">
           <button
             type="button"
             onClick={handleSave}
             disabled={isSaving || selectedLimit === data?.limitBytes}
-            className="rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground disabled:opacity-40 cursor-pointer"
+            className={pillPrimary}
           >
             {isSaving ? <Spinner size={12} className="animate-spin" /> : "Save limit"}
           </button>

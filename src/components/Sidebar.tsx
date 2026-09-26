@@ -90,7 +90,7 @@ export function Sidebar({ folders = [], onMoveMedia }: { folders?: FolderType[];
               transition: `transform 500ms ${EASE}`,
             }}
           >
-            <CaretLeft size={11} weight="light" />
+            <CaretLeft size={11} weight="light" className="transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]" />
           </span>
         </button>
       </aside>

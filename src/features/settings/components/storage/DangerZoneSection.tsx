@@ -4,6 +4,7 @@ import { useState } from "react";
 import { NukeButton } from "@/features/media/components/NukeButton";
 import { Spinner } from "@phosphor-icons/react";
 import { SettingsGroup } from "../SettingsGroup";
+import { pillGhost } from "@/shared/components/ui/styles";
 import { toast } from "sonner";
 
 export function DangerZoneSection() {
@@ -34,7 +35,7 @@ export function DangerZoneSection() {
           type="button"
           onClick={handleClearTrashAndCache}
           disabled={isCleaning}
-          className="shrink-0 rounded-full border border-main-border px-4 py-1.5 text-[13px] text-main-text hover:bg-surface-bg disabled:opacity-40 cursor-pointer"
+          className={`${pillGhost} shrink-0 px-4 py-1.5 text-[12px]`}
         >
           {isCleaning ? <Spinner size={12} className="animate-spin" /> : "Empty trash"}
         </button>

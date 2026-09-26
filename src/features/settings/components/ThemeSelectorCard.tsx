@@ -1,5 +1,6 @@
 "use client";
 
+import { m } from "motion/react";
 import { Check } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
 import { SettingsGroup } from "./SettingsGroup";
@@ -24,8 +25,10 @@ function ThemeOption({
       onClick={() => setTheme(mode)}
       aria-pressed={active}
       className={cn(
-        "relative w-full overflow-hidden rounded-2xl p-2 text-left cursor-pointer ring-1 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]",
-        active ? "ring-primary" : "ring-black/10 hover:ring-black/20 dark:ring-white/10 dark:hover:ring-white/20",
+        "relative w-full overflow-hidden rounded-2xl p-2 text-left cursor-pointer ring-1 transition-all duration-500 ease-spring",
+        active
+          ? "ring-2 ring-primary"
+          : "ring-black/10 hover:ring-black/25 hover:-translate-y-0.5 dark:ring-white/10 dark:hover:ring-white/25",
       )}
     >
       <div className={cn("flex h-16 gap-1.5 overflow-hidden rounded-xl p-1.5", previewBg)}>
@@ -47,9 +50,14 @@ function ThemeOption({
       <span className="mt-2 flex items-center justify-between px-1 pb-0.5">
         <span className={cn("text-[13px]", active ? "font-medium text-main-text" : "text-muted-text")}>{label}</span>
         {active && (
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <m.span
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 500, damping: 28 }}
+            className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+          >
             <Check size={9} weight="bold" />
-          </span>
+          </m.span>
         )}
       </span>
     </button>
@@ -61,7 +69,7 @@ export function ThemeSelectorCard() {
 
   return (
     <SettingsGroup title="Appearance" description="Applies immediately on this device.">
-      <div className="flex flex-col gap-2 p-3">
+      <div className="grid grid-cols-2 gap-2 p-3">
         <ThemeOption
           mode="dark"
           label="Dark"

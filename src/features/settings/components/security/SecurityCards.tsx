@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Spinner } from "@phosphor-icons/react";
+import { cn } from "@/core/utils/cn";
 import { toast } from "sonner";
 import {
   changePasswordAction,
@@ -12,6 +13,7 @@ import {
 } from "@/features/profile/services/profileActions";
 import { PasswordInput } from "@/shared/components/ui/PasswordInput";
 import { SettingsGroup } from "../SettingsGroup";
+import { pillPrimary, pillDanger } from "@/shared/components/ui/styles";
 
 export function PasswordCard() {
   const [oldPw, setOldPw] = useState("");
@@ -39,16 +41,16 @@ export function PasswordCard() {
 
   return (
     <SettingsGroup title="Password" description="At least 8 characters. Changing it signs out your other sessions.">
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-3 px-5 py-5">
         <PasswordInput value={oldPw} onChange={setOldPw} label="Current password" placeholder="Current password" />
         <PasswordInput value={newPw} onChange={setNewPw} label="New password" placeholder="New password" />
         <PasswordInput value={confirmPw} onChange={setConfirmPw} label="Confirm new password" placeholder="Confirm new password" />
-        <div className="flex justify-end">
+        <div className="mt-1 flex justify-end">
           <button
             type="button"
             onClick={handleChangePassword}
             disabled={pwLoading || !oldPw || !newPw || !confirmPw}
-            className="rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground disabled:opacity-40 cursor-pointer"
+            className={pillPrimary}
           >
             {pwLoading ? <Spinner size={12} className="animate-spin" /> : "Update password"}
           </button>
@@ -71,49 +73,52 @@ function VaultPinSection() {
   useEffect(refreshPinStatus, []);
 
   return (
-    <SettingsGroup title="Vault PIN" description="Required to open private media. Five wrong tries locks it for 15 minutes.">
-      <div className="flex flex-col gap-4 px-5 py-5">
-        {hasPin === null ? (
-          <span className="flex items-center gap-2 text-[12px] text-muted-text">
-            <Spinner size={12} className="animate-spin" />
-            Checking
-          </span>
-        ) : (
-          <>
-            <p className="text-[13px] text-main-text">{hasPin ? "PIN is on" : "No PIN set"}</p>
-            <div className="flex gap-2">
+    <>
+    <div className="flex flex-col gap-4 px-5 py-5">
+      {hasPin === null ? (
+        <span className="flex items-center gap-2 text-[12px] text-muted-text">
+          <Spinner size={12} className="animate-spin" />
+          Checking
+        </span>
+      ) : (
+        <>
+          <p className="flex items-center gap-2 text-[13px] text-main-text">
+            <span className={cn("h-1.5 w-1.5 rounded-full", hasPin ? "bg-emerald-500" : "bg-amber-500")} />
+            {hasPin ? "PIN is on" : "No PIN set"}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setDialog(hasPin ? "change" : "set")}
+              className={pillPrimary}
+            >
+              {hasPin ? "Change PIN" : "Set PIN"}
+            </button>
+            {hasPin && (
               <button
                 type="button"
-                onClick={() => setDialog(hasPin ? "change" : "set")}
-                className="rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground cursor-pointer"
+                onClick={() => setDialog("remove")}
+                className={pillDanger}
               >
-                {hasPin ? "Change PIN" : "Set PIN"}
+                Remove
               </button>
-              {hasPin && (
-                <button
-                  type="button"
-                  onClick={() => setDialog("remove")}
-                  className="rounded-full px-4 py-2 text-[13px] font-medium text-rose-500 hover:bg-rose-500/10 cursor-pointer"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {dialog && (
-        <PinVaultDialog
-          dialog={dialog}
-          onClose={() => setDialog(null)}
-          onSuccess={refreshPinStatus}
-          onSetPin={setVaultPinAction}
-          onChangePin={changeVaultPinAction}
-          onRemovePin={disableVaultPinAction}
-        />
+            )}
+          </div>
+        </>
       )}
-    </SettingsGroup>
+    </div>
+
+    {dialog && (
+      <PinVaultDialog
+        dialog={dialog}
+        onClose={() => setDialog(null)}
+        onSuccess={refreshPinStatus}
+        onSetPin={setVaultPinAction}
+        onChangePin={changeVaultPinAction}
+        onRemovePin={disableVaultPinAction}
+      />
+    )}
+    </>
   );
 }
 

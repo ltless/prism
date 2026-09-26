@@ -4,7 +4,7 @@ import { Spinner } from "@phosphor-icons/react";
 import { PinInput } from "./PinInput";
 
 const ghostBtn =
-  "flex-1 rounded-lg border border-main-border bg-surface-bg px-3 py-1.5 text-[12px] text-muted-text transition-colors hover:text-main-text cursor-pointer";
+  "flex-1 rounded-full bg-black/[0.04] px-3 py-1.5 text-[12px] font-medium text-muted-text ring-1 ring-black/[0.05] transition-all duration-500 ease-spring hover:text-main-text cursor-pointer dark:bg-white/[0.07] dark:ring-white/[0.08]";
 
 function ActionButton(props: {
   loading: boolean;
@@ -20,8 +20,8 @@ function ActionButton(props: {
       onClick={onClick}
       disabled={disabled}
       className={danger
-        ? "flex-1 rounded-lg bg-rose-500 px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-40 cursor-pointer"
-        : "flex-1 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground disabled:opacity-40 cursor-pointer"}
+        ? "flex-1 rounded-full bg-rose-500 px-3 py-1.5 text-[12px] font-medium text-white transition-colors duration-500 ease-spring hover:bg-rose-600 disabled:opacity-40 cursor-pointer"
+        : "flex-1 rounded-full bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-all duration-500 ease-spring hover:opacity-90 disabled:opacity-40 cursor-pointer"}
     >
       {loading ? <Spinner size={12} weight="light" className="mx-auto animate-spin" /> : label}
     </button>

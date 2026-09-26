@@ -3,7 +3,7 @@
 import { m, AnimatePresence } from "motion/react";
 import { X, Download, CaretLeft, CaretRight, Info, Play, Pause, PencilSimple } from "@phosphor-icons/react";
 import { cn } from "@/core/utils/cn";
-import { GlassIsland, IslandButton, CHROME_EASE } from "./LightboxChrome";
+import { ChromeIsland, IslandButton, CHROME_EASE } from "./LightboxChrome";
 
 const SPRING = { duration: 0.55, ease: [0.32, 0.72, 0, 1] as const };
 
@@ -29,7 +29,7 @@ function NavArrow({ direction, visible, onClick }: NavArrowProps) {
             isPrev ? "left-3 md:left-6" : "right-3 md:right-6",
           )}
         >
-          <GlassIsland>
+          <ChromeIsland>
             <IslandButton
               onClick={onClick}
               aria-label={isPrev ? "Previous" : "Next"}
@@ -39,7 +39,7 @@ function NavArrow({ direction, visible, onClick }: NavArrowProps) {
                 ? <CaretLeft size={18} weight="light" className="transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-x-0.5" />
                 : <CaretRight size={18} weight="light" className="transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5" />}
             </IslandButton>
-          </GlassIsland>
+          </ChromeIsland>
         </m.div>
       ) : null}
     </AnimatePresence>
@@ -69,7 +69,7 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, onClose, onEdit, onInfoT
           transition={SPRING}
           className="absolute top-4 md:top-6 left-0 right-0 z-20 flex items-center justify-between gap-3 px-3 md:px-6 pointer-events-none"
         >
-          <GlassIsland className="min-w-0 max-w-[58%]">
+          <ChromeIsland className="min-w-0 max-w-[58%]">
             <IslandButton onClick={onClose} aria-label="Close" className="shrink-0">
               <X size={16} weight="light" />
             </IslandButton>
@@ -79,9 +79,9 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, onClose, onEdit, onInfoT
             >
               {title}
             </h2>
-          </GlassIsland>
+          </ChromeIsland>
 
-          <GlassIsland className="shrink-0">
+          <ChromeIsland className="shrink-0">
             {slideshow && (
               <IslandButton
                 onClick={slideshow.onToggle}
@@ -116,7 +116,7 @@ function TopBar({ visible, title, mediaUrl, isInfoOpen, onClose, onEdit, onInfoT
             >
               <Info size={16} weight="light" />
             </IslandButton>
-          </GlassIsland>
+          </ChromeIsland>
         </m.div>
       ) : null}
     </AnimatePresence>
@@ -135,7 +135,7 @@ function CounterPill({ visible, current, total }: { visible: boolean; current: n
           transition={SPRING}
           className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2 pointer-events-none"
         >
-          <div className="rounded-full bg-[#0c0c0e]/72 px-3.5 py-1.5 text-[11px] tabular-nums tracking-[0.14em] text-white/70 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-2xl">
+          <div className="rounded-full bg-[#0c0c0e] px-3.5 py-1.5 text-[11px] tabular-nums tracking-[0.14em] text-white/70 ring-1 ring-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]">
             {String(current + 1).padStart(2, "0")}
             <span className="mx-1.5 text-white/30">/</span>
             {String(total).padStart(2, "0")}

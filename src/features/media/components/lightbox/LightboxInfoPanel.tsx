@@ -43,7 +43,7 @@ export function LightboxInfoPanel({ item, transcodeStatus, folders, isMobile, on
         transition={PANEL}
         className="absolute bottom-0 left-0 right-0 z-30 flex max-h-[62dvh] flex-col overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[1.6rem] bg-[#101012]/92 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_-24px_60px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[1.6rem] bg-[#101012] ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_-24px_60px_rgba(0,0,0,0.35)]">
           <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-white/20" aria-hidden />
           <PanelHead onClose={onClose} />
           <div className="min-h-0 flex-1 overflow-y-auto custom-scroll">
@@ -63,7 +63,7 @@ export function LightboxInfoPanel({ item, transcodeStatus, folders, isMobile, on
       transition={PANEL}
       className="pointer-events-none absolute inset-y-0 right-0 z-30 flex items-stretch py-5 pr-5"
     >
-      <div className="pointer-events-auto flex h-full w-[340px] flex-col overflow-hidden rounded-[1.6rem] bg-[#101012]/88 p-1.5 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_24px_70px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
+      <div className="pointer-events-auto flex h-full w-[340px] flex-col overflow-hidden rounded-[1.6rem] bg-[#101012] p-1.5 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_24px_70px_rgba(0,0,0,0.4)]">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[calc(1.6rem-0.375rem)] bg-white/[0.025]">
           <PanelHead onClose={onClose} />
           <div className="min-h-0 flex-1 overflow-y-auto custom-scroll">

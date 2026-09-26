@@ -1,5 +1,4 @@
-"use client";
-
+import { m } from "motion/react";
 import { cn } from "@/core/utils/cn";
 
 interface PinInputProps {
@@ -9,6 +8,9 @@ interface PinInputProps {
  label?: string;
  error?: string;
 }
+
+const keyCls =
+  "h-11 w-11 rounded-2xl bg-surface-bg text-[13px] font-medium text-main-text ring-1 ring-black/[0.06] transition-all duration-500 ease-spring hover:bg-black/[0.06] hover:text-main-text cursor-pointer select-none dark:bg-white/[0.05] dark:ring-white/[0.08] dark:hover:bg-white/[0.1]";
 
 export function PinInput({ value, onChange, maxLength = 6, label, error }: PinInputProps) {
  const digits = value.split("");
@@ -34,10 +36,13 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
 
  <div className="flex gap-2.5" aria-hidden="true">
  {Array.from({ length: maxLength }).map((_, idx) => (
- <div
+ <m.div
  key={idx}
+ initial={false}
+ animate={digits[idx] ? { scale: 1.15 } : { scale: 1 }}
+ transition={{ type: "spring", stiffness: 500, damping: 24 }}
  className={cn(
- "h-2 w-2 rounded-full transition-colors duration-150",
+ "h-2 w-2 rounded-full transition-colors duration-200",
  digits[idx] ? "bg-primary" : "bg-main-border"
  )}
  />
@@ -55,7 +60,7 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  key={d}
  type="button"
  onClick={() => handleDigit(d)}
- className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-main-text transition-colors hover:border-border-medium cursor-pointer select-none"
+ className={keyCls}
  >
  {d}
  </button>
@@ -67,16 +72,16 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  	onClick={handleBackspace}
  	disabled={value.length === 0}
  	aria-label="Backspace"
- 	className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-muted-text transition-colors hover:border-border-medium disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer select-none"
+ 	className={cn(keyCls, "text-muted-text hover:text-main-text disabled:cursor-not-allowed disabled:opacity-30")}
  >
- ⌫
+ 	⌫
  </button>
 
  {/* 0 */}
  <button
  type="button"
  onClick={() => handleDigit("0")}
- className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-main-text transition-colors hover:border-border-medium cursor-pointer select-none"
+ className={keyCls}
  >
  0
  </button>
@@ -87,9 +92,9 @@ export function PinInput({ value, onChange, maxLength = 6, label, error }: PinIn
  	onClick={handleClear}
  	disabled={value.length === 0}
  	aria-label="Clear"
- 	className="h-11 w-11 rounded-lg border border-main-border bg-surface-bg text-[13px] text-muted-text transition-colors hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer select-none"
+ 	className={cn(keyCls, "text-muted-text hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-30")}
  >
- ✕
+ 	✕
  </button>
  </div>
  </div>

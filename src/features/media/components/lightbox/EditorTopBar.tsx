@@ -43,7 +43,7 @@ function MenuDropdown({ menu, isOpen, onTrigger, onClose, onAction, isSaving, sa
         {menu.label}
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 min-w-48 rounded-2xl bg-[#121214]/95 py-1.5 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-2xl z-50">
+        <div className="absolute top-full left-0 mt-2 min-w-48 rounded-2xl bg-[#121214] py-1.5 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_18px_50px_rgba(0,0,0,0.45)] z-50">
           {menu.items.map((item, i) =>
             item.separator ? (
               <div key={i} className="h-px bg-white/8 my-1.5 mx-3" />

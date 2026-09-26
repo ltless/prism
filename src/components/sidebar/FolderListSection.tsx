@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder, Trash, Pencil, Sparkle } from "@phosphor-icons/react";
+import { m } from "motion/react";
 import { cn } from "@/core/utils/cn";
 import { FOLDER_COLORS } from "@/core/constants";
 import type { Folder as FolderType } from "@/features/media/types";
@@ -159,14 +160,22 @@ export function FolderListSection({ folders, dragOverFolderId, onDragOver, onMov
                 >
                   <span
                     className={cn(
-                      "absolute left-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-[background-color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
-                      isActive ? "bg-main-text/8 ring-1 ring-main-text/10" : "group-hover/folder:bg-main-text/6",
+                      "absolute left-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full",
+                      isActive && "ring-1 ring-main-text/10",
+                      !isActive && "group-hover/folder:bg-main-text/6",
                     )}
                     style={{ color }}
                   >
+                    {isActive && (
+                      <m.span
+                        layoutId={`folder-disc-${folder.id}`}
+                        transition={{ type: "spring", stiffness: 480, damping: 32 }}
+                        className="absolute inset-0 rounded-full bg-main-text/8"
+                      />
+                    )}
                     {isSmart
-                      ? <Sparkle size={15} weight={isActive ? "fill" : "light"} />
-                      : <Folder size={15} weight={isActive ? "fill" : "light"} />}
+                      ? <Sparkle size={15} weight={isActive ? "fill" : "light"} className="relative" />
+                      : <Folder size={15} weight={isActive ? "fill" : "light"} className="relative" />}
                   </span>
                   <span className={cn(
                     "min-w-0 flex-1 overflow-hidden whitespace-nowrap pl-10 pr-12 text-[13px] tracking-[-0.01em]",

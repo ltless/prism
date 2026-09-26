@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SettingsGroup } from "../SettingsGroup";
 import { StorageLimitSelector } from "@/features/settings/components/StorageLimitSelector";
+import { pillPrimary } from "@/shared/components/ui/styles";
 import { Spinner } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { formatBytes } from "@/core/utils/format";
@@ -47,14 +48,14 @@ export function GlobalQuotaSection({ data, isLoading, onDataChange }: GlobalQuot
 
   return (
     <SettingsGroup title="Default for new users" description={selectedGlobalLimit ? `${formatBytes(selectedGlobalLimit)} each.` : "No default limit."}>
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-3 px-5 py-5">
         <StorageLimitSelector value={selectedGlobalLimit} onChange={setSelectedGlobalLimit} />
         <div className="flex justify-end">
           <button
             type="button"
             onClick={handleSaveGlobal}
             disabled={isSavingGlobal || selectedGlobalLimit === (data?.globalDefaultBytes ?? null) || isLoading}
-            className="rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground disabled:opacity-40 cursor-pointer"
+            className={pillPrimary}
           >
             {isSavingGlobal ? <Spinner size={12} className="animate-spin" /> : "Save default"}
           </button>

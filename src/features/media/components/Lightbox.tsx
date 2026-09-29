@@ -9,6 +9,7 @@ import { useTranscodePolling } from "../hooks/useTranscodePolling";
 import { useSlideshow } from "../hooks/useSlideshow";
 import { useLightboxState } from "../hooks/useLightboxState";
 import { useScrollLock } from "@/shared/hooks/useScrollLock";
+import { cn } from "@/core/utils/cn";
 import { LightboxInfoPanel } from "./lightbox/LightboxInfoPanel";
 import { LightboxControls } from "./lightbox/LightboxControls";
 import { LightboxMediaArea } from "./lightbox/LightboxMediaArea";
@@ -105,14 +106,18 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
               role="button"
               tabIndex={0}
               aria-label="Image viewer"
-              className="no-press-scale flex-1 relative z-[1] flex items-center justify-center px-3 pt-20 pb-16 md:px-8 md:pt-24 md:pb-20 min-w-0"
+              className={cn(
+                "no-press-scale flex-1 relative z-[1] flex items-center justify-center px-3 pt-20 pb-16 md:pt-24 md:pb-20 min-w-0",
+                "transition-[padding] duration-[550ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
+                isInfoOpen ? "md:pl-8 md:pr-[380px]" : "md:px-8",
+              )}
               onMouseMove={showControls}
               onClick={showControls}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              <LightboxMediaArea
+                <LightboxMediaArea
                   isVideo={!!isVideo}
                   mediaUrl={mediaUrl}
                   itemTitle={item.title}
@@ -121,6 +126,7 @@ export function Lightbox({ item, onClose, onNext, onPrev, currentIndex, totalIte
                   imgLoaded={imgLoaded}
                   setImgError={setImgError}
                   setImgLoaded={setImgLoaded}
+                  isInfoOpen={isInfoOpen}
                 />
 
               <LightboxControls

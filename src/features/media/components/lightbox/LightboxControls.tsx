@@ -11,9 +11,10 @@ interface NavArrowProps {
   direction: "prev" | "next";
   visible: boolean;
   onClick: () => void;
+  isInfoOpen?: boolean;
 }
 
-function NavArrow({ direction, visible, onClick }: NavArrowProps) {
+function NavArrow({ direction, visible, onClick, isInfoOpen }: NavArrowProps) {
   const isPrev = direction === "prev";
   return (
     <AnimatePresence>
@@ -26,7 +27,7 @@ function NavArrow({ direction, visible, onClick }: NavArrowProps) {
           transition={SPRING}
           className={cn(
             "absolute top-1/2 z-20 -translate-y-1/2",
-            isPrev ? "left-3 md:left-6" : "right-3 md:right-6",
+            isPrev ? "left-3 md:left-6" : cn("right-3", isInfoOpen ? "md:right-[380px]" : "md:right-6"),
           )}
         >
           <ChromeIsland>
@@ -167,7 +168,7 @@ export function LightboxControls({
   return (
     <>
       <NavArrow direction="prev" visible={view.controls && !!onPrev} onClick={onPrev ?? (() => {})} />
-      <NavArrow direction="next" visible={view.controls && !!onNext} onClick={onNext ?? (() => {})} />
+      <NavArrow direction="next" visible={view.controls && !!onNext} onClick={onNext ?? (() => {})} isInfoOpen={isInfoOpen} />
       <TopBar
         visible={view.controls}
         title={title}

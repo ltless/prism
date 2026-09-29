@@ -26,6 +26,7 @@ interface MediaLibraryClientProps {
   initialFolderId?: string | null;
   initialFavorite?: boolean;
   initialSmartFilter?: { categories: string[]; minScore: number } | null;
+  title?: string;
 }
 
 export default function MediaLibraryClient({
@@ -35,6 +36,7 @@ export default function MediaLibraryClient({
   initialFolderId = null,
   initialFavorite = false,
   initialSmartFilter = null,
+  title,
 }: MediaLibraryClientProps) {
   return (
     <MediaLibrary
@@ -44,6 +46,7 @@ export default function MediaLibraryClient({
       initialFavorite={initialFavorite}
       initialSmartFilter={initialSmartFilter}
       folders={folders}
+      title={title}
     />
   );
 }

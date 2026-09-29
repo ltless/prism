@@ -150,6 +150,7 @@ export default function VaultLibraryClient({
           initialItems={items}
           folders={folders}
           total={isLoadingItems ? 0 : items.length}
+          title="Vault"
         />
       </VaultPinProvider>
     );

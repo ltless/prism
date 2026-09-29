@@ -2,6 +2,7 @@
 
 import { m, AnimatePresence } from "motion/react";
 import { ImageBroken } from "@phosphor-icons/react";
+import { cn } from "@/core/utils/cn";
 import { VideoPlayer } from "../VideoPlayer";
 
 const FADE = { duration: 0.55, ease: [0.32, 0.72, 0, 1] as const };
@@ -11,7 +12,7 @@ const FADE = { duration: 0.55, ease: [0.32, 0.72, 0, 1] as const };
  * double-bezel so the picture sits in a machined tray, not flat on black.
  */
 export function LightboxMediaArea({
-  isVideo, mediaUrl, itemTitle, itemId, imgError, imgLoaded, setImgError, setImgLoaded,
+  isVideo, mediaUrl, itemTitle, itemId, imgError, imgLoaded, setImgError, setImgLoaded, isInfoOpen,
 }: {
   isVideo: boolean;
   mediaUrl: string;
@@ -21,6 +22,7 @@ export function LightboxMediaArea({
   imgLoaded: boolean;
   setImgError: (v: boolean) => void;
   setImgLoaded: (v: boolean) => void;
+  isInfoOpen?: boolean;
 }) {
   return (
     <AnimatePresence mode="wait">
@@ -79,7 +81,10 @@ export function LightboxMediaArea({
               initial={{ opacity: 0 }}
               animate={{ opacity: imgLoaded ? 1 : 0 }}
               transition={FADE}
-              className="max-h-[calc(100dvh-7.5rem)] max-w-[calc(100vw-2.5rem)] md:max-w-[calc(100vw-8rem)] object-contain select-none rounded-[calc(1.35rem-0.375rem)]"
+              className={cn(
+                "max-h-[calc(100dvh-7.5rem)] max-w-[calc(100vw-2.5rem)] object-contain select-none rounded-[calc(1.35rem-0.375rem)]",
+                isInfoOpen ? "md:max-w-[calc(100vw-8rem-380px)]" : "md:max-w-[calc(100vw-8rem)]",
+              )}
             />
           </div>
         </m.div>

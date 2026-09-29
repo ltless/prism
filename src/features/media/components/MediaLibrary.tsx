@@ -24,12 +24,14 @@ interface MediaLibraryProps {
   initialFolderId: string | null;
   initialFavorite: boolean;
   initialSmartFilter: { categories: string[]; minScore: number } | null;
+  /** Overrides the "Library" fallback — the vault reuses this component. */
+  title?: string;
 }
 
 const EMPTY_FOLDERS: FolderType[] = [];
 const EMPTY_IDS: Set<string> = new Set();
 
-export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS, total, initialFolderId, initialFavorite, initialSmartFilter }: MediaLibraryProps) {
+export default function MediaLibrary({ initialItems, folders = EMPTY_FOLDERS, total, initialFolderId, initialFavorite, initialSmartFilter, title }: MediaLibraryProps) {
   const router = useRouter();
   const clearSearch = useClearSearch();
   const searchParams = useSearchParams();
@@ -117,7 +119,7 @@ const recentSorted = useMemo(
     : view === "favorite" ? "Favorites"
     : view === "places" ? "Places"
     : activeFolder ? activeFolder.name
-    : "Library";
+    : title ?? "Library";
 
   const displayedItems = useMemo(() => {
     if (q) return searchResults ?? [];

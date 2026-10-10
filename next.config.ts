@@ -23,7 +23,10 @@ const nextConfig: NextConfig = {
     // (e.g. docker compose: http://backend:8080). NOTE: rewrites() is
     // evaluated at `next build`, so this value is baked into the routes
     // manifest — pass it as a build-time env/ARG, not as runtime env to
-    // `next start`.
+    // `next start`. On Vercel this rule never fires: the top-level
+    // `/api/(.*)` rewrite in vercel.json routes to the backend service
+    // before the request reaches this app (bindings don't resolve at build
+    // time, so BACKEND_URL can't point at one here).
     const backend = process.env.BACKEND_URL || "http://localhost:8080";
     return [
       {

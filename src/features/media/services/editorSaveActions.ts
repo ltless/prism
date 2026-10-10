@@ -38,7 +38,7 @@ export async function saveEditorStateAction(
 			body.append("file", imageBlob, "editor-output.png");
 			body.append("overwrite", overwriteRaw === "true" ? "true" : "false");
 
-			const res = await fetch(`${GO_API_URL}/api/v1/media/${mediaId}/save-editor`, {
+			const res = await fetch(new URL(`/api/v1/media/${mediaId}/save-editor`, GO_API_URL), {
 				method: "POST",
 				headers: token ? { Authorization: `Bearer ${token}` } : {},
 				body,

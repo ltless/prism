@@ -18,7 +18,7 @@ export async function auth(): Promise<AuthSession | null> {
 
   try {
     const apiUrl = process.env.GO_API_URL || "http://localhost:8080";
-    const res = await fetch(`${apiUrl}/api/v1/auth/me`, {
+    const res = await fetch(new URL("/api/v1/auth/me", apiUrl), {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });

@@ -77,7 +77,9 @@ export async function goFetchWithSetCookie<T = unknown>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${GO_API_URL}${path}`, {
+  // new URL(), not string concat: the Vercel service binding injects a base
+  // URL that may carry a trailing slash.
+  const res = await fetch(new URL(path, GO_API_URL), {
     ...options,
     headers: { ...headers, ...(await vaultTokenHeader()), ...(options.headers as Record<string, string>) },
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -103,7 +105,7 @@ export async function goFetchUpload<T = unknown>(
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
 
-  const res = await fetch(`${GO_API_URL}${path}`, {
+  const res = await fetch(new URL(path, GO_API_URL), {
     method: "POST",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(await vaultTokenHeader()) },
     body,

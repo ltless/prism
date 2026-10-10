@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// next/server needs an edge-ish runtime; stub the pieces the middleware uses.
+// next/server needs an edge-ish runtime; stub the pieces the proxy uses.
 vi.mock("next/server", () => {
   // jsdom's Response headers don't reliably round-trip .set(); use a plain
-  // Map-backed Headers so tests can read what middleware set.
+  // Map-backed Headers so tests can read what proxy set.
   class StubHeaders {
     private map = new Map<string, string>();
     constructor(init?: Record<string, string> | StubHeaders) {
@@ -55,7 +55,7 @@ vi.mock("next/server", () => {
   return { NextResponse: NextResponseStub, NextRequest: class {} };
 });
 
-import { middleware } from "../../middleware";
+import { proxy } from "../../proxy";
 
 type Req = {
   method: string;
@@ -68,7 +68,7 @@ function makeHeaders(h: Record<string, string>) {
   const lower: Record<string, string> = {};
   for (const [k, v] of Object.entries(h)) lower[k.toLowerCase()] = v;
   // Object literal (not class instance) so `new Headers(request.headers)`
-  // in the middleware can consume it as an init record; get() kept for
+  // in the proxy can consume it as an init record; get() kept for
   // direct request.headers.get calls.
   return {
     ...lower,
@@ -89,7 +89,7 @@ function makeRequest(overrides: Partial<Req> = {}): Req {
   } as Req;
 }
 
-// nextUrl isn't on our plain object; middleware reads request.nextUrl.pathname.
+// nextUrl isn't on our plain object; proxy reads request.nextUrl.pathname.
 function withNextUrl(req: Req, pathname: string) {
   (req as unknown as { nextUrl: { pathname: string } }).nextUrl = { pathname };
   return req;
@@ -99,7 +99,7 @@ beforeEach(() => {
   vi.resetModules();
 });
 
-describe("CSRF origin check in middleware", () => {
+describe("CSRF origin check in proxy", () => {
   const MUTATING = ["POST", "PUT", "PATCH", "DELETE"];
 
   it.each(MUTATING)("rejects %s to /api/v1/* with forged cross-origin Origin", (method) => {
@@ -114,7 +114,7 @@ describe("CSRF origin check in middleware", () => {
       }),
       "/api/v1/media/bulk/trash"
     );
-    const res = middleware(req as never);
+    const res = proxy(req as never);
     expect(res.status).toBe(403);
   });
 
@@ -127,7 +127,7 @@ describe("CSRF origin check in middleware", () => {
       }),
       "/api/v1/media/bulk/trash"
     );
-    const res = middleware(req as never);
+    const res = proxy(req as never);
     expect(res.status).not.toBe(403);
   });
 
@@ -140,7 +140,7 @@ describe("CSRF origin check in middleware", () => {
       }),
       "/api/v1/auth/login"
     );
-    const res = middleware(req as never);
+    const res = proxy(req as never);
     expect(res.status).not.toBe(403);
   });
 
@@ -153,7 +153,7 @@ describe("CSRF origin check in middleware", () => {
       }),
       "/api/v1/auth/login"
     );
-    const res = middleware(req as never);
+    const res = proxy(req as never);
     expect(res.status).toBe(403);
   });
 
@@ -166,7 +166,7 @@ describe("CSRF origin check in middleware", () => {
       }),
       "/api/v1/auth/login"
     );
-    const res = middleware(req as never);
+    const res = proxy(req as never);
     expect(res.status).toBe(403);
   });
 
@@ -175,7 +175,7 @@ describe("CSRF origin check in middleware", () => {
       makeRequest({ method: "GET", url: "http://localhost:3000/api/v1/media" }),
       "/api/v1/media"
     );
-    const res = middleware(req as never);
+    const res = proxy(req as never);
     expect(res.status).not.toBe(403);
   });
 
@@ -188,14 +188,14 @@ describe("CSRF origin check in middleware", () => {
       }),
       "/some-action"
     );
-    const res = middleware(req as never);
+    const res = proxy(req as never);
     expect(res.status).toBe(403);
   });
 });
 
-describe("CSP nonce in middleware", () => {
+describe("CSP nonce in proxy", () => {
   function cspFor(req: Req) {
-    const res = middleware(req as never) as unknown as {
+    const res = proxy(req as never) as unknown as {
       headers: { get(name: string): string | null };
     };
     return { header: res.headers.get("Content-Security-Policy"), res };
@@ -204,7 +204,7 @@ describe("CSP nonce in middleware", () => {
   it("sets script-src with a nonce, no 'unsafe-inline' in production mode", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.resetModules();
-    const { middleware: mw } = await import("../../middleware");
+    const { proxy: mw } = await import("../../proxy");
     const req = withNextUrl(makeRequest({ url: "http://localhost:3000/login" }), "/login");
     const res = mw(req as never) as unknown as {
       headers: { get(name: string): string | null };
@@ -235,11 +235,11 @@ describe("CSP nonce in middleware", () => {
   it("generates a unique nonce per request and forwards x-nonce", () => {
     const reqA = withNextUrl(makeRequest({ url: "http://localhost:3000/login" }), "/login");
     const reqB = withNextUrl(makeRequest({ url: "http://localhost:3000/login" }), "/login");
-    const resA = middleware(reqA as never) as unknown as {
+    const resA = proxy(reqA as never) as unknown as {
       headers: { get(name: string): string | null };
       forwardedRequestHeaders?: Headers;
     };
-    const resB = middleware(reqB as never) as unknown as {
+    const resB = proxy(reqB as never) as unknown as {
       headers: { get(name: string): string | null };
     };
     const cspA = resA.headers.get("Content-Security-Policy") ?? "";
